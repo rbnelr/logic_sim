@@ -4,8 +4,11 @@
 #include "engine/dbgdraw.hpp"
 
 struct GateInfo {
-	int inputs;
-	int outputs;
+	int   inputs;
+	float input_x;
+
+	int   outputs;
+	float output_x;
 
 	lrgba color;
 };
@@ -20,27 +23,147 @@ enum GateType {
 	GT_NOR  = 5,
 };
 constexpr GateInfo gate_info[] = {
-	/* GT_NOT  */ { 1, 1, lrgba(   0,    0,    1,1) },
-	/* GT_AND  */ { 2, 1, lrgba(   1,    0,    0,1) },
-	/* GT_OR   */ { 2, 1, lrgba(   1, 0.5f,    0,1) },
-	/* GT_XOR  */ { 2, 1, lrgba(   0,    1,    0,1) },
-	/* GT_NAND */ { 2, 1, lrgba(0.5f,    1,    0,1) },
-	/* GT_NOR  */ { 2, 1, lrgba(   0,    1, 0.5f,1) },
+	/* GT_NOT  */ { 1, 0.2f,  1, 0.88f, lrgba(   0,    0,    1,1) },
+	/* GT_AND  */ { 2, 0.2f,  1, 0.78f, lrgba(   1,    0,    0,1) },
+	/* GT_OR   */ { 2, 0.2f,  1, 0.78f, lrgba(   1, 0.5f,    0,1) },
+	/* GT_XOR  */ { 2, 0.2f,  1, 0.78f, lrgba(   0,    1,    0,1) },
+	/* GT_NAND */ { 2, 0.2f,  1, 0.88f, lrgba(0.5f,    1,    0,1) },
+	/* GT_NOR  */ { 2, 0.2f,  1, 0.88f, lrgba(   0,    1, 0.5f,1) },
 };
 
 struct LogicSim {
 	SERIALIZE(LogicSim, gates, snapping_size, snapping)
 
-	struct Gate {
-		SERIALIZE(Gate, type, pos)
+	static constexpr float IO_SIZE = 0.2f;
 
-		GateType type;
-		float2 pos;
+//// Logic Sim Datas
+	struct Gate;
+
+	struct WireConnection {
+		Gate* gate;
+		int   io_idx;
 	};
 
-	std::vector<Gate> gates;
-	
-	Gate gate_to_place = { GT_NULL };
+	struct Gate {
+		GateType type;
+		float2 pos;
+
+		std::vector<WireConnection> inputs;
+
+		void init_inputs () {
+			inputs.assign(gate_info[type].inputs, WireConnection{}); // no connections
+			inputs.shrink_to_fit();
+		}
+
+		float2 get_io_pos (int i, int count, float x, float y, float h) {
+			h -= 0.2f*2;
+			y += 0.2f;
+			
+			float step = h / (float)count;
+			return float2(x, y + step * ((float)i + 0.5f));
+		}
+		float2 get_input_pos (int i) {
+			assert(type >= GT_NULL);
+			return get_io_pos(i, gate_info[type].inputs, pos.x + gate_info[type].input_x, pos.y, 1);
+		}
+		float2 get_output_pos (int i) {
+			assert(type >= GT_NULL);
+			return get_io_pos(i, gate_info[type].outputs, pos.x + gate_info[type].output_x, pos.y, 1);
+		}
+	};
+
+	// Wrapper struct so I can manually write _just_ this part of the serialization
+	struct Gates {
+
+		//SERIALIZE(Gate, type, pos)
+		friend void to_json(nlohmann::ordered_json& j, const Gates& gates) {
+			json list = {};
+
+			for (auto& gp : gates.gates) {
+				auto& gate = *gp;
+
+				assert(gate.type > GT_NULL);
+
+				json j_inputs = {};
+				for (auto& inp : gate.inputs) {
+					int idx = inp.gate == nullptr ? -1 : indexof(gates.gates, inp.gate, [] (std::unique_ptr<Gate> const& ptr, Gate* r) { return ptr.get() == r; });
+					j_inputs.emplace_back(idx);
+				}
+
+				json j = {
+					{"type", gate.type},
+					{"pos",  gate.pos},
+					{"inputs", std::move(j_inputs)},
+				};
+
+				list.emplace_back(std::move(j));
+			}
+
+			j["gates"] = std::move(list);
+		}
+		friend void from_json(const nlohmann::ordered_json& j, Gates& gates) {
+			//if (j.contains("type")) j.at("type").get_to(t.type);
+			//if (j.contains("pos" )) j.at("pos" ).get_to(t.pos);
+			//
+			//assert(t.type > GT_NULL);
+			//t.init_inputs();
+		}
+		
+		std::vector<std::unique_ptr<Gate>> gates;
+		
+		Gate& operator[] (int idx) {
+			assert(idx >= 0 && idx < (int)gates.size());
+			return *gates[idx];
+		}
+		int size () { return (int)gates.size(); }
+
+		void add_gate (Gate gate) {
+			ZoneScoped;
+
+			assert(gate.type > GT_NULL);
+
+			gate.init_inputs();
+
+			auto new_gate = std::make_unique<Gate>();
+			*new_gate = std::move(gate);
+			gates.emplace_back(std::move(new_gate));
+		}
+		void remove_gate (Gate* gate) {
+			ZoneScoped;
+
+			int idx = indexof(gates, gate, [] (std::unique_ptr<Gate> const& ptr, Gate* r) { return ptr.get() == r; });
+			assert(idx >= 0);
+			
+			// inputs to this gate simply disappear
+			//remove_wires_from(gate);
+			
+			// replace gate to be removed with last gate and shrink vector by one to not leave holes
+			gates[idx] = nullptr; // delete gate
+			gates[idx] = std::move(gates.back()); // swap last vector element into this one
+			gates.pop_back(); // shrink vector
+		}
+		void replace_wire (WireConnection src, WireConnection dst) {
+			assert(dst.gate);
+			assert(dst.io_idx < gate_info[dst.gate->type].inputs);
+			if (src.gate) assert(src.io_idx < gate_info[src.gate->type].outputs);
+			dst.gate->inputs[dst.io_idx] = src; // if src.gate == null, this effectively removes the connection
+		}
+	};
+
+	Gates gates;
+
+//// Editor logic
+	Gate gate_preview = { GT_NULL };
+
+	struct WirePreview {
+		WireConnection dst = { nullptr, 0 }; // if gate=null then to unconnected_pos
+		WireConnection src = { nullptr, 0 }; // if gate=null then from unconnected_pos
+
+		float2         unconnected_pos; // = cursor pos
+
+		bool was_dst;
+	};
+	WirePreview wire_preview = {};
 
 	struct Selection {
 		enum Type {
@@ -51,7 +174,7 @@ struct LogicSim {
 			OUTPUT,
 		};
 		Type type;
-		int gate_idx;
+		Gate* gate;
 		int io_idx;
 
 		operator bool () {
@@ -64,19 +187,11 @@ struct LogicSim {
 	bool snapping = true;
 	
 	bool _cursor_valid;
+	float3 _snapped_cursor_pos;
 	float3 _cursor_pos;
 	
-	void add_gate (Gate gate) {
-		assert(gate.type > GT_NULL);
-		gates.push_back(gate_to_place);
-	}
-	void remove_gate (int gate_idx) {
-		assert(gate_idx >= 0);
-		assert(gates.size() > 0);
-		// replace gate to be removed with last gate and shrink vector by one to not leave holes
-		gates[gate_idx] = gates.back();
-		gates.pop_back();
-	}
+	bool dragging = false;
+	float2 drag_offs;
 
 	void imgui (Input& I) {
 		if (imgui_Header("LogicSim", true)) {
@@ -88,19 +203,19 @@ struct LogicSim {
 			if (ImGui::BeginTable("Gates", 2, ImGuiTableFlags_Borders)) {
 				
 				ImGui::TableNextColumn();
-				if (ImGui::Selectable("AND" , gate_to_place.type == GT_AND )) gate_to_place.type = GT_AND;
+				if (ImGui::Selectable("AND" , gate_preview.type == GT_AND )) gate_preview.type = GT_AND;
 				ImGui::TableNextColumn();
-				if (ImGui::Selectable("NAND", gate_to_place.type == GT_NAND)) gate_to_place.type = GT_NAND;
+				if (ImGui::Selectable("NAND", gate_preview.type == GT_NAND)) gate_preview.type = GT_NAND;
 				
 				ImGui::TableNextColumn();
-				if (ImGui::Selectable("OR"  , gate_to_place.type == GT_OR  )) gate_to_place.type = GT_OR;
+				if (ImGui::Selectable("OR"  , gate_preview.type == GT_OR  )) gate_preview.type = GT_OR;
 				ImGui::TableNextColumn();
-				if (ImGui::Selectable("NOR" , gate_to_place.type == GT_NOR )) gate_to_place.type = GT_NOR;
+				if (ImGui::Selectable("NOR" , gate_preview.type == GT_NOR )) gate_preview.type = GT_NOR;
 				
 				ImGui::TableNextColumn();
-				if (ImGui::Selectable("NOT" , gate_to_place.type == GT_NOT )) gate_to_place.type = GT_NOT;
+				if (ImGui::Selectable("NOT" , gate_preview.type == GT_NOT )) gate_preview.type = GT_NOT;
 				ImGui::TableNextColumn();
-				if (ImGui::Selectable("XOR" , gate_to_place.type == GT_XOR )) gate_to_place.type = GT_XOR;
+				if (ImGui::Selectable("XOR" , gate_preview.type == GT_XOR )) gate_preview.type = GT_XOR;
 
 				ImGui::EndTable();
 			}
@@ -112,66 +227,60 @@ struct LogicSim {
 	}
 
 	void update (Input& I, View3D& view) {
+		ZoneScoped;
+
 		// unselect gate if imgui to-be-placed is selected
-		if (gate_to_place.type > GT_NULL)
+		if (gate_preview.type > GT_NULL)
 			sel = { Selection::TO_PLACE };
 
 		// deselect gate via right click ie. get rid of to-be-placed gate preview
 		if (I.buttons[MOUSE_BUTTON_RIGHT].went_down) {
 			sel = {};
-			gate_to_place.type = GT_NULL;
+			gate_preview.type = GT_NULL;
+			wire_preview = {};
 		}
 
 		_cursor_valid = view.cursor_ray(I, &_cursor_pos);
 
+		// snap cursor
+		_snapped_cursor_pos = _cursor_pos;
+		if (snapping)
+			_snapped_cursor_pos = round(_cursor_pos / snapping_size) * snapping_size;
+		
 		if (_cursor_valid) {
 			// move to-be-placed gate preview with cursor
-			gate_to_place.pos = _cursor_pos - 0.5f;
-
-			// snap gate
-			if (snapping)
-				gate_to_place.pos = round(gate_to_place.pos / snapping_size) * snapping_size;
+			gate_preview.pos = _snapped_cursor_pos - 0.5f;
 
 			// place gate on left click
-			if (gate_to_place.type > GT_NULL && I.buttons[MOUSE_BUTTON_LEFT].went_down) {
-				add_gate(gate_to_place); // preview becomes real gate
+			if (gate_preview.type > GT_NULL && I.buttons[MOUSE_BUTTON_LEFT].went_down) {
+				gates.add_gate(gate_preview); // preview becomes real gate
 				// preview of gate still exists
 			}
 		}
 	}
-
+	
 	bool gate_hitbox (Gate& gate, float2 point) {
 		return point.x >= gate.pos.x && point.x < gate.pos.x + 1 &&
 		       point.y >= gate.pos.y && point.y < gate.pos.y + 1;
 	}
 	int gate_input_hitbox (Gate& gate, float2 point) {
-		int count = gate_info[gate.type].inputs;
-		float sizey = 1.0f / (float)count;
-
-		for (int i=0; i<count; ++i) {
-			float x = gate.pos.x - 0.125f;
-			float y = gate.pos.y + sizey * (float)i;
-
-			if ( point.x >= x && point.x < x + 0.5f &&
-			     point.y >= y && point.y < y + sizey)
+		for (int i=0; i<gate_info[gate.type].inputs; ++i) {
+			float2 p = gate.get_input_pos(i) - IO_SIZE/2;
+			
+			if ( point.x >= p.x && point.x < p.x + IO_SIZE &&
+			     point.y >= p.y && point.y < p.y + IO_SIZE)
 				return i;
 		}
-
 		return -1;
 	}
 	int gate_output_hitbox (Gate& gate, float2 point) {
-		int count = gate_info[gate.type].outputs;
-		float sizey = 1.0f / (float)count;
+		for (int i=0; i<gate_info[gate.type].outputs; ++i) {
+			float2 p = gate.get_output_pos(i) - IO_SIZE/2;
 
-		for (int i=0; i<count; ++i) {
-			float x = gate.pos.x + 0.625f;
-			float y = gate.pos.y + sizey * (float)i;
-
-			if ( point.x >= x && point.x < x + 0.5f &&
-			     point.y >= y && point.y < y + sizey)
+			if ( point.x >= p.x && point.x < p.x + IO_SIZE &&
+				 point.y >= p.y && point.y < p.y + IO_SIZE)
 				return i;
 		}
-
 		return -1;
 	}
 
@@ -180,25 +289,43 @@ struct LogicSim {
 
 		// do here for efficincy (avoid iterating twice)
 		if (gate_hitbox(gate, _cursor_pos)) {
-			s = { Selection::GATE, gate_idx };
+			s = { Selection::GATE, &gate };
 		}
 
-		int inp = gate_input_hitbox(gate, _cursor_pos);
+		int inp  = gate_input_hitbox(gate, _cursor_pos);
 		if (inp >= 0) {
-			s = { Selection::INPUT, gate_idx, inp };
+			s = { Selection::INPUT, &gate, inp };
 		}
 		int outp = gate_output_hitbox(gate, _cursor_pos);
 		if (outp >= 0) {
-			s = { Selection::OUTPUT, gate_idx, outp };
+			s = { Selection::OUTPUT, &gate, outp };
 		}
 
 		return s;
 	}
 
+	void highlight (Selection s, lrgba col, DebugDraw& dbgdraw) {
+		if (s && s.type != Selection::TO_PLACE) {
+			auto& gate = *s.gate;
+			if (s.type == Selection::GATE) {
+				dbgdraw.wire_quad(float3(gate.pos, 5.0f), 1, col);
+			}
+			else if (s.type == Selection::INPUT) {
+				dbgdraw.wire_quad(float3(gate.get_input_pos(s.io_idx) - IO_SIZE/2, 5.0f), IO_SIZE, col);
+			}
+			else {
+				dbgdraw.wire_quad(float3(gate.get_output_pos(s.io_idx) - IO_SIZE/2, 5.0f), IO_SIZE, col);
+			}
+		}
+	}
+
 	void simulate (Input& I, DebugDraw& dbgdraw) {
-		
+		ZoneScoped;
+
 		bool try_select = sel.type != Selection::TO_PLACE
 			&& _cursor_valid && I.buttons[MOUSE_BUTTON_LEFT].went_down;
+		if (try_select)
+			sel = {}; // unselect if click and nothing was hit
 
 		Selection highlighted = {};
 
@@ -217,49 +344,82 @@ struct LogicSim {
 			}
 		}
 
-		if (sel && sel.type != Selection::TO_PLACE) {
-			auto& gate = gates[sel.gate_idx];
-			float2 pos, size;
-			if (sel.type == Selection::GATE) {
-				pos = gate.pos;
-				size = 1;
-			}
-			else if (sel.type == Selection::INPUT) {
-				size = float2(0.5f, 1.0f / gate_info[gate.type].inputs);
-				pos.x = gate.pos.x - 0.125f;
-				pos.y = gate.pos.y + (float)sel.io_idx * size.y;
+		// drag selected gate via left click
+		if (sel.type == Selection::GATE && I.buttons[MOUSE_BUTTON_LEFT].is_down) {
+			if (!dragging) {
+				drag_offs = _snapped_cursor_pos - sel.gate->pos;
+				dragging = true;
 			}
 			else {
-				size = float2(0.5f, 1.0f / gate_info[gate.type].outputs);
-				pos.x = gate.pos.x + 0.625f;
-				pos.y = gate.pos.y + (float)sel.io_idx * size.y;
+				sel.gate->pos = _snapped_cursor_pos - drag_offs;
 			}
-			dbgdraw.wire_quad(float3(pos, 5.0f), size, lrgba(1,1,1,1));
 		}
-		if (highlighted && highlighted.type != Selection::TO_PLACE) {
-			auto& gate = gates[highlighted.gate_idx];
-			float2 pos, size;
-			if (highlighted.type == Selection::GATE) {
-				pos = gate.pos;
-				size = 1;
+
+		// drag selected IO via left click
+		if ((sel.type == Selection::INPUT || sel.type == Selection::OUTPUT) && I.buttons[MOUSE_BUTTON_LEFT].is_down) {
+			if (!dragging) { // begin dragging
+				// reset wire connection preview
+				wire_preview.dst = {};
+				wire_preview.src = {};
+				// remember where dragging started
+
+				wire_preview.was_dst = sel.type == Selection::INPUT;
+				if (sel.type == Selection::INPUT) wire_preview.dst = { sel.gate, sel.io_idx };
+				else                              wire_preview.src = { sel.gate, sel.io_idx };
+
+				// begin dragging
+				dragging = true;
 			}
-			else if (highlighted.type == Selection::INPUT) {
-				size = float2(0.5f, 1.0f / gate_info[gate.type].inputs);
-				pos.x = gate.pos.x - 0.125f;
-				pos.y = gate.pos.y + (float)highlighted.io_idx * size.y;
+			if (dragging) { // while dragging
+				// if other end is unconnected 'connect' it with cursor
+				wire_preview.unconnected_pos = _cursor_pos;
+
+				if (highlighted && (highlighted.type == Selection::INPUT || highlighted.type == Selection::OUTPUT)) {
+
+					if (highlighted.type == Selection::OUTPUT && wire_preview.was_dst) {
+						wire_preview.src.gate   = highlighted.gate;
+						wire_preview.src.io_idx = highlighted.io_idx;
+					}
+					if (highlighted.type == Selection::INPUT && !wire_preview.was_dst) {
+						wire_preview.dst.gate   = highlighted.gate;
+						wire_preview.dst.io_idx = highlighted.io_idx;
+					}
+				}
+				else {
+					if (wire_preview.was_dst) wire_preview.src = {};
+					else                      wire_preview.dst = {};
+				}
 			}
-			else {
-				size = float2(0.5f, 1.0f / gate_info[gate.type].outputs);
-				pos.x = gate.pos.x + 0.625f;
-				pos.y = gate.pos.y + (float)highlighted.io_idx * size.y;
-			}
-			dbgdraw.wire_quad(float3(pos, 5.0f), size, lrgba(0.25f,0.25f,0.25f,1));
 		}
+
+		// stop dragging
+		if (dragging && I.buttons[MOUSE_BUTTON_LEFT].went_up) {
+			dragging = false;
+
+			// if wire_preview was a connected on both ends, make it a real connection
+			if ((wire_preview.src.gate && wire_preview.dst.gate) || wire_preview.was_dst) {
+				gates.replace_wire(wire_preview.src, wire_preview.dst);
+				if (wire_preview.was_dst) {
+					// dragged from input, but did not connect
+					// overwrite old connection with new one
+					assert(wire_preview.dst.gate);
+				}
+				gates.replace_wire(wire_preview.src, wire_preview.dst);
+			} else {
+				// dragged from output, but did not connect
+				// do nothing
+			}
+			wire_preview = {};
+		}
+
+		highlight(highlighted, lrgba(0.25f,0.25f,0.25f,1), dbgdraw);
+		highlight(sel, lrgba(1,1,1,1), dbgdraw);
 
 		// remove gates via DELETE key
 		if (sel.type == Selection::GATE && I.buttons[KEY_DELETE].went_down) {
-			remove_gate(sel.gate_idx);
+			gates.remove_gate(sel.gate);
 			sel = {};
+			wire_preview = {}; // just be to sure no stale pointers exist
 		}
 	}
 };
@@ -268,7 +428,7 @@ struct Game {
 	SERIALIZE(Game, cam, sim)
 	
 	Camera2D cam = Camera2D();
-
+	
 	DebugDraw dbgdraw;
 	
 	LogicSim sim;

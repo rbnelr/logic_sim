@@ -61,11 +61,11 @@ flat VS2FS int v_gate_type;
 	//float d = SDF_line(uv -0.5, vec2(0,0.5), vec2(0.5,-0.2));
 	
 	float and_gate (vec2 uv) {
-		float a = 0.25;
+		float a = 0.3;
 		
 		float d;
 		if (uv.x < a)
-			d = SDF_box(uv - 0.5, vec2(0.40,0.40));
+			d = SDF_box(uv - 0.5, vec2(0.36,0.40));
 		else
 			d = SDF_ellipse(uv - vec2(a,0.5), vec2(0.8-a, 0.40));
 		
@@ -75,7 +75,7 @@ flat VS2FS int v_gate_type;
 		
 		vec2 uv_mirror = vec2(uv.x, abs(uv.y - 0.5));
 		
-		float d = SDF_ellipse(uv_mirror - vec2(0.0,0.0), vec2(0.8, 0.4));
+		float d = SDF_ellipse(uv_mirror - vec2(0.02,-0.1), vec2(0.8, 0.5));
 		d = max(d, -SDF_ellipse(uv - vec2(-0.33,0.5), vec2(0.5, 0.6)));
 		
 		return d;
@@ -84,7 +84,7 @@ flat VS2FS int v_gate_type;
 	float xor_gate (vec2 uv) {
 		vec2 uv_mirror = vec2(uv.x, abs(uv.y - 0.5));
 		
-		float d = SDF_ellipse(uv_mirror - vec2(0.0,0.0), vec2(0.8, 0.4));
+		float d = SDF_ellipse(uv_mirror - vec2(0.02,-0.1), vec2(0.8, 0.5));
 		d = max(d, -SDF_ellipse(uv - vec2(-0.33,0.5), vec2(0.5, 0.6)));
 		
 		float d2 = SDF_ellipse(uv - vec2(-0.15,0.5), vec2(0.5, 0.6));
@@ -97,7 +97,7 @@ flat VS2FS int v_gate_type;
 		
 		vec2 uv_mirror = vec2(uv.x, abs(uv.y - 0.5));
 		
-		float d   = SDF_line(uv, vec2(0.1,0.0), vec2(0.1,1.0));
+		float d   = SDF_line(uv, vec2(0.14,0.0), vec2(0.14,1.0));
 		d = max(d, SDF_line(uv_mirror, vec2(0.0,0.3), vec2(0.83, 0.0)));
 		
 		return min(d, SDF_circ(uv - vec2(0.88,0.5), 0.10));

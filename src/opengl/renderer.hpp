@@ -49,8 +49,6 @@ struct TriRenderer {
 	}
 
 	void render (StateManager& state) {
-		OGL_TRACE("TriRenderer");
-
 		ZoneScoped;
 
 		if (shad->prog) {
@@ -69,6 +67,61 @@ struct TriRenderer {
 
 				glBindVertexArray(vbo_tris.vao);
 				glDrawElements(GL_TRIANGLES, (GLsizei)indices.size(), GL_UNSIGNED_SHORT, (void*)0);
+			}
+		}
+
+		glBindVertexArray(0);
+	}
+};
+struct LineRenderer {
+	Shader* shad  = g_shaders.compile("wires");
+
+	struct Vertex {
+		float2 pos;
+		float4 col;
+
+		ATTRIBUTES {
+			ATTRIB( idx++, GL_FLOAT,2, Vertex, pos);
+			ATTRIB( idx++, GL_FLOAT,4, Vertex, col);
+		}
+	};
+
+	VertexBuffer vbo_lines = vertex_buffer<Vertex>("LineRenderer.Vertex");
+
+	std::vector<Vertex>   verticies;
+
+	void update (Input& I) {
+		verticies.clear();
+		verticies.shrink_to_fit();
+	}
+
+	void push_line (float2 a, float2 b, float4 col) {
+		uint16_t idx = (uint16_t)verticies.size();
+
+		auto* pv = push_back(verticies, 2);
+		pv[0] = { a, col };
+		pv[1] = { b, col };
+	}
+
+	void render (StateManager& state) {
+		ZoneScoped;
+
+		if (shad->prog) {
+			OGL_TRACE("LineRenderer");
+
+			vbo_lines.stream(verticies);
+
+			if (verticies.size() > 0) {
+				glUseProgram(shad->prog);
+
+				PipelineState s;
+				s.depth_test = false;
+				s.depth_write = false;
+				s.blend_enable = true;
+				state.set(s);
+
+				glBindVertexArray(vbo_lines.vao);
+				glDrawArrays(GL_LINES, 0, (GLsizei)verticies.size());
 			}
 		}
 
@@ -121,6 +174,7 @@ struct Renderer {
 	glDebugDraw debug_draw;
 	
 	TriRenderer tri_renderer;
+	LineRenderer line_renderer;
 
 	Vao dummy_vao = {"dummy_vao"};
 
@@ -181,37 +235,60 @@ struct Renderer {
 		draw_background();
 
 		tri_renderer.update(window.input);
-		
-		{ // Gate to place preview
-			auto& place = g.sim.gate_to_place;
+		line_renderer.update(window.input);
+
+		{ // Gates and wires
+			ZoneScopedN("push gates");
+			for (int i=0; i<(int)g.sim.gates.size(); ++i) {
+				auto& gate = g.sim.gates[i];
+				tri_renderer.push_gate(gate.pos, 1, gate.type, gate_info[gate.type].color);
+
+				int count = gate_info[gate.type].inputs;
+				for (int i=0; i<count; ++i) {
+					auto& wire = gate.inputs[i];
+					if (wire.gate) {
+						float2 a = wire.gate->get_output_pos(wire.io_idx);
+						float2 b = gate.get_input_pos(i);
+
+						line_renderer.push_line(a, b, lrgba(1,0,0,1));
+					}
+				}
+			}
+		}
+
+		{ // Gate preview
+			auto& place = g.sim.gate_preview;
 
 			if (place.type > GT_NULL) {
+				ZoneScopedN("push gate_preview");
+
 				auto col = gate_info[place.type].color;
 				col.w *= 0.5f;
 				tri_renderer.push_gate(place.pos, 1, place.type, col);
 			}
 		}
-		{ // Render real gates
-			for (int i=0; i<(int)g.sim.gates.size(); ++i) {
-				auto& gate = g.sim.gates[i];
-				tri_renderer.push_gate(gate.pos, 1, gate.type, gate_info[gate.type].color);
+		{ // Wire preview
+			auto& wire = g.sim.wire_preview;
+
+			if (wire.dst.gate || wire.src.gate) {
+				ZoneScopedN("push wire_preview");
+
+				float2 a = wire.unconnected_pos;
+				float2 b = wire.unconnected_pos;
+
+				if (wire.src.gate) a = wire.src.gate->get_output_pos(wire.src.io_idx);
+				if (wire.dst.gate) b = wire.dst.gate->get_input_pos (wire.dst.io_idx);
+
+				line_renderer.push_line(a, b, lrgba(1,0,0,0.5f));
 			}
 		}
 
-		//tri_renderer.push_gate(float2( 0, 0), 1,    GT_NOT,  float4(   0,    0,    1,1));
-		//
-		//tri_renderer.push_gate(float2( 0, 1), 1,    GT_AND,  float4(   1,    0,    0,1));
-		//tri_renderer.push_gate(float2( 2, 1), 1,    GT_NAND, float4(   1, 0.5f,    0,1));
-		//
-		//tri_renderer.push_gate(float2( 0, 2), 1,    GT_OR,   float4(   0,    1,    0,1));
-		//tri_renderer.push_gate(float2( 2, 2), 1,    GT_NOR,  float4(0.5f,    1,    0,1));
-		//
-		//tri_renderer.push_gate(float2( 0, 3), 1,    GT_XOR,  float4(   0,    1, 0.5f,1));
-		//
-		//tri_renderer.push_gate(float2( 0,10), 5.5f, GT_OR,   float4(   0,    1,    0,1));
-		//tri_renderer.push_gate(float2(-3, 5), 1.7f, GT_OR,   float4(   0,    1,    0,1));
+		glLineWidth(10);
 
+		line_renderer.render(state);
 		tri_renderer.render(state);
+
+		glLineWidth(debug_draw.line_width);
 
 		debug_draw.render(state, g.dbgdraw);
 
