@@ -87,7 +87,7 @@ struct LogicSim {
 				json j_inputs = {};
 				for (auto& inp : gate.inputs) {
 					int idx = inp.gate == nullptr ? -1 : indexof(gates.gates, inp.gate, [] (std::unique_ptr<Gate> const& ptr, Gate* r) { return ptr.get() == r; });
-					j_inputs.emplace_back(idx);
+					j_inputs.emplace_back(json{ {"g", idx}, {"i", inp.io_idx} });
 				}
 
 				json j = {
@@ -102,11 +102,39 @@ struct LogicSim {
 			j["gates"] = std::move(list);
 		}
 		friend void from_json(const nlohmann::ordered_json& j, Gates& gates) {
-			//if (j.contains("type")) j.at("type").get_to(t.type);
-			//if (j.contains("pos" )) j.at("pos" ).get_to(t.pos);
-			//
-			//assert(t.type > GT_NULL);
-			//t.init_inputs();
+			gates.gates.clear();
+
+			if (!j.contains("gates")) return;
+			json list = j.at("gates");
+
+			gates.gates.resize(list.size());
+			for (size_t i=0; i<list.size(); ++i)
+				gates.gates[i] = std::make_unique<Gate>();
+			
+			for (size_t i=0; i<list.size(); ++i) {
+				json& gj = list[i];
+				auto& gp = gates.gates[i];
+
+				gj.at("type").get_to(gp->type);
+				gj.at("pos").get_to(gp->pos);
+				gp->init_inputs();
+
+				if (gj.contains("inputs")) {
+					json inputsj = gj.at("inputs");
+					
+					assert(gp->inputs.size() == inputsj.size());
+					
+					for (int i=0; i<gp->inputs.size(); ++i) {
+						int gate_idx = inputsj[i].at("g").get<int>();
+						int outp_idx = inputsj[i].at("i").get<int>();
+
+						if (gate_idx >= 0 && gate_idx < (int)gates.gates.size()) {
+							gp->inputs[i].gate = gates.gates[gate_idx].get();
+							gp->inputs[i].io_idx = outp_idx;
+						}
+					}
+				}
+			}
 		}
 		
 		std::vector<std::unique_ptr<Gate>> gates;
@@ -117,7 +145,7 @@ struct LogicSim {
 		}
 		int size () { return (int)gates.size(); }
 
-		void add_gate (Gate gate) {
+		void add_gate (Gate&& gate) {
 			ZoneScoped;
 
 			assert(gate.type > GT_NULL);
@@ -128,6 +156,14 @@ struct LogicSim {
 			*new_gate = std::move(gate);
 			gates.emplace_back(std::move(new_gate));
 		}
+		
+		void _remove_wires (Gate* src) {
+			for (auto& g : gates) {
+				for (auto& inp : g->inputs) {
+					if (inp.gate == src) inp = {};
+				}
+			}
+		}
 		void remove_gate (Gate* gate) {
 			ZoneScoped;
 
@@ -135,13 +171,15 @@ struct LogicSim {
 			assert(idx >= 0);
 			
 			// inputs to this gate simply disappear
-			//remove_wires_from(gate);
+			// output connections have to be manually removes to avoid ptr use after free
+			_remove_wires(gate);
 			
 			// replace gate to be removed with last gate and shrink vector by one to not leave holes
 			gates[idx] = nullptr; // delete gate
 			gates[idx] = std::move(gates.back()); // swap last vector element into this one
 			gates.pop_back(); // shrink vector
 		}
+
 		void replace_wire (WireConnection src, WireConnection dst) {
 			assert(dst.gate);
 			assert(dst.io_idx < gate_info[dst.gate->type].inputs);
@@ -253,7 +291,7 @@ struct LogicSim {
 
 			// place gate on left click
 			if (gate_preview.type > GT_NULL && I.buttons[MOUSE_BUTTON_LEFT].went_down) {
-				gates.add_gate(gate_preview); // preview becomes real gate
+				gates.add_gate(std::move(gate_preview)); // preview becomes real gate
 				// preview of gate still exists
 			}
 		}
