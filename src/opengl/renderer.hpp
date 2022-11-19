@@ -265,9 +265,13 @@ struct Renderer {
 
 		{ // Gates and wires
 			ZoneScopedN("push gates");
+
+			uint8_t cur_smask  = 1u << g.sim.gates.cur_buf;
+
 			for (int i=0; i<(int)g.sim.gates.size(); ++i) {
 				auto& gate = g.sim.gates[i];
-				tri_renderer.push_gate(gate.pos, 1, gate.type, gate.state, gate_info[gate.type].color);
+				auto state = (gate.state & cur_smask) != 0;
+				tri_renderer.push_gate(gate.pos, 1, gate.type, state, gate_info[gate.type].color);
 
 				int count = gate_info[gate.type].inputs;
 				for (int i=0; i<count; ++i) {
@@ -275,8 +279,9 @@ struct Renderer {
 					if (wire.gate) {
 						float2 a = wire.gate->get_output_pos(wire.io_idx);
 						float2 b = gate.get_input_pos(i);
-
-						lrgba col = wire.gate->state ? lrgba(0.4f, 0.01f, 0.01f, 1) : lrgba(0,0,0,1);
+						
+						auto wstate = (wire.gate->state & cur_smask) != 0;
+						lrgba col = wstate ? lrgba(0.4f, 0.01f, 0.01f, 1) : lrgba(0,0,0,1);
 
 						line_renderer.push_line(a, b, col);
 					}

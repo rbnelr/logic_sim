@@ -47,14 +47,14 @@ struct LogicSim {
 		Gate* gate;
 		int   io_idx;
 	};
-
+	
 	struct Gate {
 		GateType type;
 		float2   pos;
 
 		std::vector<WireConnection> inputs;
 
-		bool state;
+		uint8_t state; // double buffer
 		
 		void init () {
 			inputs.assign(gate_info[type].inputs, WireConnection{}); // no connections
@@ -107,10 +107,14 @@ struct LogicSim {
 	// Wrapper struct so I can manually write _just_ this part of the serialization
 	struct Gates {
 
+		int cur_buf = 0; // cur state double buffering index
+
 		//SERIALIZE(Gate, type, pos)
 		friend void to_json(nlohmann::ordered_json& j, const Gates& gates) {
 			json list = {};
-
+			
+			uint8_t cur_smask  = 1u << gates.cur_buf;
+			
 			for (auto& gp : gates.gates) {
 				auto& gate = *gp;
 
@@ -125,7 +129,7 @@ struct LogicSim {
 				json j = {
 					{"type", gate.type},
 					{"pos",  gate.pos},
-					{"state",  gate.state},
+					{"state",  (gate.state & cur_smask) != 0 },
 					{"inputs", std::move(j_inputs)},
 				};
 
@@ -150,7 +154,11 @@ struct LogicSim {
 
 				gj.at("type").get_to(gp->type);
 				gj.at("pos").get_to(gp->pos);
-				gj.at("state").get_to(gp->state);
+				{
+					bool state;
+					gj.at("state").get_to(state);
+					gp->state = state ? 3 : 0;
+				}
 
 				gp->init();
 
@@ -352,7 +360,7 @@ struct LogicSim {
 		// unselect gate if imgui to-be-placed is selected
 		if (gate_preview.type > GT_NULL) {
 			mode = EM_PLACE;
-			gate_preview.state = true;
+			gate_preview.state = 3;
 		}
 
 		// deselect everthing when in view mode or on RMB in place mode
@@ -479,18 +487,22 @@ struct LogicSim {
 
 		bool can_toggle = mode == EM_VIEW && hover.type == Selection::GATE;
 		if (can_toggle && I.buttons[MOUSE_BUTTON_LEFT].went_down) {
-			hover.gate->state ^= 1;
+			uint8_t next_smask = 1u << (gates.cur_buf^1);
+			uint8_t cur_smask  = 1u <<  gates.cur_buf;
+
+			bool cur_state = (hover.gate->state & cur_smask) != 0;
+
+			hover.gate->state = !cur_state ? 3 : 0; // force both state buffers to the same value to correctly toggle 'inputs'
 		}
 
 		window.set_cursor(can_toggle ? Window::CURSOR_FINGER : Window::CURSOR_NORMAL);
 	}
 	
-	bool readinp (Gate& g, int idx) {
-		Gate* i = g.inputs[idx].gate;
-		return i ? i->state : false;
-	}
 	void simulate (Input& I, DebugDraw& dbgdraw) {
 		ZoneScoped;
+
+		uint8_t next_smask = 1u << (gates.cur_buf^1);
+		uint8_t cur_smask  = 1u <<  gates.cur_buf;
 
 		for (int i=0; i<(int)gates.size(); ++i) {
 			auto& g = gates[i];
@@ -503,24 +515,31 @@ struct LogicSim {
 				continue;
 			}
 
-			bool a = a_valid && g.inputs[0].gate->state;
-			bool b = b_valid && g.inputs[1].gate->state;
+			bool a = a_valid && (g.inputs[0].gate->state & cur_smask) != 0;
+			bool b = b_valid && (g.inputs[1].gate->state & cur_smask) != 0;
+
+			uint8_t new_state;
 
 			switch (g.type) {
-				case GT_BUF  : g.state =  a;  break;
-				case GT_NOT  : g.state = !a;  break;
+				case GT_BUF  : new_state =  a;  break;
+				case GT_NOT  : new_state = !a;  break;
 				
-				case GT_AND  : g.state =   a && b;	 break;
-				case GT_NAND : g.state = !(a && b);	 break;
+				case GT_AND  : new_state =   a && b;	 break;
+				case GT_NAND : new_state = !(a && b);	 break;
 				
-				case GT_OR   : g.state =   a || b;	 break;
-				case GT_NOR  : g.state = !(a || b);	 break;
+				case GT_OR   : new_state =   a || b;	 break;
+				case GT_NOR  : new_state = !(a || b);	 break;
 				
-				case GT_XOR  : g.state =   a != b;	 break;
+				case GT_XOR  : new_state =   a != b;	 break;
 
 				default: assert(false);
 			}
+
+			g.state &= ~next_smask;
+			g.state |= new_state ? next_smask : 0;
 		}
+
+		gates.cur_buf ^= 1;
 	}
 };
 
@@ -553,9 +572,9 @@ struct Game {
 				sim.imgui(I);
 
 				ImGui::SliderFloat("Sim Freq", &sim_freq, 0.1f, 200, "%.1f", ImGuiSliderFlags_Logarithmic);
-				ImGui::Checkbox("Pause", &pause);
+				ImGui::Checkbox("Pause [Space]", &pause);
 				ImGui::SameLine();
-				manual_tick = ImGui::Button("Man. Tick");
+				manual_tick = ImGui::Button("Man. Tick [T]");
 
 				ImGui::PopID();
 			}
@@ -571,6 +590,9 @@ struct Game {
 		ZoneScoped;
 
 		auto& I = window.input;
+
+		manual_tick = I.buttons['T'].went_down || manual_tick;
+		if (I.buttons[' '].went_down) pause = !pause;
 
 		dbgdraw.clear();
 
@@ -593,5 +615,6 @@ struct Game {
 		else if (manual_tick) {
 			sim.simulate(I, dbgdraw);
 		}
+		manual_tick = false;
 	}
 };
