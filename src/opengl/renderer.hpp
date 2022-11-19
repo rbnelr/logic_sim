@@ -13,12 +13,14 @@ struct TriRenderer {
 		float2 pos;
 		float2 uv;
 		int    gate_type;
+		int    gate_state;
 		float4 col;
 
 		ATTRIBUTES {
 			ATTRIB( idx++, GL_FLOAT,2, Vertex, pos);
 			ATTRIB( idx++, GL_FLOAT,2, Vertex, uv);
 			ATTRIBI(idx++, GL_INT,  1, Vertex, gate_type);
+			ATTRIBI(idx++, GL_INT,  1, Vertex, gate_state);
 			ATTRIB( idx++, GL_FLOAT,4, Vertex, col);
 		}
 	};
@@ -35,14 +37,14 @@ struct TriRenderer {
 		indices  .shrink_to_fit();
 	}
 
-	void push_gate (float2 pos, float2 size, GateType type, float4 col) {
+	void push_gate (float2 pos, float2 size, GateType type, bool state, float4 col) {
 		uint16_t idx = (uint16_t)verticies.size();
 
 		auto* pv = push_back(verticies, 4);
-		pv[0] = { pos + float2(     0,      0), float2(0,0), type, col };
-		pv[1] = { pos + float2(size.x,      0), float2(1,0), type, col };
-		pv[2] = { pos + float2(size.x, size.y), float2(1,1), type, col };
-		pv[3] = { pos + float2(     0, size.y), float2(0,1), type, col };
+		pv[0] = { pos + float2(     0,      0), float2(0,0), type, (int)state, col };
+		pv[1] = { pos + float2(size.x,      0), float2(1,0), type, (int)state, col };
+		pv[2] = { pos + float2(size.x, size.y), float2(1,1), type, (int)state, col };
+		pv[3] = { pos + float2(     0, size.y), float2(0,1), type, (int)state, col };
 
 		auto* pi = push_back(indices, 6);
 		ogl::push_quad(pi, idx+0, idx+1, idx+2, idx+3);
@@ -241,7 +243,7 @@ struct Renderer {
 			ZoneScopedN("push gates");
 			for (int i=0; i<(int)g.sim.gates.size(); ++i) {
 				auto& gate = g.sim.gates[i];
-				tri_renderer.push_gate(gate.pos, 1, gate.type, gate_info[gate.type].color);
+				tri_renderer.push_gate(gate.pos, 1, gate.type, gate.state, gate_info[gate.type].color);
 
 				int count = gate_info[gate.type].inputs;
 				for (int i=0; i<count; ++i) {
@@ -250,7 +252,9 @@ struct Renderer {
 						float2 a = wire.gate->get_output_pos(wire.io_idx);
 						float2 b = gate.get_input_pos(i);
 
-						line_renderer.push_line(a, b, lrgba(1,0,0,1));
+						lrgba col = wire.gate->state ? lrgba(0.4f, 0.01f, 0.01f, 1) : lrgba(0,0,0,1);
+
+						line_renderer.push_line(a, b, col);
 					}
 				}
 			}
@@ -264,7 +268,7 @@ struct Renderer {
 
 				auto col = gate_info[place.type].color;
 				col.w *= 0.5f;
-				tri_renderer.push_gate(place.pos, 1, place.type, col);
+				tri_renderer.push_gate(place.pos, 1, place.type, true, col);
 			}
 		}
 		{ // Wire preview
@@ -279,7 +283,7 @@ struct Renderer {
 				if (wire.src.gate) a = wire.src.gate->get_output_pos(wire.src.io_idx);
 				if (wire.dst.gate) b = wire.dst.gate->get_input_pos (wire.dst.io_idx);
 
-				line_renderer.push_line(a, b, lrgba(1,0,0,0.5f));
+				line_renderer.push_line(a, b, lrgba(0,0,0,0.5f));
 			}
 		}
 

@@ -53,12 +53,10 @@ struct LogicSim {
 		std::vector<WireConnection> inputs;
 
 		bool state;
-
+		
 		void init () {
 			inputs.assign(gate_info[type].inputs, WireConnection{}); // no connections
 			inputs.shrink_to_fit();
-
-			state = false;
 		}
 
 		float2 get_io_pos (int i, int count, float x, float y, float h) {
@@ -125,6 +123,7 @@ struct LogicSim {
 				json j = {
 					{"type", gate.type},
 					{"pos",  gate.pos},
+					{"state",  gate.state},
 					{"inputs", std::move(j_inputs)},
 				};
 
@@ -149,6 +148,7 @@ struct LogicSim {
 
 				gj.at("type").get_to(gp->type);
 				gj.at("pos").get_to(gp->pos);
+				gj.at("state").get_to(gp->state);
 
 				gp->init();
 
@@ -184,6 +184,7 @@ struct LogicSim {
 			assert(gate.type > GT_NULL);
 
 			gate.init();
+			gate.state = false;
 
 			auto new_gate = std::make_unique<Gate>();
 			*new_gate = std::move(gate);
@@ -492,16 +493,49 @@ struct LogicSim {
 			wire_preview = {}; // just be to sure no stale pointers exist
 		}
 
+		bool can_toggle = mode == EM_VIEW && hover.type == Selection::GATE;
+		if (can_toggle && I.buttons[MOUSE_BUTTON_LEFT].went_down) {
+			hover.gate->state ^= 1;
+		}
 
-		window.set_cursor(mode == EM_VIEW && hover.type == Selection::GATE ? Window::CURSOR_FINGER : Window::CURSOR_NORMAL);
+		window.set_cursor(can_toggle ? Window::CURSOR_FINGER : Window::CURSOR_NORMAL);
 	}
 	
+	bool readinp (Gate& g, int idx) {
+		Gate* i = g.inputs[idx].gate;
+		return i ? i->state : false;
+	}
 	void simulate (Input& I, DebugDraw& dbgdraw) {
 		ZoneScoped;
 
 		for (int i=0; i<(int)gates.size(); ++i) {
 			auto& g = gates[i];
 			
+			bool a_valid = gate_info[g.type].inputs >= 1 && g.inputs[0].gate;
+			bool b_valid = gate_info[g.type].inputs >= 2 && g.inputs[1].gate;
+
+			if (!a_valid && !b_valid) {
+				// keep state constant to allow toggle via LMB
+				continue;
+			}
+
+			bool a = a_valid && g.inputs[0].gate->state;
+			bool b = b_valid && g.inputs[1].gate->state;
+
+			switch (g.type) {
+				case GT_BUF  : g.state =  a;  break;
+				case GT_NOT  : g.state = !a;  break;
+				
+				case GT_AND  : g.state =   a && b;	 break;
+				case GT_NAND : g.state = !(a && b);	 break;
+				
+				case GT_OR   : g.state =   a || b;	 break;
+				case GT_NOR  : g.state = !(a || b);	 break;
+				
+				case GT_XOR  : g.state =   a != b;	 break;
+
+				default: assert(false);
+			}
 		}
 	}
 };

@@ -8,6 +8,7 @@ struct Vertex {
 VS2FS Vertex v;
 
 flat VS2FS int v_gate_type;
+flat VS2FS int v_gate_state;
 
 #define GT_BUF  0
 #define GT_NOT  1
@@ -21,7 +22,8 @@ flat VS2FS int v_gate_type;
 	layout(location = 0) in vec2  pos;
 	layout(location = 1) in vec2  uv;
 	layout(location = 2) in int   gate_type;
-	layout(location = 3) in vec4  col;
+	layout(location = 3) in int   gate_state;
+	layout(location = 4) in vec4  col;
 	
 	void main () {
 		gl_Position = view.world2clip * vec4(pos, 0.0, 1.0);
@@ -29,6 +31,7 @@ flat VS2FS int v_gate_type;
 		v.col = col;
 		
 		v_gate_type  = gate_type;
+		v_gate_state  = gate_state;
 	}
 #endif
 #ifdef _FRAGMENT
@@ -124,13 +127,13 @@ flat VS2FS int v_gate_type;
 		
 		float d;
 		
-		if      (v_gate_type == GT_BUF ) d = buf_gate(v.uv);
-		else if (v_gate_type == GT_NOT ) d = not_gate(v.uv);
-		else if (v_gate_type == GT_AND ) d = and_gate(v.uv);
-		else if (v_gate_type == GT_OR  ) d = or_gate(v.uv);
-		else if (v_gate_type == GT_XOR ) d = xor_gate(v.uv);
+		if      (v_gate_type == GT_BUF ) d =  buf_gate(v.uv);
+		else if (v_gate_type == GT_NOT ) d =  not_gate(v.uv);
+		else if (v_gate_type == GT_AND ) d =  and_gate(v.uv);
 		else if (v_gate_type == GT_NAND) d = nand_gate(v.uv);
-		else                /* GT_NOR */ d = nor_gate(v.uv);
+		else if (v_gate_type == GT_OR  ) d =   or_gate(v.uv);
+		else if (v_gate_type == GT_NOR ) d =  nor_gate(v.uv);
+		else /* v_gate_type == GT_XOR */ d =  xor_gate(v.uv);
 		
 		// TODO: Can optimize by merging AND & NAND etc. with just a not-dot if cond
 		// Or just seperate out shader?
@@ -139,7 +142,10 @@ flat VS2FS int v_gate_type;
 		float outl_alpha = clamp((d + outline) / aa + 0.5, 0.0, 1.0);
 		//float outl       = clamp(-d / outline, 0.0, 1.0);
 		
-		frag_col.rgb = v.col.rgb * (1.0 - outl_alpha * 0.99);
-		frag_col.a   = v.col.a * alpha;
+		vec4 c = v.col;
+		c.rgb *= v_gate_state != 0 ? vec3(1) : vec3(0.05);
+		
+		frag_col.rgb = c.rgb * (1.0 - outl_alpha * 0.99);
+		frag_col.a   = c.a * alpha;
 	}
 #endif
