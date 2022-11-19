@@ -3,6 +3,7 @@
 #include "game.hpp"
 #include "engine/opengl.hpp"
 #include "gl_dbgdraw.hpp"
+#include "engine/opengl_text.hpp"
 
 namespace ogl {
 
@@ -134,22 +135,6 @@ struct LineRenderer {
 struct Renderer {
 	SERIALIZE_NONE(Renderer)
 	
-	void imgui (Input& I) {
-		if (ImGui::Begin("Misc")) {
-			if (imgui_Header("Renderer", true)) {
-
-			#if OGL_USE_REVERSE_DEPTH
-				ImGui::Checkbox("reverse_depth", &ogl::reverse_depth);
-			#endif
-
-				debug_draw.imgui();
-
-				ImGui::PopID();
-			}
-		}
-		ImGui::End();
-	}
-
 	StateManager state;
 	
 	struct CommonUniforms {
@@ -174,6 +159,8 @@ struct Renderer {
 	CommonUniforms common_ubo;
 
 	glDebugDraw debug_draw;
+
+	TextRenderer text = TextRenderer("fonts/DroidSerif-WmoY.ttf", 64, true);
 	
 	TriRenderer tri_renderer;
 	LineRenderer line_renderer;
@@ -181,6 +168,26 @@ struct Renderer {
 	Vao dummy_vao = {"dummy_vao"};
 
 	Shader* shad_background  = g_shaders.compile("background");
+
+	float text_scale = 1.0f;
+	
+	void imgui (Input& I) {
+		if (ImGui::Begin("Misc")) {
+			if (imgui_Header("Renderer", true)) {
+
+				ImGui::SliderFloat("text_scale", &text_scale, 0.1f, 20);
+
+			#if OGL_USE_REVERSE_DEPTH
+				ImGui::Checkbox("reverse_depth", &ogl::reverse_depth);
+			#endif
+
+				debug_draw.imgui();
+
+				ImGui::PopID();
+			}
+		}
+		ImGui::End();
+	}
 
 	void draw_background () {
 		glUseProgram(shad_background->prog);
@@ -200,6 +207,21 @@ struct Renderer {
 		
 	}
 	
+	void highlight (LogicSim::Selection s, lrgba col, Game& g) {
+		auto& gate = *s.gate;
+		if (s.type == LogicSim::Selection::GATE) {
+			g.dbgdraw.wire_quad(float3(gate.pos, 5.0f), 1, col);
+
+			text.draw_text(gate_info[gate.type].name, 24*text_scale, lrgba(1),
+				TextRenderer::map_text(gate.pos + float2(0, 1.0f), g.view), float2(0,1));
+		}
+		else if (s.type == LogicSim::Selection::INPUT) {
+			g.dbgdraw.wire_quad(float3(gate.get_input_pos(s.io_idx) - LogicSim::IO_SIZE/2, 5.0f), LogicSim::IO_SIZE, col);
+		}
+		else {
+			g.dbgdraw.wire_quad(float3(gate.get_output_pos(s.io_idx) - LogicSim::IO_SIZE/2, 5.0f), LogicSim::IO_SIZE, col);
+		}
+	}
 	void render (Window& window, Game& g, int2 window_size) {
 		ZoneScoped;
 		
@@ -233,6 +255,8 @@ struct Renderer {
 			glClearColor(0.01f, 0.012f, 0.014f, 1.0f);
 			glClear(GL_COLOR_BUFFER_BIT);
 		}
+		
+		text.begin();
 
 		draw_background();
 
@@ -294,7 +318,12 @@ struct Renderer {
 
 		glLineWidth(debug_draw.line_width);
 
+		if (g.sim.hover) highlight(g.sim.hover, lrgba(0.25f,0.25f,0.25f,1), g);
+		if (g.sim.sel  ) highlight(g.sim.sel  , lrgba(1,1,1,1), g);
+
 		debug_draw.render(state, g.dbgdraw);
+		
+		text.render(state);
 
 		{
 			OGL_TRACE("draw ui");

@@ -4,6 +4,8 @@
 #include "engine/dbgdraw.hpp"
 
 struct GateInfo {
+	const char* name;
+
 	int   inputs;
 	float input_x;
 
@@ -24,13 +26,13 @@ enum GateType {
 	GT_XOR  = 6,
 };
 constexpr GateInfo gate_info[] = {
-	/* GT_BUF  */ { 1, 0.2f,  1, 0.78f, lrgba(0.5f, 0.5f,0.75f,1) },
-	/* GT_NOT  */ { 1, 0.2f,  1, 0.88f, lrgba(   0,    0,    1,1) },
-	/* GT_AND  */ { 2, 0.2f,  1, 0.78f, lrgba(   1,    0,    0,1) },
-	/* GT_NAND */ { 2, 0.2f,  1, 0.88f, lrgba(0.5f,    1,    0,1) },
-	/* GT_OR   */ { 2, 0.2f,  1, 0.78f, lrgba(   1, 0.5f,    0,1) },
-	/* GT_NOR  */ { 2, 0.2f,  1, 0.88f, lrgba(   0,    1, 0.5f,1) },
-	/* GT_XOR  */ { 2, 0.2f,  1, 0.78f, lrgba(   0,    1,    0,1) },
+	/* GT_BUF  */ { "Buffer", 1, 0.2f,  1, 0.78f, lrgba(0.5f, 0.5f,0.75f,1) },
+	/* GT_NOT  */ { "Not"   , 1, 0.2f,  1, 0.88f, lrgba(   0,    0,    1,1) },
+	/* GT_AND  */ { "And"   , 2, 0.2f,  1, 0.78f, lrgba(   1,    0,    0,1) },
+	/* GT_NAND */ { "Nand"  , 2, 0.2f,  1, 0.88f, lrgba(0.5f,    1,    0,1) },
+	/* GT_OR   */ { "Or"    , 2, 0.2f,  1, 0.78f, lrgba(   1, 0.5f,    0,1) },
+	/* GT_NOR  */ { "Nor"   , 2, 0.2f,  1, 0.88f, lrgba(   0,    1, 0.5f,1) },
+	/* GT_XOR  */ { "Xor"   , 2, 0.2f,  1, 0.78f, lrgba(   0,    1,    0,1) },
 };
 
 struct LogicSim {
@@ -248,7 +250,6 @@ struct LogicSim {
 	struct Selection {
 		enum Type {
 			NONE=0,
-			TO_PLACE,
 			GATE,
 			INPUT,
 			OUTPUT,
@@ -262,6 +263,7 @@ struct LogicSim {
 		}
 	};
 	Selection sel = {};
+	Selection hover = {};
 
 	float snapping_size = 0.25f;
 	bool snapping = true;
@@ -297,21 +299,6 @@ struct LogicSim {
 		return s;
 	}
 	
-	void highlight (Selection s, lrgba col, DebugDraw& dbgdraw) {
-		if (s && s.type != Selection::TO_PLACE) {
-			auto& gate = *s.gate;
-			if (s.type == Selection::GATE) {
-				dbgdraw.wire_quad(float3(gate.pos, 5.0f), 1, col);
-			}
-			else if (s.type == Selection::INPUT) {
-				dbgdraw.wire_quad(float3(gate.get_input_pos(s.io_idx) - IO_SIZE/2, 5.0f), IO_SIZE, col);
-			}
-			else {
-				dbgdraw.wire_quad(float3(gate.get_output_pos(s.io_idx) - IO_SIZE/2, 5.0f), IO_SIZE, col);
-			}
-		}
-	}
-
 	void imgui (Input& I) {
 		if (imgui_Header("LogicSim", true)) {
 
@@ -365,7 +352,6 @@ struct LogicSim {
 
 		// unselect gate if imgui to-be-placed is selected
 		if (gate_preview.type > GT_NULL) {
-			sel = { Selection::TO_PLACE };
 			mode = EM_PLACE;
 		}
 
@@ -396,7 +382,7 @@ struct LogicSim {
 		if (try_select)
 			sel = {}; // unselect if click and nothing was hit
 
-		Selection hover = {};
+		hover = {};
 
 		for (int i=0; i<(int)gates.size(); ++i) {
 			auto& g = gates[i];
@@ -482,9 +468,6 @@ struct LogicSim {
 			wire_preview = {};
 		}
 		}
-
-		highlight(hover, lrgba(0.25f,0.25f,0.25f,1), dbgdraw);
-		highlight(sel, lrgba(1,1,1,1), dbgdraw);
 
 		// remove gates via DELETE key
 		if (sel.type == Selection::GATE && I.buttons[KEY_DELETE].went_down) {
