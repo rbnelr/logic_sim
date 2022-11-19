@@ -9,12 +9,13 @@ VS2FS Vertex v;
 
 flat VS2FS int v_gate_type;
 
-#define GT_NOT  0
-#define GT_AND  1
-#define GT_OR   2
-#define GT_XOR  3
-#define GT_NAND 4
+#define GT_BUF  0
+#define GT_NOT  1
+#define GT_AND  2
+#define GT_NAND 3
+#define GT_OR   4
 #define GT_NOR  5
+#define GT_XOR  6
 
 #ifdef _VERTEX
 	layout(location = 0) in vec2  pos;
@@ -60,6 +61,15 @@ flat VS2FS int v_gate_type;
 	//float d = SDF_ellipse(uv -0.5, vec2(0.2, 0.3));
 	//float d = SDF_line(uv -0.5, vec2(0,0.5), vec2(0.5,-0.2));
 	
+	float buf_gate (vec2 uv) {
+		
+		vec2 uv_mirror = vec2(uv.x, abs(uv.y - 0.5));
+		
+		float d   = SDF_line(uv, vec2(0.14,0.0), vec2(0.14,1.0));
+		d = max(d, SDF_line(uv_mirror, vec2(0.0,0.3), vec2(0.83, 0.0)));
+		
+		return d;
+	}
 	float and_gate (vec2 uv) {
 		float a = 0.3;
 		
@@ -80,7 +90,6 @@ flat VS2FS int v_gate_type;
 		
 		return d;
 	}
-	
 	float xor_gate (vec2 uv) {
 		vec2 uv_mirror = vec2(uv.x, abs(uv.y - 0.5));
 		
@@ -94,23 +103,15 @@ flat VS2FS int v_gate_type;
 	}
 	
 	float not_gate (vec2 uv) {
-		
-		vec2 uv_mirror = vec2(uv.x, abs(uv.y - 0.5));
-		
-		float d   = SDF_line(uv, vec2(0.14,0.0), vec2(0.14,1.0));
-		d = max(d, SDF_line(uv_mirror, vec2(0.0,0.3), vec2(0.83, 0.0)));
-		
+		float d = buf_gate(uv);
 		return min(d, SDF_circ(uv - vec2(0.88,0.5), 0.10));
 	}
-	
 	float nand_gate (vec2 uv) {
 		float d = and_gate(uv);
-		
 		return min(d, SDF_circ(uv - vec2(0.88,0.5), 0.10));
 	}
 	float nor_gate (vec2 uv) {
 		float d = or_gate(uv);
-		
 		return min(d, SDF_circ(uv - vec2(0.88,0.5), 0.10));
 	}
 	
@@ -123,7 +124,8 @@ flat VS2FS int v_gate_type;
 		
 		float d;
 		
-		if      (v_gate_type == GT_NOT ) d = not_gate(v.uv);
+		if      (v_gate_type == GT_BUF ) d = buf_gate(v.uv);
+		else if (v_gate_type == GT_NOT ) d = not_gate(v.uv);
 		else if (v_gate_type == GT_AND ) d = and_gate(v.uv);
 		else if (v_gate_type == GT_OR  ) d = or_gate(v.uv);
 		else if (v_gate_type == GT_XOR ) d = xor_gate(v.uv);

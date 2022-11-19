@@ -15,20 +15,22 @@ struct GateInfo {
 
 enum GateType {
 	GT_NULL  = -1,
-	GT_NOT  = 0,
-	GT_AND  = 1,
-	GT_OR   = 2,
-	GT_XOR  = 3,
-	GT_NAND = 4,
+	GT_BUF  = 0,
+	GT_NOT  = 1,
+	GT_AND  = 2,
+	GT_NAND = 3,
+	GT_OR   = 4,
 	GT_NOR  = 5,
+	GT_XOR  = 6,
 };
 constexpr GateInfo gate_info[] = {
+	/* GT_BUF  */ { 1, 0.2f,  1, 0.78f, lrgba(0.5f, 0.5f,0.75f,1) },
 	/* GT_NOT  */ { 1, 0.2f,  1, 0.88f, lrgba(   0,    0,    1,1) },
 	/* GT_AND  */ { 2, 0.2f,  1, 0.78f, lrgba(   1,    0,    0,1) },
-	/* GT_OR   */ { 2, 0.2f,  1, 0.78f, lrgba(   1, 0.5f,    0,1) },
-	/* GT_XOR  */ { 2, 0.2f,  1, 0.78f, lrgba(   0,    1,    0,1) },
 	/* GT_NAND */ { 2, 0.2f,  1, 0.88f, lrgba(0.5f,    1,    0,1) },
+	/* GT_OR   */ { 2, 0.2f,  1, 0.78f, lrgba(   1, 0.5f,    0,1) },
 	/* GT_NOR  */ { 2, 0.2f,  1, 0.88f, lrgba(   0,    1, 0.5f,1) },
+	/* GT_XOR  */ { 2, 0.2f,  1, 0.78f, lrgba(   0,    1,    0,1) },
 };
 
 struct LogicSim {
@@ -117,6 +119,7 @@ struct LogicSim {
 
 				gj.at("type").get_to(gp->type);
 				gj.at("pos").get_to(gp->pos);
+
 				gp->init_inputs();
 
 				if (gj.contains("inputs")) {
@@ -241,6 +244,11 @@ struct LogicSim {
 			if (ImGui::BeginTable("Gates", 2, ImGuiTableFlags_Borders)) {
 				
 				ImGui::TableNextColumn();
+				if (ImGui::Selectable("BUF" , gate_preview.type == GT_BUF )) gate_preview.type = GT_BUF;
+				ImGui::TableNextColumn();
+				if (ImGui::Selectable("NOT" , gate_preview.type == GT_NOT )) gate_preview.type = GT_NOT;
+
+				ImGui::TableNextColumn();
 				if (ImGui::Selectable("AND" , gate_preview.type == GT_AND )) gate_preview.type = GT_AND;
 				ImGui::TableNextColumn();
 				if (ImGui::Selectable("NAND", gate_preview.type == GT_NAND)) gate_preview.type = GT_NAND;
@@ -251,9 +259,8 @@ struct LogicSim {
 				if (ImGui::Selectable("NOR" , gate_preview.type == GT_NOR )) gate_preview.type = GT_NOR;
 				
 				ImGui::TableNextColumn();
-				if (ImGui::Selectable("NOT" , gate_preview.type == GT_NOT )) gate_preview.type = GT_NOT;
-				ImGui::TableNextColumn();
 				if (ImGui::Selectable("XOR" , gate_preview.type == GT_XOR )) gate_preview.type = GT_XOR;
+				ImGui::TableNextColumn();
 
 				ImGui::EndTable();
 			}
