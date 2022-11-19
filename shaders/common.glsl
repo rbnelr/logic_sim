@@ -9,6 +9,11 @@ float map (float x, float a, float b) {
 	return (x - a) / (b - a);
 }
 
+vec4 alpha_blend (vec4 a, vec4 b) {
+	return vec4(a.rgb * (1.0-b.a) + b.rgb * b.a,
+				a.a   * (1.0-b.a) + b.a);
+}
+
 const float INF			= 340282346638528859811704183484516925440.0 * 2.0;
 //const float INF			= 1. / 0.;
 

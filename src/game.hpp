@@ -186,7 +186,6 @@ struct LogicSim {
 			assert(gate.type > GT_NULL);
 
 			gate.init();
-			gate.state = false;
 
 			auto new_gate = std::make_unique<Gate>();
 			*new_gate = std::move(gate);
@@ -212,7 +211,7 @@ struct LogicSim {
 			
 			// replace gate to be removed with last gate and shrink vector by one to not leave holes
 			gates[idx] = nullptr; // delete gate
-			gates[idx] = std::move(gates.back()); // swap last vector element into this one
+			gates[idx] = std::move(gates.back()); // swap last vector element into this one (works even if this was the last element)
 			gates.pop_back(); // shrink vector
 		}
 
@@ -353,6 +352,7 @@ struct LogicSim {
 		// unselect gate if imgui to-be-placed is selected
 		if (gate_preview.type > GT_NULL) {
 			mode = EM_PLACE;
+			gate_preview.state = true;
 		}
 
 		// deselect everthing when in view mode or on RMB in place mode
@@ -472,6 +472,7 @@ struct LogicSim {
 		// remove gates via DELETE key
 		if (sel.type == Selection::GATE && I.buttons[KEY_DELETE].went_down) {
 			gates.remove_gate(sel.gate);
+			if (hover == sel) hover = {};
 			sel = {};
 			wire_preview = {}; // just be to sure no stale pointers exist
 		}
@@ -524,13 +525,18 @@ struct LogicSim {
 };
 
 struct Game {
-	SERIALIZE(Game, cam, sim)
+	SERIALIZE(Game, cam, sim, sim_freq, pause)
 	
 	Camera2D cam = Camera2D();
 	
 	DebugDraw dbgdraw;
 	
 	LogicSim sim;
+
+	float sim_freq = 10.0f;
+	float sim_t = 0;
+	bool pause = false;
+	bool manual_tick = false;
 
 	Game () {
 		
@@ -545,6 +551,11 @@ struct Game {
 
 				cam.imgui("cam");
 				sim.imgui(I);
+
+				ImGui::SliderFloat("Sim Freq", &sim_freq, 0.1f, 200, "%.1f", ImGuiSliderFlags_Logarithmic);
+				ImGui::Checkbox("Pause", &pause);
+				ImGui::SameLine();
+				manual_tick = ImGui::Button("Man. Tick");
 
 				ImGui::PopID();
 			}
@@ -566,6 +577,21 @@ struct Game {
 		view = cam.update(I, (float2)I.window_size);
 		
 		sim.update(I, view, dbgdraw, window);
-		sim.simulate(I, dbgdraw);
+
+		if (!pause && sim_freq >= 0.1f) {
+
+			sim_t -= I.dt;
+			
+			float step = 1.0f / sim_freq;
+			for (int i=0; i<4 && sim_t < 0; ++i) {
+				
+				sim.simulate(I, dbgdraw);
+				
+				sim_t += step;
+			}
+		}
+		else if (manual_tick) {
+			sim.simulate(I, dbgdraw);
+		}
 	}
 };

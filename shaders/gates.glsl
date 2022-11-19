@@ -105,47 +105,69 @@ flat VS2FS int v_gate_state;
 		return max(d, -d2);
 	}
 	
-	float not_gate (vec2 uv) {
-		float d = buf_gate(uv);
-		return min(d, SDF_circ(uv - vec2(0.88,0.5), 0.10));
-	}
-	float nand_gate (vec2 uv) {
-		float d = and_gate(uv);
-		return min(d, SDF_circ(uv - vec2(0.88,0.5), 0.10));
-	}
-	float nor_gate (vec2 uv) {
-		float d = or_gate(uv);
-		return min(d, SDF_circ(uv - vec2(0.88,0.5), 0.10));
+	//float not_gate (vec2 uv) {
+	//	float d = buf_gate(uv);
+	//	return min(d, SDF_circ(uv - vec2(0.88,0.5), 0.10));
+	//}
+	//float nand_gate (vec2 uv) {
+	//	float d = and_gate(uv);
+	//	return min(d, SDF_circ(uv - vec2(0.88,0.5), 0.10));
+	//}
+	//float nor_gate (vec2 uv) {
+	//	float d = or_gate(uv);
+	//	return min(d, SDF_circ(uv - vec2(0.88,0.5), 0.10));
+	//}
+	float invert_circ (vec2 uv) {
+		return SDF_circ(uv - vec2(0.88,0.5), 0.10);
 	}
 	
 	void main () {
+		
+		int ty = v_gate_type/2;
+		int inv = v_gate_type%2;
+		
+		bool base_state = v_gate_state != 0;
+		bool inv_state  = v_gate_state != 0;
+		if (inv != 0) base_state = !base_state;
 		
 		float du = fwidth(v.uv.x);
 		
 		float outline = clamp(du * 4.0, 0.02, 0.1);
 		float aa = du * 1.0;
 		
-		float d;
-		
-		if      (v_gate_type == GT_BUF ) d =  buf_gate(v.uv);
-		else if (v_gate_type == GT_NOT ) d =  not_gate(v.uv);
-		else if (v_gate_type == GT_AND ) d =  and_gate(v.uv);
-		else if (v_gate_type == GT_NAND) d = nand_gate(v.uv);
-		else if (v_gate_type == GT_OR  ) d =   or_gate(v.uv);
-		else if (v_gate_type == GT_NOR ) d =  nor_gate(v.uv);
-		else /* v_gate_type == GT_XOR */ d =  xor_gate(v.uv);
-		
-		// TODO: Can optimize by merging AND & NAND etc. with just a not-dot if cond
-		// Or just seperate out shader?
-		
-		float alpha      = clamp(-d / aa + 0.5, 0.0, 1.0);
-		float outl_alpha = clamp((d + outline) / aa + 0.5, 0.0, 1.0);
-		//float outl       = clamp(-d / outline, 0.0, 1.0);
-		
-		vec4 c = v.col;
-		c.rgb *= v_gate_state != 0 ? vec3(1) : vec3(0.05);
-		
-		frag_col.rgb = c.rgb * (1.0 - outl_alpha * 0.99);
-		frag_col.a   = c.a * alpha;
+		{ // draw base gate symbol
+			float d;
+			
+			if      (ty == GT_BUF/2) d =  buf_gate(v.uv);
+			else if (ty == GT_AND/2) d =  and_gate(v.uv);
+			else if (ty == GT_OR /2) d =   or_gate(v.uv);
+			else /* ty == GT_XOR */ d =  xor_gate(v.uv);
+			
+			float alpha      = clamp(-d / aa + 0.5, 0.0, 1.0);
+			float outl_alpha = clamp((d + outline) / aa + 0.5, 0.0, 1.0);
+			//float outl       = clamp(-d / outline, 0.0, 1.0);
+			
+			vec4 c = v.col;
+			c.rgb *= base_state ? vec3(1) : vec3(0.1);
+			
+			c.rgb *= (1.0 - outl_alpha * 0.99);
+			c.a *= alpha;
+			
+			frag_col = c;
+		} 
+		if (inv != 0) { // draw invert circ
+			float d = invert_circ(v.uv);
+			
+			float alpha      = clamp(-d / aa + 0.5, 0.0, 1.0);
+			float outl_alpha = clamp((d + outline) / aa + 0.5, 0.0, 1.0);
+			
+			vec4 c = v.col;
+			c.rgb *= inv_state ? vec3(1) : vec3(0.1);
+			
+			c.rgb *= (1.0 - outl_alpha * 0.99);
+			c.a *= alpha;
+			
+			frag_col = alpha_blend(frag_col, c);
+		}
 	}
 #endif

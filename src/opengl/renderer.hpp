@@ -292,7 +292,7 @@ struct Renderer {
 
 				auto col = gate_info[place.type].color;
 				col.w *= 0.5f;
-				tri_renderer.push_gate(place.pos, 1, place.type, true, col);
+				tri_renderer.push_gate(place.pos, 1, place.type, place.state, col);
 			}
 		}
 		{ // Wire preview
@@ -312,11 +312,11 @@ struct Renderer {
 		}
 
 		glLineWidth(10);
-
 		line_renderer.render(state);
+		glLineWidth(debug_draw.line_width);
+
 		tri_renderer.render(state);
 
-		glLineWidth(debug_draw.line_width);
 
 		if (g.sim.hover) highlight(g.sim.hover, lrgba(0.25f,0.25f,0.25f,1), g);
 		if (g.sim.sel  ) highlight(g.sim.sel  , lrgba(1,1,1,1), g);
