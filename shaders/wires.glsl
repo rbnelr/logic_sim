@@ -79,7 +79,7 @@ const float radius = 0.05;
 		float outline = clamp(aa * 3.0, 0.01, 0.02);
 		
 		float aa_alpha   = map_clamp(r, -aa/2.0, +aa/2.0, 1.0, 0.0);
-		float outl_alpha = map_clamp(r + outline, -aa/2.0, +aa/2.0, 1.0, 0.0);
+		float outl_alpha = map_clamp(r + outline, -aa/2.0, +aa/2.0, 1.0, 0.2);
 		
 		col.rgb *= outl_alpha * 0.99;
 		col.a *= aa_alpha;

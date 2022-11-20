@@ -163,7 +163,7 @@ struct Renderer {
 
 	glDebugDraw debug_draw;
 
-	TextRenderer text = TextRenderer("fonts/DroidSerif-WmoY.ttf", 64, true);
+	TextRenderer text = TextRenderer("fonts/AsimovExtraWide-veG4.ttf", 64, true);
 	
 	TriRenderer tri_renderer;
 	LineRenderer line_renderer;
@@ -179,6 +179,7 @@ struct Renderer {
 			if (imgui_Header("Renderer", true)) {
 
 				ImGui::SliderFloat("text_scale", &text_scale, 0.1f, 20);
+				text.imgui();
 
 			#if OGL_USE_REVERSE_DEPTH
 				ImGui::Checkbox("reverse_depth", &ogl::reverse_depth);
