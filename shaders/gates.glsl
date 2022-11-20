@@ -128,11 +128,11 @@ flat VS2FS int v_gate_state;
 		
 		bool base_state = v_gate_state != 0;
 		bool inv_state  = v_gate_state != 0;
-		//if (inv != 0) base_state = !base_state;
+		if (inv != 0) base_state = !base_state;
 		
 		float du = fwidth(v.uv.x);
 		
-		float outline = clamp(du * 4.0, 0.02, 0.1);
+		float outline = clamp(du * 4.0, 0.02, 0.06);
 		float aa = du * 1.0;
 		
 		{ // draw base gate symbol
@@ -143,8 +143,8 @@ flat VS2FS int v_gate_state;
 			else if (ty == GT_OR /2) d =   or_gate(v.uv);
 			else /* ty == GT_XOR */ d =  xor_gate(v.uv);
 			
-			float alpha      = clamp(-d / aa + 0.5, 0.0, 1.0);
-			float outl_alpha = clamp((d + outline) / aa + 0.5, 0.0, 1.0);
+			float alpha      = map_clamp(d, -aa/2.0, +aa/2.0, 1.0, 0.0);
+			float outl_alpha = map_clamp(d + outline, -aa/2.0, +aa/2.0, 0.0, 1.0);
 			//float outl       = clamp(-d / outline, 0.0, 1.0);
 			
 			vec4 c = v.col;
@@ -158,13 +158,13 @@ flat VS2FS int v_gate_state;
 		if (inv != 0) { // draw invert circ
 			float d = invert_circ(v.uv);
 			
-			float alpha      = clamp(-d / aa + 0.5, 0.0, 1.0);
-			float outl_alpha = clamp((d + outline) / aa + 0.5, 0.0, 1.0);
+			float alpha      = map_clamp(d, -aa/2.0, +aa/2.0, 1.0, 0.0);
+			float outl_alpha = map_clamp(d + outline, -aa/2.0, +aa/2.0, 1.0, 0.0);
 			
 			vec4 c = v.col;
 			c.rgb *= inv_state ? vec3(1) : vec3(0.1);
 			
-			c.rgb *= (1.0 - outl_alpha * 0.99);
+			c.rgb *= outl_alpha * 0.99;
 			c.a *= alpha;
 			
 			frag_col = alpha_blend(frag_col, c);

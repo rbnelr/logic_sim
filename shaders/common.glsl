@@ -6,7 +6,10 @@
 #endif
 
 float map (float x, float a, float b) {
-	return (x - a) / (b - a);
+	return (x-a) / (b-a);
+}
+float map_clamp (float x, float a, float b, float c, float d) {
+	return clamp((x-a) / (b-a), 0.0, 1.0) * (d-c) + c;;
 }
 
 vec4 alpha_blend (vec4 a, vec4 b) {

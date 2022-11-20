@@ -38,14 +38,17 @@ struct TriRenderer {
 		indices  .shrink_to_fit();
 	}
 
-	void push_gate (float2 pos, float2 size, GateType type, bool state, float4 col) {
+	void push_gate (LogicSim::Gate& gate, bool state, float4 col) {
 		uint16_t idx = (uint16_t)verticies.size();
 
+		auto& mat = ROT[gate.rot];
+		float2 size = 1;
+
 		auto* pv = push_back(verticies, 4);
-		pv[0] = { pos + float2(     0,      0), float2(0,0), type, (int)state, col };
-		pv[1] = { pos + float2(size.x,      0), float2(1,0), type, (int)state, col };
-		pv[2] = { pos + float2(size.x, size.y), float2(1,1), type, (int)state, col };
-		pv[3] = { pos + float2(     0, size.y), float2(0,1), type, (int)state, col };
+		pv[0] = { gate.pos + mat * float2(-0.5f, -0.5f), float2(0,0), gate.type, (int)state, col };
+		pv[1] = { gate.pos + mat * float2(+0.5f, -0.5f), float2(1,0), gate.type, (int)state, col };
+		pv[2] = { gate.pos + mat * float2(+0.5f, +0.5f), float2(1,1), gate.type, (int)state, col };
+		pv[3] = { gate.pos + mat * float2(-0.5f, +0.5f), float2(0,1), gate.type, (int)state, col };
 
 		auto* pi = push_back(indices, 6);
 		ogl::push_quad(pi, idx+0, idx+1, idx+2, idx+3);
@@ -79,27 +82,29 @@ struct TriRenderer {
 struct LineRenderer {
 	Shader* shad  = g_shaders.compile("wires");
 
-	struct Vertex {
-		float2 pos;
-		float4 col;
-		float  t;
+	struct LineInstance {
+		float2 pos0;
+		float2 pos1;
+		float2 t; // t0 t1
 		int    states;
+		float4 col;
 
 		ATTRIBUTES {
-			ATTRIB( idx++, GL_FLOAT,2, Vertex, pos);
-			ATTRIB( idx++, GL_FLOAT,4, Vertex, col);
-			ATTRIB( idx++, GL_FLOAT,1, Vertex, t);
-			ATTRIBI(idx++, GL_INT  ,1, Vertex, states);
+			ATTRIB_INSTANCED( idx++, GL_FLOAT,2, LineInstance, pos0);
+			ATTRIB_INSTANCED( idx++, GL_FLOAT,2, LineInstance, pos1);
+			ATTRIB_INSTANCED( idx++, GL_FLOAT,2, LineInstance, t);
+			ATTRIBI_INSTANCED(idx++, GL_INT  ,1, LineInstance, states);
+			ATTRIB_INSTANCED( idx++, GL_FLOAT,4, LineInstance, col);
 		}
 	};
 
-	VertexBuffer vbo_lines = vertex_buffer<Vertex>("LineRenderer.Vertex");
+	VertexBuffer vbo_lines = vertex_buffer<LineInstance>("LineRenderer.LineInstance");
 
-	std::vector<Vertex>   verticies;
+	std::vector<LineInstance> lines;
 
 	void update (Input& I) {
-		verticies.clear();
-		verticies.shrink_to_fit();
+		lines.clear();
+		lines.shrink_to_fit();
 	}
 
 	void render (StateManager& state, Game& g) {
@@ -108,12 +113,12 @@ struct LineRenderer {
 		if (shad->prog) {
 			OGL_TRACE("LineRenderer");
 
-			vbo_lines.stream(verticies);
+			vbo_lines.stream(lines);
 
-			if (verticies.size() > 0) {
+			if (lines.size() > 0) {
 				glUseProgram(shad->prog);
 
-				shad->set_uniform("sim_anim_t", g.sim_anim_t);
+				shad->set_uniform("sim_t", g.sim_t);
 
 				PipelineState s;
 				s.depth_test = false;
@@ -122,7 +127,7 @@ struct LineRenderer {
 				state.set(s);
 
 				glBindVertexArray(vbo_lines.vao);
-				glDrawArrays(GL_LINES, 0, (GLsizei)verticies.size());
+				glDrawArraysInstanced(GL_TRIANGLES, 0, 6, (GLsizei)lines.size());
 			}
 		}
 
@@ -208,10 +213,10 @@ struct Renderer {
 	void highlight (LogicSim::Selection s, lrgba col, Game& g) {
 		auto& gate = *s.gate;
 		if (s.type == LogicSim::Selection::GATE) {
-			g.dbgdraw.wire_quad(float3(gate.pos, 5.0f), 1, col);
+			g.dbgdraw.wire_quad(float3(gate.pos - 0.5f, 5.0f), 1, col);
 
 			text.draw_text(gate_info[gate.type].name, 24*text_scale, lrgba(1),
-				TextRenderer::map_text(gate.pos + float2(0, 1.0f), g.view), float2(0,1));
+				TextRenderer::map_text(gate.pos + float2(-0.5f, 0.5f), g.view), float2(0,1));
 		}
 		else if (s.type == LogicSim::Selection::INPUT) {
 			g.dbgdraw.wire_quad(float3(gate.get_input_pos(s.io_idx) - LogicSim::IO_SIZE/2, 5.0f), LogicSim::IO_SIZE, col);
@@ -225,27 +230,29 @@ struct Renderer {
 		float2 prev = start;
 		float dist = 0;
 		
-		size_t idx = line_renderer.verticies.size();
+		size_t count = 1 + points.size();
+		auto* lines = push_back(line_renderer.lines, count);
 
+		auto* out = lines;
 		for (float2& cur : points) {
-			auto* pv = push_back(line_renderer.verticies, 2);
-			pv[0] = { prev, col, dist, states };
+			float dist0 = dist;
 			dist += distance(prev, cur);
-			pv[1] = {  cur, col, dist, states };
+
+			*out++ = { prev, cur, float2(dist0, dist), states, col };
 
 			prev = cur;
 		}
 		{
-			auto* pv = push_back(line_renderer.verticies, 2);
-			pv[0] = { prev, col, dist, states };
+			float dist0 = dist;
 			dist += distance(prev, end);
-			pv[1] = {  end, col, dist, states };
+
+			*out++ = { prev, end, float2(dist0, dist), states, col };
 		}
 
 		// normalize t to [0,1]
 		float norm = 1.0f / dist;
-		for (size_t i=idx; i<line_renderer.verticies.size(); ++i) {
-			line_renderer.verticies[i].t *= norm;
+		for (size_t i=0; i<count; ++i) {
+			lines[i].t *= norm;
 		}
 	}
 
@@ -299,7 +306,7 @@ struct Renderer {
 			for (int i=0; i<(int)g.sim.gates.size(); ++i) {
 				auto& gate = g.sim.gates[i];
 				auto state = (gate.state & cur_smask) != 0;
-				tri_renderer.push_gate(gate.pos, 1, gate.type, state, gate_info[gate.type].color);
+				tri_renderer.push_gate(gate, state, gate_info[gate.type].color);
 
 				int count = gate_info[gate.type].inputs;
 				for (int i=0; i<count; ++i) {
@@ -327,7 +334,7 @@ struct Renderer {
 
 				auto col = gate_info[place.type].color;
 				col.w *= 0.5f;
-				tri_renderer.push_gate(place.pos, 1, place.type, place.state, col);
+				tri_renderer.push_gate(place, place.state, col);
 			}
 		}
 		{ // Wire preview
@@ -346,10 +353,7 @@ struct Renderer {
 			}
 		}
 		
-		glLineWidth(10);
 		line_renderer.render(state, g);
-		glLineWidth(debug_draw.line_width);
-
 		tri_renderer.render(state);
 
 

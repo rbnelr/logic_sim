@@ -26,13 +26,20 @@ enum GateType {
 	GT_XOR  = 6,
 };
 constexpr GateInfo gate_info[] = {
-	/* GT_BUF  */ { "Buffer", 1, 0.2f,  1, 0.78f, lrgba(0.5f, 0.5f,0.75f,1) },
-	/* GT_NOT  */ { "Not"   , 1, 0.2f,  1, 0.88f, lrgba(   0,    0,    1,1) },
-	/* GT_AND  */ { "And"   , 2, 0.2f,  1, 0.78f, lrgba(   1,    0,    0,1) },
-	/* GT_NAND */ { "Nand"  , 2, 0.2f,  1, 0.88f, lrgba(0.5f,    1,    0,1) },
-	/* GT_OR   */ { "Or"    , 2, 0.2f,  1, 0.78f, lrgba(   1, 0.5f,    0,1) },
-	/* GT_NOR  */ { "Nor"   , 2, 0.2f,  1, 0.88f, lrgba(   0,    1, 0.5f,1) },
-	/* GT_XOR  */ { "Xor"   , 2, 0.2f,  1, 0.78f, lrgba(   0,    1,    0,1) },
+	/* GT_BUF  */ { "Buffer", 1, -0.3f,  1, 0.28f, lrgba(0.5f, 0.5f,0.75f,1) },
+	/* GT_NOT  */ { "Not"   , 1, -0.3f,  1, 0.36f, lrgba(   0,    0,    1,1) },
+	/* GT_AND  */ { "And"   , 2, -0.3f,  1, 0.28f, lrgba(   1,    0,    0,1) },
+	/* GT_NAND */ { "Nand"  , 2, -0.3f,  1, 0.36f, lrgba(0.5f,    1,    0,1) },
+	/* GT_OR   */ { "Or"    , 2, -0.3f,  1, 0.28f, lrgba(   1, 0.5f,    0,1) },
+	/* GT_NOR  */ { "Nor"   , 2, -0.3f,  1, 0.36f, lrgba(   0,    1, 0.5f,1) },
+	/* GT_XOR  */ { "Xor"   , 2, -0.3f,  1, 0.28f, lrgba(   0,    1,    0,1) },
+};
+
+constexpr float2x2 ROT[] = {
+	float2x2(  1, 0,  0, 1 ),
+	float2x2(  0,-1,  1, 0 ),
+	float2x2( -1, 0,  0,-1 ),
+	float2x2(  0, 1, -1, 0 ),
 };
 
 struct LogicSim {
@@ -51,6 +58,9 @@ struct LogicSim {
 	struct Gate {
 		GateType type;
 		float2   pos;
+		int      rot;
+
+		uint8_t state; // double buffer
 
 		struct Input {
 			Gate* gate;
@@ -58,33 +68,34 @@ struct LogicSim {
 			std::vector<float2> points;
 		};
 		std::vector<Input> inputs;
-
-		uint8_t state; // double buffer
 		
 		void init () {
 			inputs.assign(gate_info[type].inputs, Input{}); // no connections
 			inputs.shrink_to_fit();
 		}
 
-		float2 get_io_pos (int i, int count, float x, float y, float h) {
-			h -= 0.0f*2;
-			y += 0.0f;
+		// relative to gate
+		float2 get_io_pos (int i, int count, float x) {
+			float h = 1.0f; // - 0.2f * 2
+			float y = -0.5f;
 			
 			float step = h / (float)count;
-			return float2(x, y + step * ((float)i + 0.5f));
+			return ROT[rot] * float2(x, y + step * ((float)i + 0.5f));
 		}
+		// in world space
 		float2 get_input_pos (int i) {
 			assert(type >= GT_NULL);
-			return get_io_pos(i, gate_info[type].inputs, pos.x + gate_info[type].input_x, pos.y, 1);
+			return pos + get_io_pos(i, gate_info[type].inputs, gate_info[type].input_x);
 		}
+		// in world space
 		float2 get_output_pos (int i) {
 			assert(type >= GT_NULL);
-			return get_io_pos(i, gate_info[type].outputs, pos.x + gate_info[type].output_x, pos.y, 1);
+			return pos + get_io_pos(i, gate_info[type].outputs, gate_info[type].output_x);
 		}
 		
 		bool hitbox (float2 point) {
-			return point.x >= pos.x && point.x < pos.x + 1 &&
-				   point.y >= pos.y && point.y < pos.y + 1;
+			return point.x >= pos.x - 0.5f && point.x < pos.x + 0.5f &&
+				   point.y >= pos.y - 0.5f && point.y < pos.y + 0.5f;
 		}
 		int input_hitbox (float2 point) {
 			for (int i=0; i<gate_info[type].inputs; ++i) {
@@ -137,6 +148,7 @@ struct LogicSim {
 				json j = {
 					{"type", gate.type},
 					{"pos",  gate.pos},
+					{"rot",  gate.rot},
 					{"state", (gate.state & cur_smask) != 0 },
 					{"inputs", std::move(j_inputs)},
 				};
@@ -162,6 +174,7 @@ struct LogicSim {
 
 				gj.at("type").get_to(gp->type);
 				gj.at("pos").get_to(gp->pos);
+				gj.at("rot").get_to(gp->rot);
 				gj.at("state").get_to(gp->state);
 
 				gp->init();
@@ -184,6 +197,8 @@ struct LogicSim {
 					}
 				}
 			}
+
+			gates.cur_buf = 0; // make sure we reset the current buffer to the one that we actually initialized
 		}
 		
 		std::vector<std::unique_ptr<Gate>> gates;
@@ -297,18 +312,18 @@ struct LogicSim {
 	
 	Selection gate_hitboxes (Gate& gate, int gate_idx, float2 point) {
 		Selection s = {};
-
+		
 		// do here for efficincy (avoid iterating twice)
-		if (gate.hitbox(_cursor_pos)) {
+		if (gate.hitbox(point)) {
 			s = { Selection::GATE, &gate };
 		}
 
 		if (mode == EM_EDIT) {
-			int inp  = gate.input_hitbox(_cursor_pos);
+			int inp  = gate.input_hitbox(point);
 			if (inp >= 0) {
 				s = { Selection::INPUT, &gate, inp };
 			}
-			int outp = gate.output_hitbox(_cursor_pos);
+			int outp = gate.output_hitbox(point);
 			if (outp >= 0) {
 				s = { Selection::OUTPUT, &gate, outp };
 			}
@@ -358,7 +373,14 @@ struct LogicSim {
 			ImGui::PopID();
 		}
 	}
-
+	
+	void rotate_button (Input& I, Gate& g) {
+		if (I.buttons['R'].went_down) {
+			int dir = I.buttons[KEY_LEFT_SHIFT].is_down ? +1 : -1;
+			g.rot = wrap(g.rot + dir, 4);
+		}
+	}
+	
 	void update (Input& I, View3D& view, DebugDraw& dbgdraw, Window& window) {
 		ZoneScoped;
 		
@@ -383,11 +405,14 @@ struct LogicSim {
 			// go from place mode into edit mode with right click
 			if (mode == EM_PLACE) mode = EM_EDIT;
 		}
+		
+		if (mode == EM_PLACE)
+			rotate_button(I, gate_preview);
 
 		// placing gates
 		if (_cursor_valid) {
 			// move to-be-placed gate preview with cursor
-			gate_preview.pos = snap(_cursor_pos - 0.5f);
+			gate_preview.pos = snap(_cursor_pos);
 
 			// place gate on left click
 			if (mode == EM_PLACE && I.buttons[MOUSE_BUTTON_LEFT].went_down) {
@@ -417,7 +442,7 @@ struct LogicSim {
 				hover = hit;
 			}
 		}
-
+		
 		if (sel.type == Selection::GATE) {
 			if (!editing) {
 				// begin dragging gate
@@ -436,6 +461,8 @@ struct LogicSim {
 					editing = false;
 				}
 			}
+
+			rotate_button(I, *sel.gate);
 
 			// remove gates via DELETE key
 			if (I.buttons[KEY_DELETE].went_down) {
@@ -542,9 +569,10 @@ struct LogicSim {
 	
 	void simulate (Input& I, DebugDraw& dbgdraw) {
 		ZoneScoped;
-
-		uint8_t next_smask = 1u << (gates.cur_buf^1);
-		uint8_t cur_smask  = 1u <<  gates.cur_buf;
+		
+		gates.cur_buf ^= 1;
+		uint8_t prev_smask = 1u << (gates.cur_buf^1);
+		uint8_t  cur_smask = 1u <<  gates.cur_buf;
 
 		for (int i=0; i<(int)gates.size(); ++i) {
 			auto& g = gates[i];
@@ -556,11 +584,11 @@ struct LogicSim {
 
 			if (!a_valid && !b_valid) {
 				// keep prev state (needed to toggle gates via LMB)
-				new_state = (g.state & cur_smask) != 0;
+				new_state = (g.state & prev_smask) != 0;
 			}
 			else {
-				bool a = a_valid && (g.inputs[0].gate->state & cur_smask) != 0;
-				bool b = b_valid && (g.inputs[1].gate->state & cur_smask) != 0;
+				bool a = a_valid && (g.inputs[0].gate->state & prev_smask) != 0;
+				bool b = b_valid && (g.inputs[1].gate->state & prev_smask) != 0;
 
 				switch (g.type) {
 					case GT_BUF  : new_state =  a;  break;
@@ -578,16 +606,14 @@ struct LogicSim {
 				}
 			}
 
-			g.state &= ~next_smask;
-			g.state |= new_state ? next_smask : 0;
+			g.state &= ~cur_smask;
+			g.state |= new_state ? cur_smask : 0;
 		}
-
-		gates.cur_buf ^= 1;
 	}
 };
 
 struct Game {
-	SERIALIZE(Game, cam, sim, sim_freq, pause)
+	SERIALIZE_RESET_ON_LOAD(Game, cam, sim, sim_freq, pause)
 	
 	Camera2D cam = Camera2D();
 	
@@ -596,11 +622,9 @@ struct Game {
 	LogicSim sim;
 
 	float sim_freq = 10.0f;
-	float sim_timer = 0;
+	float sim_t = 0; // [0,1)  1 means next tick happens, used to animate between prev_state and cur_state
 	bool pause = false;
 	bool manual_tick = false;
-
-	float sim_anim_t = 0;
 
 	Game () {
 		
@@ -617,6 +641,7 @@ struct Game {
 				sim.imgui(I);
 
 				ImGui::SliderFloat("Sim Freq", &sim_freq, 0.1f, 200, "%.1f", ImGuiSliderFlags_Logarithmic);
+
 				ImGui::Checkbox("Pause [Space]", &pause);
 				ImGui::SameLine();
 				manual_tick = ImGui::Button("Man. Tick [T]");
@@ -646,24 +671,20 @@ struct Game {
 		sim.update(I, view, dbgdraw, window);
 
 		if (!pause && sim_freq >= 0.1f) {
-
-			sim_timer -= I.dt;
 			
-			float step = 1.0f / sim_freq;
-			for (int i=0; i<4 && sim_timer < 0; ++i) {
+			for (int i=0; i<10 && sim_t >= 1.0f; ++i) {
 				
 				sim.simulate(I, dbgdraw);
 				
-				sim_timer += step;
+				sim_t -= 1.0f;
 			}
-
-			sim_anim_t = clamp(1.0f - sim_timer/step, 0.0f, 1.0f);
+			assert(sim_t >= 0.0f && sim_t < 1.0f);
+			
+			sim_t += I.dt * sim_freq;
 		}
 		else if (manual_tick) {
 			sim.simulate(I, dbgdraw);
-			sim_timer = 0;
-
-			sim_anim_t = 1;
+			sim_t = 0.5f;
 		}
 		manual_tick = false;
 	}
