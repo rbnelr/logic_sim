@@ -102,14 +102,6 @@ struct LineRenderer {
 		verticies.shrink_to_fit();
 	}
 
-	void push_line (float2 a, float2 b, float4 col, int states) {
-		uint16_t idx = (uint16_t)verticies.size();
-
-		auto* pv = push_back(verticies, 2);
-		pv[0] = { a, col, 0, states };
-		pv[1] = { b, col, 1, states };
-	}
-
 	void render (StateManager& state, Game& g) {
 		ZoneScoped;
 
@@ -228,6 +220,35 @@ struct Renderer {
 			g.dbgdraw.wire_quad(float3(gate.get_output_pos(s.io_idx) - LogicSim::IO_SIZE/2, 5.0f), LogicSim::IO_SIZE, col);
 		}
 	}
+
+	void build_line (float2 start, float2 end, std::vector<float2>& points, lrgba col, int states) {
+		float2 prev = start;
+		float dist = 0;
+		
+		size_t idx = line_renderer.verticies.size();
+
+		for (float2& cur : points) {
+			auto* pv = push_back(line_renderer.verticies, 2);
+			pv[0] = { prev, col, dist, states };
+			dist += distance(prev, cur);
+			pv[1] = {  cur, col, dist, states };
+
+			prev = cur;
+		}
+		{
+			auto* pv = push_back(line_renderer.verticies, 2);
+			pv[0] = { prev, col, dist, states };
+			dist += distance(prev, end);
+			pv[1] = {  end, col, dist, states };
+		}
+
+		// normalize t to [0,1]
+		float norm = 1.0f / dist;
+		for (size_t i=idx; i<line_renderer.verticies.size(); ++i) {
+			line_renderer.verticies[i].t *= norm;
+		}
+	}
+
 	void render (Window& window, Game& g, int2 window_size) {
 		ZoneScoped;
 		
@@ -292,7 +313,7 @@ struct Renderer {
 
 						int states = (sa?1:0) | (sb?2:0);
 
-						line_renderer.push_line(a, b, lrgba(0.4f, 0.01f, 0.01f, 1), states);
+						build_line(a, b, wire.points, lrgba(0.8f, 0.01f, 0.025f, 1), states);
 					}
 				}
 			}
@@ -320,11 +341,11 @@ struct Renderer {
 
 				if (wire.src.gate) a = wire.src.gate->get_output_pos(wire.src.io_idx);
 				if (wire.dst.gate) b = wire.dst.gate->get_input_pos (wire.dst.io_idx);
-
-				line_renderer.push_line(a, b, lrgba(0,0,0,0.5f), 3);
+				
+				build_line(a, b, wire.points, lrgba(0.8f, 0.01f, 0.025f, 0.75f), 3);
 			}
 		}
-
+		
 		glLineWidth(10);
 		line_renderer.render(state, g);
 		glLineWidth(debug_draw.line_width);

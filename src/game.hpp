@@ -42,7 +42,7 @@ struct LogicSim {
 
 //// Logic Sim Datas
 	struct Gate;
-
+	
 	struct WireConnection {
 		Gate* gate;
 		int   io_idx;
@@ -52,18 +52,23 @@ struct LogicSim {
 		GateType type;
 		float2   pos;
 
-		std::vector<WireConnection> inputs;
+		struct Input {
+			Gate* gate;
+			int   io_idx;
+			std::vector<float2> points;
+		};
+		std::vector<Input> inputs;
 
 		uint8_t state; // double buffer
 		
 		void init () {
-			inputs.assign(gate_info[type].inputs, WireConnection{}); // no connections
+			inputs.assign(gate_info[type].inputs, Input{}); // no connections
 			inputs.shrink_to_fit();
 		}
 
 		float2 get_io_pos (int i, int count, float x, float y, float h) {
-			h -= 0.2f*2;
-			y += 0.2f;
+			h -= 0.0f*2;
+			y += 0.0f;
 			
 			float step = h / (float)count;
 			return float2(x, y + step * ((float)i + 0.5f));
@@ -123,7 +128,10 @@ struct LogicSim {
 				json j_inputs = {};
 				for (auto& inp : gate.inputs) {
 					int idx = inp.gate == nullptr ? -1 : indexof(gates.gates, inp.gate, [] (std::unique_ptr<Gate> const& ptr, Gate* r) { return ptr.get() == r; });
-					j_inputs.emplace_back(json{ {"g", idx}, {"i", inp.io_idx} });
+					json j = { {"g", idx}, {"i", inp.io_idx} };
+					j["points"] = inp.points;
+					
+					j_inputs.emplace_back(std::move(j));
 				}
 
 				json j = {
@@ -170,6 +178,8 @@ struct LogicSim {
 						if (gate_idx >= 0 && gate_idx < (int)gates.gates.size()) {
 							gp->inputs[i].gate = gates.gates[gate_idx].get();
 							gp->inputs[i].io_idx = outp_idx;
+
+							if (inputsj[i].contains("points")) inputsj[i].at("points").get_to(gp->inputs[i].points);
 						}
 					}
 				}
@@ -218,13 +228,15 @@ struct LogicSim {
 			gates[idx] = std::move(gates.back()); // swap last vector element into this one (works even if this was the last element)
 			gates.pop_back(); // shrink vector
 		}
-
-		void replace_wire (WireConnection src, WireConnection dst) {
+		
+		void add_wire (WireConnection src, WireConnection dst, std::vector<float2>&& points) {
 			assert(dst.gate);
+			assert(src.gate);
 			assert(dst.io_idx < gate_info[dst.gate->type].inputs);
-			if (src.gate) assert(src.io_idx < gate_info[src.gate->type].outputs);
-			dst.gate->inputs[dst.io_idx] = src; // if src.gate == null, this effectively removes the connection
+			assert(src.io_idx < gate_info[src.gate->type].outputs);
+			dst.gate->inputs[dst.io_idx] = { src.gate, src.io_idx, std::move(points) };
 		}
+
 	};
 
 	Gates gates;
@@ -244,12 +256,14 @@ struct LogicSim {
 		WireConnection dst = { nullptr, 0 }; // if gate=null then to unconnected_pos
 		WireConnection src = { nullptr, 0 }; // if gate=null then from unconnected_pos
 
-		float2         unconnected_pos; // = cursor pos
+		std::vector<float2> points;
 
-		bool was_dst;
+		float2         unconnected_pos = 0; // = cursor pos
+
+		bool was_dst = false;
 	};
 	WirePreview wire_preview = {};
-
+	
 	struct Selection {
 		enum Type {
 			NONE=0,
@@ -268,7 +282,7 @@ struct LogicSim {
 	Selection sel = {};
 	Selection hover = {};
 
-	float snapping_size = 0.25f;
+	float snapping_size = 0.125f;
 	bool snapping = true;
 	
 	float2 snap (float2 pos) {
@@ -278,7 +292,7 @@ struct LogicSim {
 	bool _cursor_valid;
 	float3 _cursor_pos;
 	
-	bool dragging = false;
+	bool editing = false; // dragging gate or placing wire
 	float2 drag_offs;
 	
 	Selection gate_hitboxes (Gate& gate, int gate_idx, float2 point) {
@@ -365,6 +379,7 @@ struct LogicSim {
 			sel = {};
 			gate_preview.type = GT_NULL;
 			wire_preview = {};
+			editing = false;
 			// go from place mode into edit mode with right click
 			if (mode == EM_PLACE) mode = EM_EDIT;
 		}
@@ -382,7 +397,7 @@ struct LogicSim {
 		}
 
 		
-		bool try_select = mode == EM_EDIT && _cursor_valid && I.buttons[MOUSE_BUTTON_LEFT].went_down;
+		bool try_select = mode == EM_EDIT && !editing && _cursor_valid && I.buttons[MOUSE_BUTTON_LEFT].went_down;
 		if (try_select)
 			sel = {}; // unselect if click and nothing was hit
 
@@ -403,82 +418,118 @@ struct LogicSim {
 			}
 		}
 
-		{ // Dragging Logic (Gates and Wires)
-			// drag selected gate via left click
-			if (sel.type == Selection::GATE && I.buttons[MOUSE_BUTTON_LEFT].is_down) {
-				if (!dragging) {
+		if (sel.type == Selection::GATE) {
+			if (!editing) {
+				// begin dragging gate
+				if (I.buttons[MOUSE_BUTTON_LEFT].went_down) {
 					drag_offs = _cursor_pos - sel.gate->pos;
-					dragging = true;
+					editing = true;
 				}
-				else {
+			}
+			if (editing) {
+				// drag gate
+				if (editing && I.buttons[MOUSE_BUTTON_LEFT].is_down) {
 					sel.gate->pos = snap(_cursor_pos - drag_offs);
 				}
+				// stop dragging gate
+				if (editing && I.buttons[MOUSE_BUTTON_LEFT].went_up) {
+					editing = false;
+				}
 			}
 
-			// drag selected IO via left click
-			if ((sel.type == Selection::INPUT || sel.type == Selection::OUTPUT) && I.buttons[MOUSE_BUTTON_LEFT].is_down) {
-				if (!dragging) { // begin dragging
-					// reset wire connection preview
-					wire_preview.dst = {};
-					wire_preview.src = {};
+			// remove gates via DELETE key
+			if (I.buttons[KEY_DELETE].went_down) {
+				gates.remove_gate(sel.gate);
+				if (hover == sel) hover = {};
+				sel = {};
+				wire_preview = {}; // just be to sure no stale pointers exist
+			}
+		}
+		// drag selected IO via left click
+		else if (sel.type == Selection::INPUT || sel.type == Selection::OUTPUT) {
+			if (!editing) {
+				// begin placing wire
+				if (I.buttons[MOUSE_BUTTON_LEFT].went_down || !_cursor_valid) {
 					// remember where dragging started
+					
+					if (sel.type == Selection::INPUT) {
+						wire_preview.was_dst = true;
+						sel.gate->inputs[sel.io_idx] = {}; // remove wire if new wire is begin being placed from input
+						wire_preview.dst = { sel.gate, sel.io_idx };
+					}
+					else {                     
+						wire_preview.src = { sel.gate, sel.io_idx };
+					}
 
-					wire_preview.was_dst = sel.type == Selection::INPUT;
-					if (sel.type == Selection::INPUT) wire_preview.dst = { sel.gate, sel.io_idx };
-					else                              wire_preview.src = { sel.gate, sel.io_idx };
-
-					// begin dragging
-					dragging = true;
-				}
-				if (dragging) { // while dragging
-					// if other end is unconnected 'connect' it with cursor
 					wire_preview.unconnected_pos = _cursor_pos;
 
+					editing = true;
+				}
+			}
+			else {
+				// if other end is unconnected 'connect' it with cursor
+				wire_preview.unconnected_pos = snap(_cursor_pos);
+				
+				// connect to in/outputs where applicable each frame (does not stick)
+				if (hover && (hover.type == Selection::INPUT || hover.type == Selection::OUTPUT)) {
+				
+					if (hover.type == Selection::OUTPUT && wire_preview.was_dst) {
+						wire_preview.src.gate   = hover.gate;
+						wire_preview.src.io_idx = hover.io_idx;
+					}
+					if (hover.type == Selection::INPUT && !wire_preview.was_dst) {
+						wire_preview.dst.gate   = hover.gate;
+						wire_preview.dst.io_idx = hover.io_idx;
+					}
+				}
+				else {
+					// unconnect if did hover over non-in/output
+					if (wire_preview.was_dst) wire_preview.src = {};
+					else                      wire_preview.dst = {};
+				}
+				
+				//// stop dragging
+				if (I.buttons[MOUSE_BUTTON_LEFT].went_down || !_cursor_valid) {
 					if (hover && (hover.type == Selection::INPUT || hover.type == Selection::OUTPUT)) {
+						// if wire_preview was a connected on both ends, make it a real connection
+						if (wire_preview.src.gate && wire_preview.dst.gate) {
+							gates.add_wire(wire_preview.src, wire_preview.dst, std::move(wire_preview.points));
+						} else {
+							// dragged from output, but did not connect, do nothing
+						}
 
-						if (hover.type == Selection::OUTPUT && wire_preview.was_dst) {
-							wire_preview.src.gate   = hover.gate;
-							wire_preview.src.io_idx = hover.io_idx;
-						}
-						if (hover.type == Selection::INPUT && !wire_preview.was_dst) {
-							wire_preview.dst.gate   = hover.gate;
-							wire_preview.dst.io_idx = hover.io_idx;
-						}
+						wire_preview = {};
+						sel = {};
+						editing = false;
 					}
 					else {
-						if (wire_preview.was_dst) wire_preview.src = {};
-						else                      wire_preview.dst = {};
+						// add a wire point, at front or back depending on order that wire is built in
+						if (wire_preview.was_dst) wire_preview.points.insert(wire_preview.points.begin(), wire_preview.unconnected_pos);
+						else                      wire_preview.points.push_back(wire_preview.unconnected_pos);
 					}
 				}
-			}
 
-			// stop dragging
-			if (dragging && I.buttons[MOUSE_BUTTON_LEFT].went_up) {
-			dragging = false;
-
-			// if wire_preview was a connected on both ends, make it a real connection
-			if ((wire_preview.src.gate && wire_preview.dst.gate) || wire_preview.was_dst) {
-				gates.replace_wire(wire_preview.src, wire_preview.dst);
-				if (wire_preview.was_dst) {
-					// dragged from input, but did not connect
-					// overwrite old connection with new one
-					assert(wire_preview.dst.gate);
+				if (I.buttons[MOUSE_BUTTON_RIGHT].went_down) {
+					// undo one wire point or cancel wire
+					if (wire_preview.points.empty()) {
+						// cancel whole wire edit
+						wire_preview = {};
+						sel = {};
+						editing = false;
+					}
+					else {
+						// just remove last added point
+						if (wire_preview.was_dst) wire_preview.points.erase(wire_preview.points.begin());
+						else                      wire_preview.points.pop_back();
+					}
 				}
-				gates.replace_wire(wire_preview.src, wire_preview.dst);
-			} else {
-				// dragged from output, but did not connect
-				// do nothing
-			}
-			wire_preview = {};
-		}
-		}
 
-		// remove gates via DELETE key
-		if (sel.type == Selection::GATE && I.buttons[KEY_DELETE].went_down) {
-			gates.remove_gate(sel.gate);
-			if (hover == sel) hover = {};
-			sel = {};
-			wire_preview = {}; // just be to sure no stale pointers exist
+				if (!_cursor_valid) {
+					wire_preview = {};
+					sel = {};
+					editing = false;
+				}
+			}
 		}
 
 		bool can_toggle = mode == EM_VIEW && hover.type == Selection::GATE;
