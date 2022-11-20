@@ -1,9 +1,10 @@
 /msvc/*
 
-!/msvc/ships.sln
-!/msvc/ships.vcxproj
-!/msvc/ships.vcxproj.filters
-!/msvc/ships.vcxproj.user
+!/msvc/logic_sim.sln
+!/msvc/logic_sim.vcxproj
+!/msvc/logic_sim.vcxproj.filters
+!/msvc/logic_sim.vcxproj.user
+!/msvc/nonusercode.natjmc
 
 textures/*
 
