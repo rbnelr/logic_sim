@@ -82,10 +82,14 @@ struct LineRenderer {
 	struct Vertex {
 		float2 pos;
 		float4 col;
+		float  t;
+		int    states;
 
 		ATTRIBUTES {
 			ATTRIB( idx++, GL_FLOAT,2, Vertex, pos);
 			ATTRIB( idx++, GL_FLOAT,4, Vertex, col);
+			ATTRIB( idx++, GL_FLOAT,1, Vertex, t);
+			ATTRIBI(idx++, GL_INT  ,1, Vertex, states);
 		}
 	};
 
@@ -98,15 +102,15 @@ struct LineRenderer {
 		verticies.shrink_to_fit();
 	}
 
-	void push_line (float2 a, float2 b, float4 col) {
+	void push_line (float2 a, float2 b, float4 col, int states) {
 		uint16_t idx = (uint16_t)verticies.size();
 
 		auto* pv = push_back(verticies, 2);
-		pv[0] = { a, col };
-		pv[1] = { b, col };
+		pv[0] = { a, col, 0, states };
+		pv[1] = { b, col, 1, states };
 	}
 
-	void render (StateManager& state) {
+	void render (StateManager& state, Game& g) {
 		ZoneScoped;
 
 		if (shad->prog) {
@@ -116,6 +120,8 @@ struct LineRenderer {
 
 			if (verticies.size() > 0) {
 				glUseProgram(shad->prog);
+
+				shad->set_uniform("sim_anim_t", g.sim_anim_t);
 
 				PipelineState s;
 				s.depth_test = false;
@@ -266,7 +272,8 @@ struct Renderer {
 		{ // Gates and wires
 			ZoneScopedN("push gates");
 
-			uint8_t cur_smask  = 1u << g.sim.gates.cur_buf;
+			uint8_t prev_smask = 1u << (g.sim.gates.cur_buf^1);
+			uint8_t cur_smask  = 1u <<  g.sim.gates.cur_buf;
 
 			for (int i=0; i<(int)g.sim.gates.size(); ++i) {
 				auto& gate = g.sim.gates[i];
@@ -280,10 +287,12 @@ struct Renderer {
 						float2 a = wire.gate->get_output_pos(wire.io_idx);
 						float2 b = gate.get_input_pos(i);
 						
-						auto wstate = (wire.gate->state & cur_smask) != 0;
-						lrgba col = wstate ? lrgba(0.4f, 0.01f, 0.01f, 1) : lrgba(0,0,0,1);
+						bool sa = (wire.gate->state & cur_smask) != 0;
+						bool sb = (wire.gate->state & prev_smask) != 0;
 
-						line_renderer.push_line(a, b, col);
+						int states = (sa?1:0) | (sb?2:0);
+
+						line_renderer.push_line(a, b, lrgba(0.4f, 0.01f, 0.01f, 1), states);
 					}
 				}
 			}
@@ -312,12 +321,12 @@ struct Renderer {
 				if (wire.src.gate) a = wire.src.gate->get_output_pos(wire.src.io_idx);
 				if (wire.dst.gate) b = wire.dst.gate->get_input_pos (wire.dst.io_idx);
 
-				line_renderer.push_line(a, b, lrgba(0,0,0,0.5f));
+				line_renderer.push_line(a, b, lrgba(0,0,0,0.5f), 3);
 			}
 		}
 
 		glLineWidth(10);
-		line_renderer.render(state);
+		line_renderer.render(state, g);
 		glLineWidth(debug_draw.line_width);
 
 		tri_renderer.render(state);

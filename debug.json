@@ -8,8 +8,8 @@
 	"game": {
 		"cam": {
 			"pos": [
-				-6.586461067199707,
-				4.802300930023193,
+				-6.34149169921875,
+				3.8101179599761963,
 				0.0
 			],
 			"zoom": -4.362966537475586,
@@ -868,7 +868,7 @@
 							-3.0,
 							6.5
 						],
-						"state": false,
+						"state": true,
 						"inputs": [
 							{
 								"g": 56,
@@ -882,7 +882,7 @@
 							-5.0,
 							6.5
 						],
-						"state": false,
+						"state": true,
 						"inputs": [
 							{
 								"g": 86,
@@ -896,7 +896,7 @@
 							-4.0,
 							5.5
 						],
-						"state": false,
+						"state": true,
 						"inputs": [
 							{
 								"g": 56,
@@ -924,7 +924,7 @@
 							-13.5,
 							6.0
 						],
-						"state": false,
+						"state": true,
 						"inputs": [
 							{
 								"g": 58,
@@ -942,7 +942,7 @@
 							-13.5,
 							4.5
 						],
-						"state": false,
+						"state": true,
 						"inputs": [
 							{
 								"g": 60,
@@ -988,7 +988,7 @@
 							-12.0,
 							4.5
 						],
-						"state": true,
+						"state": false,
 						"inputs": [
 							{
 								"g": 58,
@@ -1002,7 +1002,7 @@
 							-12.0,
 							6.0
 						],
-						"state": true,
+						"state": false,
 						"inputs": [
 							{
 								"g": 57,
@@ -1356,7 +1356,7 @@
 						"type": 0,
 						"pos": [
 							-22.0,
-							-3.5
+							-4.0
 						],
 						"state": false,
 						"inputs": [
@@ -1386,10 +1386,108 @@
 							-6.5,
 							6.5
 						],
-						"state": true,
+						"state": false,
 						"inputs": [
 							{
 								"g": 86,
+								"i": 0
+							}
+						]
+					},
+					{
+						"type": 1,
+						"pos": [
+							-6.5,
+							5.25
+						],
+						"state": false,
+						"inputs": [
+							{
+								"g": 89,
+								"i": 0
+							}
+						]
+					},
+					{
+						"type": 0,
+						"pos": [
+							-6.5,
+							4.5
+						],
+						"state": false,
+						"inputs": [
+							{
+								"g": 87,
+								"i": 0
+							}
+						]
+					},
+					{
+						"type": 0,
+						"pos": [
+							-7.5,
+							5.25
+						],
+						"state": true,
+						"inputs": [
+							{
+								"g": 90,
+								"i": 0
+							}
+						]
+					},
+					{
+						"type": 0,
+						"pos": [
+							-8.5,
+							5.25
+						],
+						"state": true,
+						"inputs": [
+							{
+								"g": 91,
+								"i": 0
+							}
+						]
+					},
+					{
+						"type": 0,
+						"pos": [
+							-9.5,
+							5.25
+						],
+						"state": false,
+						"inputs": [
+							{
+								"g": 92,
+								"i": 0
+							}
+						]
+					},
+					{
+						"type": 0,
+						"pos": [
+							-10.5,
+							5.25
+						],
+						"state": false,
+						"inputs": [
+							{
+								"g": 88,
+								"i": 0
+							}
+						]
+					},
+					{
+						"type": 0,
+						"pos": [
+							-5.25,
+							5.25
+						],
+						"state": false,
+						"inputs": [
+							{
+								"g": 87,
 								"i": 0
 							}
 						]
@@ -1399,7 +1497,7 @@
 			"snapping_size": 0.25,
 			"snapping": true
 		},
-		"sim_freq": 20.0,
+		"sim_freq": 5.0,
 		"pause": false
 	},
 	"renderer": null

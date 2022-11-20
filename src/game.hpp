@@ -129,7 +129,7 @@ struct LogicSim {
 				json j = {
 					{"type", gate.type},
 					{"pos",  gate.pos},
-					{"state",  (gate.state & cur_smask) != 0 },
+					{"state", (gate.state & cur_smask) != 0 },
 					{"inputs", std::move(j_inputs)},
 				};
 
@@ -154,11 +154,7 @@ struct LogicSim {
 
 				gj.at("type").get_to(gp->type);
 				gj.at("pos").get_to(gp->pos);
-				{
-					bool state;
-					gj.at("state").get_to(state);
-					gp->state = state ? 3 : 0;
-				}
+				gj.at("state").get_to(gp->state);
 
 				gp->init();
 
@@ -487,12 +483,7 @@ struct LogicSim {
 
 		bool can_toggle = mode == EM_VIEW && hover.type == Selection::GATE;
 		if (can_toggle && I.buttons[MOUSE_BUTTON_LEFT].went_down) {
-			uint8_t next_smask = 1u << (gates.cur_buf^1);
-			uint8_t cur_smask  = 1u <<  gates.cur_buf;
-
-			bool cur_state = (hover.gate->state & cur_smask) != 0;
-
-			hover.gate->state = !cur_state ? 3 : 0; // force both state buffers to the same value to correctly toggle 'inputs'
+			hover.gate->state ^= 1u <<  gates.cur_buf;
 		}
 
 		window.set_cursor(can_toggle ? Window::CURSOR_FINGER : Window::CURSOR_NORMAL);
@@ -510,29 +501,30 @@ struct LogicSim {
 			bool a_valid = gate_info[g.type].inputs >= 1 && g.inputs[0].gate;
 			bool b_valid = gate_info[g.type].inputs >= 2 && g.inputs[1].gate;
 
-			if (!a_valid && !b_valid) {
-				// keep state constant to allow toggle via LMB
-				continue;
-			}
-
-			bool a = a_valid && (g.inputs[0].gate->state & cur_smask) != 0;
-			bool b = b_valid && (g.inputs[1].gate->state & cur_smask) != 0;
-
 			uint8_t new_state;
 
-			switch (g.type) {
-				case GT_BUF  : new_state =  a;  break;
-				case GT_NOT  : new_state = !a;  break;
-				
-				case GT_AND  : new_state =   a && b;	 break;
-				case GT_NAND : new_state = !(a && b);	 break;
-				
-				case GT_OR   : new_state =   a || b;	 break;
-				case GT_NOR  : new_state = !(a || b);	 break;
-				
-				case GT_XOR  : new_state =   a != b;	 break;
+			if (!a_valid && !b_valid) {
+				// keep prev state (needed to toggle gates via LMB)
+				new_state = (g.state & cur_smask) != 0;
+			}
+			else {
+				bool a = a_valid && (g.inputs[0].gate->state & cur_smask) != 0;
+				bool b = b_valid && (g.inputs[1].gate->state & cur_smask) != 0;
 
-				default: assert(false);
+				switch (g.type) {
+					case GT_BUF  : new_state =  a;  break;
+					case GT_NOT  : new_state = !a;  break;
+				
+					case GT_AND  : new_state =   a && b;	 break;
+					case GT_NAND : new_state = !(a && b);	 break;
+				
+					case GT_OR   : new_state =   a || b;	 break;
+					case GT_NOR  : new_state = !(a || b);	 break;
+				
+					case GT_XOR  : new_state =   a != b;	 break;
+
+					default: assert(false);
+				}
 			}
 
 			g.state &= ~next_smask;
@@ -553,9 +545,11 @@ struct Game {
 	LogicSim sim;
 
 	float sim_freq = 10.0f;
-	float sim_t = 0;
+	float sim_timer = 0;
 	bool pause = false;
 	bool manual_tick = false;
+
+	float sim_anim_t = 0;
 
 	Game () {
 		
@@ -602,18 +596,23 @@ struct Game {
 
 		if (!pause && sim_freq >= 0.1f) {
 
-			sim_t -= I.dt;
+			sim_timer -= I.dt;
 			
 			float step = 1.0f / sim_freq;
-			for (int i=0; i<4 && sim_t < 0; ++i) {
+			for (int i=0; i<4 && sim_timer < 0; ++i) {
 				
 				sim.simulate(I, dbgdraw);
 				
-				sim_t += step;
+				sim_timer += step;
 			}
+
+			sim_anim_t = clamp(1.0f - sim_timer/step, 0.0f, 1.0f);
 		}
 		else if (manual_tick) {
 			sim.simulate(I, dbgdraw);
+			sim_timer = 0;
+
+			sim_anim_t = 1;
 		}
 		manual_tick = false;
 	}

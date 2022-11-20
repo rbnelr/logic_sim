@@ -118,7 +118,7 @@ flat VS2FS int v_gate_state;
 	//	return min(d, SDF_circ(uv - vec2(0.88,0.5), 0.10));
 	//}
 	float invert_circ (vec2 uv) {
-		return SDF_circ(uv - vec2(0.88,0.5), 0.10);
+		return SDF_circ(uv - vec2(0.86,0.5), 0.12);
 	}
 	
 	void main () {
@@ -128,7 +128,7 @@ flat VS2FS int v_gate_state;
 		
 		bool base_state = v_gate_state != 0;
 		bool inv_state  = v_gate_state != 0;
-		if (inv != 0) base_state = !base_state;
+		//if (inv != 0) base_state = !base_state;
 		
 		float du = fwidth(v.uv.x);
 		
