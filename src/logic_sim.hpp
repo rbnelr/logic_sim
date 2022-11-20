@@ -649,56 +649,72 @@ struct LogicSim {
 	uint8_t state[];
 */
 
-struct LogicSim {
+struct Chip {
+	std::string name;
 
-	struct Chip {
-		std::string name;
-
-		struct IO_Pin {
-			std::string name = "";
-		};
-
-		std::vector<IO_Pin> inputs;
-		std::vector<IO_Pin> outputs;
-		
-		float2 size;
-
-		// how many total outputs are used (recursively)
-		// and thus how many state vars need to be allocated
-		// when this chip is placed in the simulation
-		int state_count = -1; // -1 if stale
-		
-		struct Part {
-			Chip*  chip;
-
-			float2 pos;
-			int    rot = 0;
-			float  scale = 1.0f;
-
-			struct Input {
-				// pointing to output of other part that is direct child of chip
-				// can be normal part or chip input pin
-				// or -1 if unconnected
-				int subpart_idx;
-				// which output pin of the part is connected to
-				int     pin_idx;
-				// recursively flattened state index relative to chip
-				// ie. chip.state_idx + state_idx contains the state bits that need to be read for this input
-				int   state_idx;
-			};
-			std::unique_ptr<Input[]> inputs = nullptr;
-
-			Part (Chip* chip, float2 pos): chip{chip}, pos{pos} {}
-		};
-
-		// first all inputs, than all outputs, then all other direct children of this chip
-		std::vector<Part> subparts;
+	struct IO_Pin {
+		std::string name = "";
 	};
 
-	static const Chip primitives[];
+	std::vector<IO_Pin> inputs;
+	std::vector<IO_Pin> outputs;
+		
+	float2 size;
 
+	// how many total outputs are used (recursively)
+	// and thus how many state vars need to be allocated
+	// when this chip is placed in the simulation
+	int state_count = -1; // -1 if stale
+		
+	struct Part {
+		Chip* chip;
+
+		float2 pos;
+		int    rot = 0;
+		float  scale = 1.0f;
+
+		struct Input {
+			// pointing to output of other part that is direct child of chip
+			// can be normal part or chip input pin
+			// or -1 if unconnected
+			int subpart_idx;
+			// which output pin of the part is connected to
+			int     pin_idx;
+			// recursively flattened state index relative to chip
+			// ie. chip.state_idx + state_idx contains the state bits that need to be read for this input
+			int   state_idx;
+		};
+		std::unique_ptr<Input[]> inputs = nullptr;
+
+		Part (Chip* chip, float2 pos): chip{chip}, pos{pos} {}
+	};
+
+	// first all inputs, than all outputs, then all other direct children of this chip
+	std::vector<Part> subparts;
+};
+
+inline Chip INP_PIN = { "Input Pin"  , {{"In"}}, {},  0.2f, 0 };
+inline Chip OUT_PIN = { "Output Pin" , {}, {{"Out"}}, 0.2f, 0 };
+
+inline Chip BUF_GATE  = { "Buffer Gate", {{"In"}}, {{"Out"}},      1, 1,  {{&INP_PIN, float2(-0.3f, +0)}, {&OUT_PIN, float2(0.28f, 0)}} };
+
+inline Chip NOT_GATE  = { "NOT Gate",    {{"In"}}, {{"Out"}},      1, 1,  {{&INP_PIN, float2(-0.3f, +0)}, {&OUT_PIN, float2(0.36f, 0)}} };
+
+inline Chip AND_GATE  = { "AND Gate",    {{"A"},{"B"}}, {{"Out"}}, 1, 1,  {{&INP_PIN, float2(-0.3f, +0.5f)}, {&INP_PIN, float2(-0.3f, -0.5f)}, {&OUT_PIN, float2(0.28f, 0)}} };
+inline Chip NAND_GATE = { "NAND Gate",   {{"A"},{"B"}}, {{"Out"}}, 1, 1,  {{&INP_PIN, float2(-0.3f, +0.5f)}, {&INP_PIN, float2(-0.3f, -0.5f)}, {&OUT_PIN, float2(0.36f, 0)}} };
+
+inline Chip OR_GATE   = { "OR Gate",     {{"A"},{"B"}}, {{"Out"}}, 1, 1,  {{&INP_PIN, float2(-0.3f, +0.5f)}, {&INP_PIN, float2(-0.3f, -0.5f)}, {&OUT_PIN, float2(0.28f, 0)}} };
+inline Chip NOR_GATE  = { "NOR Gate",    {{"A"},{"B"}}, {{"Out"}}, 1, 1,  {{&INP_PIN, float2(-0.3f, +0.5f)}, {&INP_PIN, float2(-0.3f, -0.5f)}, {&OUT_PIN, float2(0.36f, 0)}} };
+
+inline Chip XOR_GATE  = { "XOR Gate",    {{"A"},{"B"}}, {{"Out"}}, 1, 1,  {{&INP_PIN, float2(-0.3f, +0.5f)}, {&INP_PIN, float2(-0.3f, -0.5f)}, {&OUT_PIN, float2(0.28f, 0)}} };
+
+struct LogicSim {
 	SERIALIZE_NONE(LogicSim)
 	
+	std::vector<Chip> chips = {
+		
+	};
+
 	void imgui (Input& I) {
 		if (imgui_Header("LogicSim", true)) {
 
@@ -716,10 +732,4 @@ struct LogicSim {
 	void simulate (Input& I) {
 		
 	}
-};
-
-const LogicSim::Chip LogicSim::primitives[] = {
-	{ "Input Pin"  , {{"A"},{"B"}}, {{"Out"}}, 0.2f, 0 },
-	{ "Output Pin" , {{"A"},{"B"}}, {{"Out"}}, 0.2f, 0 },
-	{ "Buffer Gate", {{"A"},{"B"}}, {{"Out"}}, 1, 1, {{&LogicSim::primitves[0], &LogicSim::primitves[0]}, {}} },
 };
