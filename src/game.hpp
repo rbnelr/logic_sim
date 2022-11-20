@@ -2,6 +2,7 @@
 #include "common.hpp"
 #include "camera.hpp"
 #include "engine/dbgdraw.hpp"
+#include "logic_sim.hpp"
 
 struct GateInfo {
 	const char* name;
