@@ -58,6 +58,7 @@
     <ClInclude Include="..\src\engine\window.hpp" />
     <ClInclude Include="..\src\engine_config.hpp" />
     <ClInclude Include="..\src\game.hpp" />
+    <ClInclude Include="..\src\logic_sim.hpp" />
     <ClInclude Include="..\src\opengl\gl_dbgdraw.hpp" />
     <ClInclude Include="..\src\opengl\renderer.hpp" />
   </ItemGroup>

@@ -125,6 +125,7 @@
       <Filter>opengl</Filter>
     </ClInclude>
     <ClInclude Include="..\src\engine_config.hpp" />
+    <ClInclude Include="..\src\logic_sim.hpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\shaders\common.glsl">

@@ -38,21 +38,21 @@ struct TriRenderer {
 		indices  .shrink_to_fit();
 	}
 
-	void push_gate (LogicSim::Gate& gate, bool state, float4 col) {
-		uint16_t idx = (uint16_t)verticies.size();
-
-		auto& mat = ROT[gate.rot];
-		float2 size = 1;
-
-		auto* pv = push_back(verticies, 4);
-		pv[0] = { gate.pos + mat * float2(-0.5f, -0.5f), float2(0,0), gate.type, (int)state, col };
-		pv[1] = { gate.pos + mat * float2(+0.5f, -0.5f), float2(1,0), gate.type, (int)state, col };
-		pv[2] = { gate.pos + mat * float2(+0.5f, +0.5f), float2(1,1), gate.type, (int)state, col };
-		pv[3] = { gate.pos + mat * float2(-0.5f, +0.5f), float2(0,1), gate.type, (int)state, col };
-
-		auto* pi = push_back(indices, 6);
-		ogl::push_quad(pi, idx+0, idx+1, idx+2, idx+3);
-	}
+	//void push_gate (LogicSim::Gate& gate, bool state, float4 col) {
+	//	uint16_t idx = (uint16_t)verticies.size();
+	//
+	//	auto& mat = ROT[gate.rot];
+	//	float2 size = 1;
+	//
+	//	auto* pv = push_back(verticies, 4);
+	//	pv[0] = { gate.pos + mat * float2(-0.5f, -0.5f), float2(0,0), gate.type, (int)state, col };
+	//	pv[1] = { gate.pos + mat * float2(+0.5f, -0.5f), float2(1,0), gate.type, (int)state, col };
+	//	pv[2] = { gate.pos + mat * float2(+0.5f, +0.5f), float2(1,1), gate.type, (int)state, col };
+	//	pv[3] = { gate.pos + mat * float2(-0.5f, +0.5f), float2(0,1), gate.type, (int)state, col };
+	//
+	//	auto* pi = push_back(indices, 6);
+	//	ogl::push_quad(pi, idx+0, idx+1, idx+2, idx+3);
+	//}
 
 	void render (StateManager& state) {
 		ZoneScoped;
@@ -211,21 +211,21 @@ struct Renderer {
 		
 	}
 	
-	void highlight (LogicSim::Selection s, lrgba col, Game& g) {
-		auto& gate = *s.gate;
-		if (s.type == LogicSim::Selection::GATE) {
-			g.dbgdraw.wire_quad(float3(gate.pos - 0.5f, 5.0f), 1, col);
-
-			text.draw_text(gate_info[gate.type].name, 24*text_scale, lrgba(1),
-				TextRenderer::map_text(gate.pos + float2(-0.5f, 0.5f), g.view), float2(0,1));
-		}
-		else if (s.type == LogicSim::Selection::INPUT) {
-			g.dbgdraw.wire_quad(float3(gate.get_input_pos(s.io_idx) - LogicSim::IO_SIZE/2, 5.0f), LogicSim::IO_SIZE, col);
-		}
-		else {
-			g.dbgdraw.wire_quad(float3(gate.get_output_pos(s.io_idx) - LogicSim::IO_SIZE/2, 5.0f), LogicSim::IO_SIZE, col);
-		}
-	}
+	//void highlight (LogicSim::Selection s, lrgba col, Game& g) {
+	//	auto& gate = *s.gate;
+	//	if (s.type == LogicSim::Selection::GATE) {
+	//		g.dbgdraw.wire_quad(float3(gate.pos - 0.5f, 5.0f), 1, col);
+	//
+	//		text.draw_text(gate_info[gate.type].name, 24*text_scale, lrgba(1),
+	//			TextRenderer::map_text(gate.pos + float2(-0.5f, 0.5f), g.view), float2(0,1));
+	//	}
+	//	else if (s.type == LogicSim::Selection::INPUT) {
+	//		g.dbgdraw.wire_quad(float3(gate.get_input_pos(s.io_idx) - LogicSim::IO_SIZE/2, 5.0f), LogicSim::IO_SIZE, col);
+	//	}
+	//	else {
+	//		g.dbgdraw.wire_quad(float3(gate.get_output_pos(s.io_idx) - LogicSim::IO_SIZE/2, 5.0f), LogicSim::IO_SIZE, col);
+	//	}
+	//}
 
 	void build_line (float2 start, float2 end, std::vector<float2>& points, lrgba col, int states) {
 		float2 prev = start;
@@ -298,68 +298,68 @@ struct Renderer {
 		tri_renderer.update(window.input);
 		line_renderer.update(window.input);
 
-		{ // Gates and wires
-			ZoneScopedN("push gates");
-
-			uint8_t prev_smask = 1u << (g.sim.gates.cur_buf^1);
-			uint8_t cur_smask  = 1u <<  g.sim.gates.cur_buf;
-
-			for (int i=0; i<(int)g.sim.gates.size(); ++i) {
-				auto& gate = g.sim.gates[i];
-				auto state = (gate.state & cur_smask) != 0;
-				tri_renderer.push_gate(gate, state, gate_info[gate.type].color);
-
-				int count = gate_info[gate.type].inputs;
-				for (int i=0; i<count; ++i) {
-					auto& wire = gate.inputs[i];
-					if (wire.gate) {
-						float2 a = wire.gate->get_output_pos(wire.io_idx);
-						float2 b = gate.get_input_pos(i);
-						
-						bool sa = (wire.gate->state & cur_smask) != 0;
-						bool sb = (wire.gate->state & prev_smask) != 0;
-
-						int states = (sa?1:0) | (sb?2:0);
-
-						build_line(a, b, wire.points, lrgba(0.8f, 0.01f, 0.025f, 1), states);
-					}
-				}
-			}
-		}
-
-		{ // Gate preview
-			auto& place = g.sim.gate_preview;
-
-			if (place.type > GT_NULL) {
-				ZoneScopedN("push gate_preview");
-
-				auto col = gate_info[place.type].color;
-				col.w *= 0.5f;
-				tri_renderer.push_gate(place, place.state, col);
-			}
-		}
-		{ // Wire preview
-			auto& wire = g.sim.wire_preview;
-
-			if (wire.dst.gate || wire.src.gate) {
-				ZoneScopedN("push wire_preview");
-
-				float2 a = wire.unconnected_pos;
-				float2 b = wire.unconnected_pos;
-
-				if (wire.src.gate) a = wire.src.gate->get_output_pos(wire.src.io_idx);
-				if (wire.dst.gate) b = wire.dst.gate->get_input_pos (wire.dst.io_idx);
-				
-				build_line(a, b, wire.points, lrgba(0.8f, 0.01f, 0.025f, 0.75f), 3);
-			}
-		}
-		
-		line_renderer.render(state, g);
-		tri_renderer.render(state);
-
-
-		if (g.sim.hover) highlight(g.sim.hover, lrgba(0.25f,0.25f,0.25f,1), g);
-		if (g.sim.sel  ) highlight(g.sim.sel  , lrgba(1,1,1,1), g);
+		//{ // Gates and wires
+		//	ZoneScopedN("push gates");
+		//
+		//	uint8_t prev_smask = 1u << (g.sim.gates.cur_buf^1);
+		//	uint8_t cur_smask  = 1u <<  g.sim.gates.cur_buf;
+		//
+		//	for (int i=0; i<(int)g.sim.gates.size(); ++i) {
+		//		auto& gate = g.sim.gates[i];
+		//		auto state = (gate.state & cur_smask) != 0;
+		//		tri_renderer.push_gate(gate, state, gate_info[gate.type].color);
+		//
+		//		int count = gate_info[gate.type].inputs;
+		//		for (int i=0; i<count; ++i) {
+		//			auto& wire = gate.inputs[i];
+		//			if (wire.gate) {
+		//				float2 a = wire.gate->get_output_pos(wire.io_idx);
+		//				float2 b = gate.get_input_pos(i);
+		//				
+		//				bool sa = (wire.gate->state & cur_smask) != 0;
+		//				bool sb = (wire.gate->state & prev_smask) != 0;
+		//
+		//				int states = (sa?1:0) | (sb?2:0);
+		//
+		//				build_line(a, b, wire.points, lrgba(0.8f, 0.01f, 0.025f, 1), states);
+		//			}
+		//		}
+		//	}
+		//}
+		//
+		//{ // Gate preview
+		//	auto& place = g.sim.gate_preview;
+		//
+		//	if (place.type > GT_NULL) {
+		//		ZoneScopedN("push gate_preview");
+		//
+		//		auto col = gate_info[place.type].color;
+		//		col.w *= 0.5f;
+		//		tri_renderer.push_gate(place, place.state, col);
+		//	}
+		//}
+		//{ // Wire preview
+		//	auto& wire = g.sim.wire_preview;
+		//
+		//	if (wire.dst.gate || wire.src.gate) {
+		//		ZoneScopedN("push wire_preview");
+		//
+		//		float2 a = wire.unconnected_pos;
+		//		float2 b = wire.unconnected_pos;
+		//
+		//		if (wire.src.gate) a = wire.src.gate->get_output_pos(wire.src.io_idx);
+		//		if (wire.dst.gate) b = wire.dst.gate->get_input_pos (wire.dst.io_idx);
+		//		
+		//		build_line(a, b, wire.points, lrgba(0.8f, 0.01f, 0.025f, 0.75f), 3);
+		//	}
+		//}
+		//
+		//line_renderer.render(state, g);
+		//tri_renderer.render(state);
+		//
+		//
+		//if (g.sim.hover) highlight(g.sim.hover, lrgba(0.25f,0.25f,0.25f,1), g);
+		//if (g.sim.sel  ) highlight(g.sim.sel  , lrgba(1,1,1,1), g);
 
 		debug_draw.render(state, g.dbgdraw);
 		
