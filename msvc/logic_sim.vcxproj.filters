@@ -80,6 +80,9 @@
     <ClCompile Include="..\src\engine\dear_imgui\misc\cpp\imgui_stdlib.cpp">
       <Filter>engine</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\opengl\renderer.cpp">
+      <Filter>opengl</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="engine">
@@ -94,9 +97,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\game.hpp" />
-    <ClInclude Include="..\src\opengl\renderer.hpp">
-      <Filter>opengl</Filter>
-    </ClInclude>
     <ClInclude Include="..\src\engine\dbgdraw.hpp">
       <Filter>engine</Filter>
     </ClInclude>

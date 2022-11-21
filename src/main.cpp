@@ -1,18 +1,19 @@
 #include "common.hpp"
 
 #include "game.hpp"
-#include "opengl/renderer.hpp"
+
+extern std::unique_ptr<RendererBackend> make_ogl_renderer ();
 
 struct App : IApp {
 	friend void to_json(nlohmann::ordered_json& j, App const& t) {
 		j["window"]   = t._window;
 		j["game"]     = t.game;
-		j["renderer"] = t.renderer;
+		t.renderer->to_json(j["renderer"]);
 	}
 	friend void from_json(const nlohmann::ordered_json& j, App& t) {
 		if (j.contains("window"))   j.at("window")  .get_to(t._window);
 		if (j.contains("game"))     j.at("game")    .get_to(t.game);
-		if (j.contains("renderer")) j.at("renderer").get_to(t.renderer);
+		if (j.contains("renderer")) t.renderer->from_json(j.at("renderer"));
 	}
 
 	virtual ~App () {}
@@ -24,16 +25,16 @@ struct App : IApp {
 	App (Window& w): _window{w} {}
 
 	Game game;
-	ogl::Renderer renderer;
+	std::unique_ptr<RendererBackend> renderer = make_ogl_renderer();
 
 	virtual void frame (Window& window) {
 		ZoneScoped;
 		
 		game.imgui(window.input);
-		renderer.imgui(window.input);
+		renderer->imgui(window.input);
 
 		game.update(window);
-		renderer.render(window, game, window.input.window_size);
+		renderer->render(window, game, window.input.window_size);
 	}
 };
 

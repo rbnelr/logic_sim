@@ -1,9 +1,9 @@
 #pragma once
 #include "common.hpp"
-#include "game.hpp"
-#include "engine/opengl.hpp"
+#include "../game.hpp"
+#include "../engine/opengl.hpp"
 #include "gl_dbgdraw.hpp"
-#include "engine/opengl_text.hpp"
+#include "../engine/opengl_text.hpp"
 
 namespace ogl {
 
@@ -135,9 +135,12 @@ struct LineRenderer {
 	}
 };
 
-struct Renderer {
-	SERIALIZE_NONE(Renderer)
+struct Renderer : public RendererBackend {
+    virtual void to_json(nlohmann::ordered_json& j) const {}
+    virtual void from_json(const nlohmann::ordered_json& j) {}
 	
+	virtual ~Renderer() {}
+
 	StateManager state;
 	
 	struct CommonUniforms {
@@ -174,7 +177,7 @@ struct Renderer {
 
 	float text_scale = 1.0f;
 	
-	void imgui (Input& I) {
+	virtual void imgui (Input& I) {
 		if (ImGui::Begin("Misc")) {
 			if (imgui_Header("Renderer", true)) {
 
@@ -257,7 +260,7 @@ struct Renderer {
 		}
 	}
 
-	void render (Window& window, Game& g, int2 window_size) {
+	virtual void render (Window& window, Game& g, int2 window_size) {
 		ZoneScoped;
 		
 		{
@@ -380,4 +383,8 @@ struct Renderer {
 	}
 };
 
+}
+
+std::unique_ptr<RendererBackend> make_ogl_renderer () {
+	return std::unique_ptr<RendererBackend>( new ogl::Renderer() );
 }

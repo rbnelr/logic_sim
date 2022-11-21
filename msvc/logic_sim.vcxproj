@@ -60,7 +60,7 @@
     <ClInclude Include="..\src\game.hpp" />
     <ClInclude Include="..\src\logic_sim.hpp" />
     <ClInclude Include="..\src\opengl\gl_dbgdraw.hpp" />
-    <ClInclude Include="..\src\opengl\renderer.hpp" />
+    <ClCompile Include="..\src\opengl\renderer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\shaders\common.glsl" />

@@ -684,7 +684,8 @@ struct Chip {
 			// ie. chip.state_idx + state_idx contains the state bits that need to be read for this input
 			int   state_idx;
 		};
-		std::unique_ptr<Input[]> inputs = nullptr;
+		//std::unique_ptr<Input[]> inputs = nullptr;
+		std::vector<Input> inputs;
 
 		Part (Chip* chip, float2 pos): chip{chip}, pos{pos} {}
 	};
