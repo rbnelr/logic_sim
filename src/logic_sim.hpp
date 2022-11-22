@@ -2,45 +2,6 @@
 
 #if 0
 
-struct GateInfo {
-	const char* name;
-
-	int   inputs;
-	float input_x;
-
-	int   outputs;
-	float output_x;
-
-	lrgba color;
-};
-
-enum GateType {
-	GT_NULL  = -1,
-	GT_BUF  = 0,
-	GT_NOT  = 1,
-	GT_AND  = 2,
-	GT_NAND = 3,
-	GT_OR   = 4,
-	GT_NOR  = 5,
-	GT_XOR  = 6,
-};
-constexpr GateInfo gate_info[] = {
-	/* GT_BUF  */ { "Buffer", 1, -0.3f,  1, 0.28f, lrgba(0.5f, 0.5f,0.75f,1) },
-	/* GT_NOT  */ { "Not"   , 1, -0.3f,  1, 0.36f, lrgba(   0,    0,    1,1) },
-	/* GT_AND  */ { "And"   , 2, -0.3f,  1, 0.28f, lrgba(   1,    0,    0,1) },
-	/* GT_NAND */ { "Nand"  , 2, -0.3f,  1, 0.36f, lrgba(0.5f,    1,    0,1) },
-	/* GT_OR   */ { "Or"    , 2, -0.3f,  1, 0.28f, lrgba(   1, 0.5f,    0,1) },
-	/* GT_NOR  */ { "Nor"   , 2, -0.3f,  1, 0.36f, lrgba(   0,    1, 0.5f,1) },
-	/* GT_XOR  */ { "Xor"   , 2, -0.3f,  1, 0.28f, lrgba(   0,    1,    0,1) },
-};
-
-constexpr float2x2 ROT[] = {
-	float2x2(  1, 0,  0, 1 ),
-	float2x2(  0,-1,  1, 0 ),
-	float2x2( -1, 0,  0,-1 ),
-	float2x2(  0, 1, -1, 0 ),
-};
-
 struct LogicSim {
 	SERIALIZE(LogicSim, gates, snapping_size, snapping)
 
@@ -612,125 +573,355 @@ struct LogicSim {
 };
 
 #endif
-/*
-	struct Part {
-		string name;
-		float2 size;
-	
-		int inputs;  // no of input pins
-		int outputs; // no of output pins
-	
-		// how many total outputs are used (recursively)
-		// and thus how many state vars need to be allocated
-		// when this part is placed in the simulation
-		int state_count; // -1 if stale?
-	
-		// list of all used parts in this part
-		// also contains inputs and outputs
-		struct Subpart {
-			Part*  type;
-		
-			float2 pos;
-			int    rot;
-			float  scale;
-		
-			struct Input {
-				int subpart_idx;
-				int     pin_idx;
-				int   state_idx;
-			
-				float2[] wire_points;
-			};
-			int[] inputs;
-		};
-		Part*[] subparts;
+
+constexpr float2x2 ROT[] = {
+	float2x2(  1, 0,  0, 1 ),
+	float2x2(  0,-1,  1, 0 ),
+	float2x2( -1, 0,  0,-1 ),
+	float2x2(  0, 1, -1, 0 ),
+};
+
+struct Placement {
+	SERIALIZE(Placement, pos, rot, scale)
+
+	float2 pos = 0;
+	int    rot = 0;
+	float  scale = 1.0f;
+
+	float2x3 calc_matrix () {
+		return ::scale(float2(scale)) * translate(pos) * ROT[rot];
 	}
+};
 
-	uint8_t state[];
-*/
+struct LogicSim {
+	struct Chip;
 
-struct Chip {
-	std::string name;
-
-	struct IO_Pin {
-		std::string name = "";
-	};
-
-	std::vector<IO_Pin> inputs;
-	std::vector<IO_Pin> outputs;
-		
-	float2 size;
-
-	// how many total outputs are used (recursively)
-	// and thus how many state vars need to be allocated
-	// when this chip is placed in the simulation
-	int state_count = -1; // -1 if stale
-		
+	// An instance of a chip placed down in a chip
+	// (Primitive gates are also implemented as chips)
 	struct Part {
 		Chip* chip;
 
-		float2 pos;
-		int    rot = 0;
-		float  scale = 1.0f;
+		Placement pos;
 
-		struct Input {
+		// where the states of this parts outputs are stored for this chip
+		// ie. any chip being placed itself is a part with a state_idx, it's subparts then each have a state_idx relative to it
+		int state_idx; // check parent chip for state state_count, then this is also stale
+
+		struct InputWire {
 			// pointing to output of other part that is direct child of chip
 			// can be normal part or chip input pin
 			// or -1 if unconnected
-			int subpart_idx;
+			int subpart_idx = -1;
 			// which output pin of the part is connected to
-			int     pin_idx;
+			int     pin_idx = 0;
 			// recursively flattened state index relative to chip
 			// ie. chip.state_idx + state_idx contains the state bits that need to be read for this input
-			int   state_idx;
+			int   state_idx = 0;
+
+			std::vector<float2> wire_points;
 		};
-		//std::unique_ptr<Input[]> inputs = nullptr;
-		std::vector<Input> inputs;
+		std::unique_ptr<InputWire[]> inputs = nullptr;
 
-		Part (Chip* chip, float2 pos): chip{chip}, pos{pos} {}
-	};
-
-	// first all inputs, than all outputs, then all other direct children of this chip
-	std::vector<Part> subparts;
-};
-
-inline Chip INP_PIN = { "Input Pin"  , {{"In"}}, {},  0.2f, 0 };
-inline Chip OUT_PIN = { "Output Pin" , {}, {{"Out"}}, 0.2f, 0 };
-
-inline Chip BUF_GATE  = { "Buffer Gate", {{"In"}}, {{"Out"}},      1, 1,  {{&INP_PIN, float2(-0.3f, +0)}, {&OUT_PIN, float2(0.28f, 0)}} };
-
-inline Chip NOT_GATE  = { "NOT Gate",    {{"In"}}, {{"Out"}},      1, 1,  {{&INP_PIN, float2(-0.3f, +0)}, {&OUT_PIN, float2(0.36f, 0)}} };
-
-inline Chip AND_GATE  = { "AND Gate",    {{"A"},{"B"}}, {{"Out"}}, 1, 1,  {{&INP_PIN, float2(-0.3f, +0.5f)}, {&INP_PIN, float2(-0.3f, -0.5f)}, {&OUT_PIN, float2(0.28f, 0)}} };
-inline Chip NAND_GATE = { "NAND Gate",   {{"A"},{"B"}}, {{"Out"}}, 1, 1,  {{&INP_PIN, float2(-0.3f, +0.5f)}, {&INP_PIN, float2(-0.3f, -0.5f)}, {&OUT_PIN, float2(0.36f, 0)}} };
-
-inline Chip OR_GATE   = { "OR Gate",     {{"A"},{"B"}}, {{"Out"}}, 1, 1,  {{&INP_PIN, float2(-0.3f, +0.5f)}, {&INP_PIN, float2(-0.3f, -0.5f)}, {&OUT_PIN, float2(0.28f, 0)}} };
-inline Chip NOR_GATE  = { "NOR Gate",    {{"A"},{"B"}}, {{"Out"}}, 1, 1,  {{&INP_PIN, float2(-0.3f, +0.5f)}, {&INP_PIN, float2(-0.3f, -0.5f)}, {&OUT_PIN, float2(0.36f, 0)}} };
-
-inline Chip XOR_GATE  = { "XOR Gate",    {{"A"},{"B"}}, {{"Out"}}, 1, 1,  {{&INP_PIN, float2(-0.3f, +0.5f)}, {&INP_PIN, float2(-0.3f, -0.5f)}, {&OUT_PIN, float2(0.28f, 0)}} };
-
-struct LogicSim {
-	SERIALIZE_NONE(LogicSim)
-	
-	std::vector<Chip> chips = {
+		Part (Chip* chip, Placement pos={}): chip{chip}, pos{pos},
+			inputs{chip->inputs.size() > 0 ? std::make_unique<InputWire[]>(chip->inputs.size()) : nullptr} {}
 		
+		// clone a part (this does not clone the wiring in inputs[], it stays unconnected)
+		// needed for primitives[] to be able to be initialized (c++ can't list init a vector of move-only types)
+		// can also be used to implement a duplicate part button
+		Part (Part const& p) {
+			chip = p.chip;
+			pos = p.pos;
+			inputs = std::make_unique<InputWire[]>(chip->inputs.size());
+		}
+		Part (Part&&) = default;
+		Part& operator= (Part const&) = delete;
+		Part& operator= (Part&&) = default;
 	};
+
+	// A chip design that can be edited or simulated if viewed as the "global" chip
+	// Uses other chips as parts, which are instanced into it's own editing or simulation
+	// (but cannot use itself as part because this would cause infinite recursion)
+	struct Chip {
+		std::string name = "";
+		lrgb        col = lrgb(0.8f);
+
+		struct IO_Pin {
+			SERIALIZE(IO_Pin, name)
+
+			std::string name = "";
+		};
+
+		std::vector<IO_Pin> inputs = {};
+		std::vector<IO_Pin> outputs = {};
+		
+		float2 size = 16;
+
+		// how many total outputs are used (recursively)
+		// and thus how many state vars need to be allocated
+		// when this chip is placed in the simulation
+		int state_count = -1; // -1 if stale
+
+		// first all inputs, than all outputs, then all other direct children of this chip
+		std::vector<Part> subparts = {};
+		
+		// to check against recursive self usage, which would cause a stack overflow
+		// this check is needed to prevent the user from causes a recursive self usage
+		bool _visited = false;
+		
+		Part& get_input_part (int i) {
+			assert(i >= 0 && i < (int)inputs.size());
+			assert(subparts.size() >= inputs.size());
+			return subparts[i];
+		}
+		Part& get_output_part (int i) {
+			assert(i >= 0 && i < (int)outputs.size());
+			assert(subparts.size() >= inputs.size() + outputs.size());
+			return subparts[(int)inputs.size() + i];
+		}
+
+		int update_state_indices () {
+			// state count cached, early out
+			if (state_count >= 0)
+				return state_count;
+			
+			// state count stale, recompute
+			state_count = 0;
+			for (auto& part : subparts) {
+				// states are placed flattened in order of depth first traversal of part (chip instance) tree
+				part.state_idx = state_count;
+				// allocate as many states as are needed recursively for this part
+				state_count += part.chip->update_state_indices();
+			}
+
+			return state_count;
+		}
+	};
+
+	
+	enum PrimType {
+		INP_PIN   =0,
+		OUT_PIN   ,
+		BUF_GATE  ,
+		NOT_GATE  ,
+		AND_GATE  ,
+		NAND_GATE ,
+		OR_GATE   ,
+		NOR_GATE  ,
+		XOR_GATE  ,
+		PRIMITIVE_COUNT,
+	};
+
+	Chip primitives[PRIMITIVE_COUNT];
+	
+	bool is_primitive (Chip* chip) const {
+		return chip >= primitives && chip < &primitives[PRIMITIVE_COUNT];
+	}
+	PrimType primitive_type (Chip* chip) const {
+		assert(is_primitive(chip));
+		return (PrimType)(chip - primitives);
+	}
+
+	LogicSim () {
+		#define _INP(x,y) Part(&primitives[INP_PIN], {float2(x, y)})
+		#define _OUT(x,y) Part(&primitives[OUT_PIN], {float2(x, y)})
+
+		primitives[INP_PIN  ] = { "Input Pin"  , lrgb(0.8f, 0.1f, 0.1f), {{"In"}}, {},  0.2f, 0 };
+		primitives[OUT_PIN  ] = { "Output Pin" , lrgb(0.1f, 0.1f, 0.8f), {}, {{"Out"}}, 0.2f, 0 };
+
+		primitives[BUF_GATE ] = { "Buffer Gate", lrgb(0.5f, 0.5f,0.75f), {{"In"}}, {{"Out"}},      1, 1, {_INP(-0.3f, +0), _OUT(0.28f, 0)} };
+		primitives[NOT_GATE ] = { "NOT Gate",    lrgb(   0,    0,    1), {{"In"}}, {{"Out"}},      1, 1, {_INP(-0.3f, +0), _OUT(0.36f, 0)} };
+		primitives[AND_GATE ] = { "AND Gate",    lrgb(   1,    0,    0), {{"A"},{"B"}}, {{"Out"}}, 1, 1, {_INP(-0.3f, +0.25f), _INP(-0.3f, -0.25f), _OUT(0.28f, 0)} };
+		primitives[NAND_GATE] = { "NAND Gate",   lrgb(0.5f,    1,    0), {{"A"},{"B"}}, {{"Out"}}, 1, 1, {_INP(-0.3f, +0.25f), _INP(-0.3f, -0.25f), _OUT(0.36f, 0)} };
+		primitives[OR_GATE  ] = { "OR Gate",     lrgb(   1, 0.5f,    0), {{"A"},{"B"}}, {{"Out"}}, 1, 1, {_INP(-0.3f, +0.25f), _INP(-0.3f, -0.25f), _OUT(0.28f, 0)} };
+		primitives[NOR_GATE ] = { "NOR Gate",    lrgb(   0,    1, 0.5f), {{"A"},{"B"}}, {{"Out"}}, 1, 1, {_INP(-0.3f, +0.25f), _INP(-0.3f, -0.25f), _OUT(0.36f, 0)} };
+		primitives[XOR_GATE ] = { "XOR Gate",    lrgb(   0,    1,    0), {{"A"},{"B"}}, {{"Out"}}, 1, 1, {_INP(-0.3f, +0.25f), _INP(-0.3f, -0.25f), _OUT(0.28f, 0)} };
+		
+		#undef _INP
+		#undef _OUT
+	}
+	
+	friend void to_json (json& j, const Chip& chip, const LogicSim& sim) {
+		
+		j = {
+			{"name", chip.name},
+			{"col", chip.col},
+			{"inputs", chip.inputs},
+			{"outputs", chip.outputs},
+			{"size", chip.size},
+		};
+		json& subparts_j = j["subparts"];
+
+		for (auto& part : chip.subparts) {
+			json& part_j = subparts_j.emplace_back();
+
+			part_j = {
+				{"chip", sim.is_primitive(part.chip) ? sim.primitive_type(part.chip) :
+					-1 },
+				{"pos", part.pos}
+			};
+			auto& inputs = part_j["inputs"];
+
+			for (int i=0; i<part.chip->inputs.size(); ++i) {
+				json& ij = inputs.emplace_back();
+				ij["subpart_idx"] = part.inputs[i].subpart_idx;
+				if (part.inputs[i].subpart_idx >= 0) {
+					ij["pin_idx"] = part.inputs[i].pin_idx;
+					if (!part.inputs[i].wire_points.empty())
+						ij["wire_points"] = part.inputs[i].wire_points;
+				}
+			}
+		}
+	}
+	friend void from_json (const json& j, Chip& chip, LogicSim& sim) {
+		// TODO: temp code
+		
+		chip.name    = j.at("name");
+		chip.col     = j.at("col");
+		chip.inputs  = j.at("inputs");
+		chip.outputs = j.at("outputs");
+		chip.size    = j.at("size");
+		
+		json subparts = j.at("subparts");
+		int part_count = (int)subparts.size();
+
+		chip.subparts.clear();
+		chip.subparts.reserve(part_count);
+			
+		for (int i=0; i<part_count; ++i) {
+			json& partj = subparts[i];
+			
+			int chip_id   = partj.at("chip");
+			Placement pos = partj.at("pos");
+
+			Chip* part_chip;
+			if (chip_id >= 0 && chip_id < sim.PRIMITIVE_COUNT) part_chip = &sim.primitives[chip_id];
+			else assert(false); // TODO:
+			
+			auto& part = chip.subparts.emplace_back(part_chip, pos);
+
+			if (partj.contains("inputs")) {
+				json inputsj = partj.at("inputs");
+					
+				assert(part.chip->inputs.size() == inputsj.size());
+				
+				for (int i=0; i<part.chip->inputs.size(); ++i) {
+					auto& inpj = inputsj.at(i);
+					auto& inp = part.inputs[i];
+
+					int subpart_idx = inpj.at("subpart_idx");
+					
+					if (subpart_idx >= 0 && subpart_idx < part_count) {
+						inp.subpart_idx = subpart_idx;
+						inp.pin_idx     = inpj.at("pin_idx");
+				
+						if (inpj.contains("wire_points"))
+							inpj.at("wire_points").get_to(inp.wire_points);
+					}
+				}
+			}
+		}
+	}
+
+	friend void to_json (json& j, const LogicSim& t) {
+		to_json(j["main_chip"], t.main_chip, t);
+	}
+	friend void from_json (const json& j, LogicSim& t) {
+		from_json(j["main_chip"], t.main_chip, t);
+	}
+	
+	// The chip you are viewing, ie editing and simulating
+	// can be cleared or saved as a new chip in the list of chips
+	Chip main_chip = {"<main>", lrgb(1), {}, {}, 100};
+
+
+	std::vector<uint8_t> state[2];
+
+	int cur_state = 0;
 
 	void imgui (Input& I) {
+		ZoneScoped;
 		if (imgui_Header("LogicSim", true)) {
 
 
-			//ImGui::Text("Gates: %d", (int)gates.size());
+			ImGui::Text("Gates (# of states): %d", (int)state[0].size());
 
 			ImGui::PopID();
 		}
 	}
 
 	void update (Input& I, View3D& view, Window& window) {
+		ZoneScoped;
 		
+		
+		if (main_chip.state_count < 0) {
+			ZoneScopedN("update_state_indices");
+			main_chip.update_state_indices();
+
+			// TODO: for now just zero and resize the state to fit all the states
+			// later I want to be able to insert parts and have the states be moved correctly, which requires the recursive editor code to do this
+			state[0].clear();
+			state[0].resize(main_chip.state_count);
+			state[1].clear();
+			state[1].resize(main_chip.state_count);
+		}
+	}
+	
+	void simulate (Input& I, Chip& chip) {
+
+		uint8_t* cur  = state[cur_state  ].data();
+		uint8_t* next = state[cur_state^1].data();
+		
+		int state_count = 0;
+
+		for (auto& part : chip.subparts) {
+			
+			int input_count = (int)part.chip->inputs.size();
+			
+			Part* src_a = input_count >= 1 && part.inputs[0].subpart_idx >= 0 ? &chip.subparts[part.inputs[0].subpart_idx] : nullptr;
+			Part* src_b = input_count >= 2 && part.inputs[1].subpart_idx >= 0 ? &chip.subparts[part.inputs[1].subpart_idx] : nullptr;
+
+			uint8_t new_state;
+
+			assert(part.chip->state_count); // state_count stale!
+
+			if (!src_a && !src_b) {
+				// keep prev state (needed to toggle gates via LMB)
+				new_state = cur[part.state_idx];
+			}
+			else {
+				bool a = src_a && cur[src_a->state_idx] != 0;
+				bool b = src_b && cur[src_b->state_idx] != 0;
+
+				switch (primitive_type(part.chip)) {
+					case BUF_GATE : new_state =  a;  break;
+					case NOT_GATE : new_state = !a;  break;
+					
+					case AND_GATE : new_state =   a && b;	 break;
+					case NAND_GATE: new_state = !(a && b);	 break;
+					
+					case OR_GATE  : new_state =   a || b;	 break;
+					case NOR_GATE : new_state = !(a || b);	 break;
+					
+					case XOR_GATE : new_state =   a != b;	 break;
+
+					default: assert(false);
+				}
+			}
+
+			next[part.state_idx] = new_state;
+
+			state_count += part.chip->state_count;
+		}
+		
+		assert(chip.state_count > 0); // state_count stale!
+		assert(state_count == chip.state_count); // state_count invalid!
+
+		cur_state ^= 1;
 	}
 
 	void simulate (Input& I) {
+		ZoneScoped;
 		
+		simulate(I, main_chip);
 	}
 };

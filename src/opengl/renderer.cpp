@@ -38,22 +38,6 @@ struct TriRenderer {
 		indices  .shrink_to_fit();
 	}
 
-	//void push_gate (LogicSim::Gate& gate, bool state, float4 col) {
-	//	uint16_t idx = (uint16_t)verticies.size();
-	//
-	//	auto& mat = ROT[gate.rot];
-	//	float2 size = 1;
-	//
-	//	auto* pv = push_back(verticies, 4);
-	//	pv[0] = { gate.pos + mat * float2(-0.5f, -0.5f), float2(0,0), gate.type, (int)state, col };
-	//	pv[1] = { gate.pos + mat * float2(+0.5f, -0.5f), float2(1,0), gate.type, (int)state, col };
-	//	pv[2] = { gate.pos + mat * float2(+0.5f, +0.5f), float2(1,1), gate.type, (int)state, col };
-	//	pv[3] = { gate.pos + mat * float2(-0.5f, +0.5f), float2(0,1), gate.type, (int)state, col };
-	//
-	//	auto* pi = push_back(indices, 6);
-	//	ogl::push_quad(pi, idx+0, idx+1, idx+2, idx+3);
-	//}
-
 	void render (StateManager& state) {
 		ZoneScoped;
 
@@ -230,33 +214,93 @@ struct Renderer : public RendererBackend {
 	//	}
 	//}
 
-	void build_line (float2 start, float2 end, std::vector<float2>& points, lrgba col, int states) {
-		float2 prev = start;
+	void build_line (float2x3 const& chip2world, float2 start, float2 end, std::vector<float2> const& points, int states) {
+		float2 prev = chip2world * end;
 		float dist = 0;
 		
 		size_t count = 1 + points.size();
 		auto* lines = push_back(line_renderer.lines, count);
 
 		auto* out = lines;
-		for (float2& cur : points) {
+
+		// output lines in reverse so that earlier segments appear on top
+		// (because I think it looks nicer with my weird outlines)
+		for (int i=(int)points.size(); i>=0; --i) {
+			float2 cur = chip2world * (i > 0 ? points[i-1] : start);
+
 			float dist0 = dist;
 			dist += distance(prev, cur);
 
-			*out++ = { prev, cur, float2(dist0, dist), states, col };
+			*out++ = { prev, cur, float2(dist0, dist), states, lrgba(0.8f, 0.01f, 0.025f, 1) };
 
 			prev = cur;
 		}
-		{
-			float dist0 = dist;
-			dist += distance(prev, end);
 
-			*out++ = { prev, end, float2(dist0, dist), states, col };
-		}
-
-		// normalize t to [0,1]
+		// flip and normalize t to [0,1]
 		float norm = 1.0f / dist;
 		for (size_t i=0; i<count; ++i) {
-			lines[i].t *= norm;
+			lines[i].t = 1.0f - (lines[i].t * norm);
+		}
+	}
+	
+
+	void draw_gate (LogicSim::Part& gate, int type, int state, float2x3 const& chip2world) {
+		uint16_t idx = (uint16_t)tri_renderer.verticies.size();
+	
+		auto mat = chip2world * gate.pos.calc_matrix();
+	
+		auto* pv = push_back(tri_renderer.verticies, 4);
+		pv[0] = { mat * float2(-0.5f, -0.5f), float2(0,0), type, state, lrgba(gate.chip->col, 1) };
+		pv[1] = { mat * float2(+0.5f, -0.5f), float2(1,0), type, state, lrgba(gate.chip->col, 1) };
+		pv[2] = { mat * float2(+0.5f, +0.5f), float2(1,1), type, state, lrgba(gate.chip->col, 1) };
+		pv[3] = { mat * float2(-0.5f, +0.5f), float2(0,1), type, state, lrgba(gate.chip->col, 1) };
+	
+		auto* pi = push_back(tri_renderer.indices, 6);
+		ogl::push_quad(pi, idx+0, idx+1, idx+2, idx+3);
+	}
+
+	void draw_chip (LogicSim& sim, LogicSim::Chip& chip, float2x3 const& chip2world) {
+		
+		uint8_t* prev = sim.state[sim.cur_state^1].data();
+		uint8_t* cur  = sim.state[sim.cur_state  ].data();
+
+		for (auto& part : chip.subparts) {
+			if (sim.is_primitive(part.chip)) {
+				auto type = sim.primitive_type(part.chip);
+				if (type == LogicSim::INP_PIN || type == LogicSim::OUT_PIN) {
+					continue; // don't draw for now
+				}
+				else {
+					uint8_t state = cur[part.state_idx];
+					
+					draw_gate(part, type, state, chip2world);
+
+					for (int i=0; i<(int)part.chip->inputs.size(); ++i) {
+						auto& inp = part.inputs[i];
+						if (inp.subpart_idx < 0) continue;
+
+						// get connected part
+						auto& src_part = chip.subparts[inp.subpart_idx];
+						// get output pin of connected part
+						auto& src_pin = src_part.chip->get_output_part(inp.pin_idx);
+						// get this parts input part
+						auto& dst_pin = part.chip->get_input_part(i);
+
+						// center positions of pins in this chips space
+						float2 src_pos = src_part.pos.calc_matrix() * src_pin.pos.pos;
+						float2 dst_pos =     part.pos.calc_matrix() * dst_pin.pos.pos;
+						
+						uint8_t prev_state = prev[src_part.state_idx];
+						uint8_t  cur_state = cur [src_part.state_idx];
+						int state = (prev_state << 1) | cur_state;
+						
+						build_line(chip2world, src_pos, dst_pos, inp.wire_points, state);
+					}
+				}
+			}
+			else {
+				// TODO: recurse
+			}
 		}
 	}
 
@@ -301,35 +345,13 @@ struct Renderer : public RendererBackend {
 		tri_renderer.update(window.input);
 		line_renderer.update(window.input);
 
-		//{ // Gates and wires
-		//	ZoneScopedN("push gates");
-		//
-		//	uint8_t prev_smask = 1u << (g.sim.gates.cur_buf^1);
-		//	uint8_t cur_smask  = 1u <<  g.sim.gates.cur_buf;
-		//
-		//	for (int i=0; i<(int)g.sim.gates.size(); ++i) {
-		//		auto& gate = g.sim.gates[i];
-		//		auto state = (gate.state & cur_smask) != 0;
-		//		tri_renderer.push_gate(gate, state, gate_info[gate.type].color);
-		//
-		//		int count = gate_info[gate.type].inputs;
-		//		for (int i=0; i<count; ++i) {
-		//			auto& wire = gate.inputs[i];
-		//			if (wire.gate) {
-		//				float2 a = wire.gate->get_output_pos(wire.io_idx);
-		//				float2 b = gate.get_input_pos(i);
-		//				
-		//				bool sa = (wire.gate->state & cur_smask) != 0;
-		//				bool sb = (wire.gate->state & prev_smask) != 0;
-		//
-		//				int states = (sa?1:0) | (sb?2:0);
-		//
-		//				build_line(a, b, wire.points, lrgba(0.8f, 0.01f, 0.025f, 1), states);
-		//			}
-		//		}
-		//	}
-		//}
-		//
+		{ // Gates and wires
+			ZoneScopedN("push gates");
+			
+			auto chip2world = float2x3::identity();
+			draw_chip(g.sim, g.sim.main_chip, chip2world);
+		}
+		
 		//{ // Gate preview
 		//	auto& place = g.sim.gate_preview;
 		//
@@ -356,11 +378,11 @@ struct Renderer : public RendererBackend {
 		//		build_line(a, b, wire.points, lrgba(0.8f, 0.01f, 0.025f, 0.75f), 3);
 		//	}
 		//}
-		//
-		//line_renderer.render(state, g);
-		//tri_renderer.render(state);
-		//
-		//
+		
+		line_renderer.render(state, g);
+		tri_renderer.render(state);
+		
+		
 		//if (g.sim.hover) highlight(g.sim.hover, lrgba(0.25f,0.25f,0.25f,1), g);
 		//if (g.sim.sel  ) highlight(g.sim.sel  , lrgba(1,1,1,1), g);
 
