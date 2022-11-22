@@ -198,23 +198,7 @@ struct Renderer : public RendererBackend {
 		
 	}
 	
-	//void highlight (LogicSim::Selection s, lrgba col, Game& g) {
-	//	auto& gate = *s.gate;
-	//	if (s.type == LogicSim::Selection::GATE) {
-	//		g.dbgdraw.wire_quad(float3(gate.pos - 0.5f, 5.0f), 1, col);
-	//
-	//		text.draw_text(gate_info[gate.type].name, 24*text_scale, lrgba(1),
-	//			TextRenderer::map_text(gate.pos + float2(-0.5f, 0.5f), g.view), float2(0,1));
-	//	}
-	//	else if (s.type == LogicSim::Selection::INPUT) {
-	//		g.dbgdraw.wire_quad(float3(gate.get_input_pos(s.io_idx) - LogicSim::IO_SIZE/2, 5.0f), LogicSim::IO_SIZE, col);
-	//	}
-	//	else {
-	//		g.dbgdraw.wire_quad(float3(gate.get_output_pos(s.io_idx) - LogicSim::IO_SIZE/2, 5.0f), LogicSim::IO_SIZE, col);
-	//	}
-	//}
-
-	void build_line (float2x3 const& chip2world, float2 start, float2 end, std::vector<float2> const& points, int states) {
+	void build_line (float2x3 const& chip2world, float2 start, float2 end, std::vector<float2> const& points, int states, lrgba col) {
 		float2 prev = chip2world * end;
 		float dist = 0;
 		
@@ -231,7 +215,7 @@ struct Renderer : public RendererBackend {
 			float dist0 = dist;
 			dist += distance(prev, cur);
 
-			*out++ = { prev, cur, float2(dist0, dist), states, lrgba(0.8f, 0.01f, 0.025f, 1) };
+			*out++ = { prev, cur, float2(dist0, dist), states, col };
 
 			prev = cur;
 		}
@@ -244,62 +228,96 @@ struct Renderer : public RendererBackend {
 	}
 	
 
-	void draw_gate (LogicSim::Part& gate, int type, int state, float2x3 const& chip2world) {
+	void draw_gate (float2x3 const& mat, int type, int state, lrgba col) {
 		uint16_t idx = (uint16_t)tri_renderer.verticies.size();
-	
-		auto mat = chip2world * gate.pos.calc_matrix();
-	
+		
 		auto* pv = push_back(tri_renderer.verticies, 4);
-		pv[0] = { mat * float2(-0.5f, -0.5f), float2(0,0), type, state, lrgba(gate.chip->col, 1) };
-		pv[1] = { mat * float2(+0.5f, -0.5f), float2(1,0), type, state, lrgba(gate.chip->col, 1) };
-		pv[2] = { mat * float2(+0.5f, +0.5f), float2(1,1), type, state, lrgba(gate.chip->col, 1) };
-		pv[3] = { mat * float2(-0.5f, +0.5f), float2(0,1), type, state, lrgba(gate.chip->col, 1) };
+		pv[0] = { mat * float2(-0.5f, -0.5f), float2(0,0), type, state, col };
+		pv[1] = { mat * float2(+0.5f, -0.5f), float2(1,0), type, state, col };
+		pv[2] = { mat * float2(+0.5f, +0.5f), float2(1,1), type, state, col };
+		pv[3] = { mat * float2(-0.5f, +0.5f), float2(0,1), type, state, col };
 	
 		auto* pi = push_back(tri_renderer.indices, 6);
 		ogl::push_quad(pi, idx+0, idx+1, idx+2, idx+3);
 	}
-
-	void draw_chip (LogicSim& sim, LogicSim::Chip& chip, float2x3 const& chip2world) {
+	
+	void draw_highlight (Game& g, std::string_view name, Placement& pos, float2 size, float2x3 const& chip2world, lrgba col) {
+		size  = abs((float2x2)chip2world * size * pos.scale);
+		float2 center = chip2world * pos.pos;
 		
-		uint8_t* prev = sim.state[sim.cur_state^1].data();
-		uint8_t* cur  = sim.state[sim.cur_state  ].data();
+		g.dbgdraw.wire_quad(float3(center - size*0.5f, 5.0f), size, col);
+				
+		text.draw_text(name, 20*text_scale, 1,
+			TextRenderer::map_text(center + size*float2(-0.5f, 0.5f), g.view), float2(0,1));
+	}
 
-		for (auto& part : chip.subparts) {
-			if (sim.is_primitive(part.chip)) {
-				auto type = sim.primitive_type(part.chip);
-				if (type == LogicSim::INP_PIN || type == LogicSim::OUT_PIN) {
-					continue; // don't draw for now
-				}
-				else {
-					uint8_t state = cur[part.state_idx];
-					
-					draw_gate(part, type, state, chip2world);
+	void highlight (Game& g, LogicSim::ChipEditor::Selection& sel, float2x3 const& chip2world, lrgba col) {
+		auto& chip = *sel.part->chip;
+		if (sel.type == LogicSim::ChipEditor::Selection::PART)
+			draw_highlight(g, chip.name, sel.part->pos, chip.size, chip2world, col);
+		else if (sel.type == LogicSim::ChipEditor::Selection::PIN_INP)
+			draw_highlight(g, chip.inputs[sel.pin].name, chip.inputs[sel.pin].pos,
+				LogicSim::PIN_SIZE, sel.part->pos.calc_matrix() * chip2world, col * lrgba(1,1, 0.6f, 1));
+		else
+			draw_highlight(g, chip.outputs[sel.pin].name, chip.outputs[sel.pin].pos,
+				LogicSim::PIN_SIZE, sel.part->pos.calc_matrix() * chip2world, col * lrgba(1,1, 0.6f, 1));
+	}
 
-					for (int i=0; i<(int)part.chip->inputs.size(); ++i) {
-						auto& inp = part.inputs[i];
-						if (inp.subpart_idx < 0) continue;
+	void draw_chip (Game& g, LogicSim::Chip* chip, float2x3 const& chip2world, int chip_state, lrgba col) {
+		auto& editor = g.sim.editor;
 
-						// get connected part
-						auto& src_part = chip.subparts[inp.subpart_idx];
-						// get output pin of connected part
-						auto& src_pin = src_part.chip->get_output_part(inp.pin_idx);
-						// get this parts input part
-						auto& dst_pin = part.chip->get_input_part(i);
+		uint8_t* prev = g.sim.state[g.sim.cur_state^1].data();
+		uint8_t* cur  = g.sim.state[g.sim.cur_state  ].data();
+		
+		if (g.sim.is_gate(chip)) {
+			auto type = g.sim.gate_type(chip);
+			uint8_t state = chip_state >= 0 ? cur[chip_state] : 1;
+			
+			draw_gate(chip2world, type, state, lrgba(chip->col, 1) * col);
+		}
 
-						// center positions of pins in this chips space
-						float2 src_pos = src_part.pos.calc_matrix() * src_pin.pos.pos;
-						float2 dst_pos =     part.pos.calc_matrix() * dst_pin.pos.pos;
+		for (auto& part : chip->parts) {
+			
+			if (editor.hover && editor.hover.part == &part) highlight(g, editor.hover, chip2world, lrgba(0.25f,0.25f,0.25f,1));
+			if (editor.sel   && editor.sel  .part == &part) highlight(g, editor.sel  , chip2world, lrgba(1,1,1,1));
+			
+			auto part2chip = part.pos.calc_matrix();
+			auto part2world = chip2world * part2chip;
+
+			draw_chip(g, part.chip, part2world, chip_state >= 0 ? chip_state + part.state_idx : -1, col);
+
+			for (int i=0; i<(int)part.chip->inputs.size(); ++i) {
+				auto& inp = part.inputs[i];
+				if (inp.part_idx < 0) continue;
+
+				// get connected part
+				auto& src_part = chip->parts[inp.part_idx];
+				// center position of connected output
+				float2 src_pos = src_part.pos.calc_matrix() * src_part.chip->outputs[inp.pin_idx].pos.pos;
+				// center position input
+				float2 dst_pos =                  part2chip * part.chip->inputs[i].pos.pos;
+
+				uint8_t prev_state = chip_state >= 0 ? prev[chip_state + src_part.state_idx] : 1;
+				uint8_t  cur_state = chip_state >= 0 ? cur [chip_state + src_part.state_idx] : 1;
+				int state = (prev_state << 1) | cur_state;
 						
-						uint8_t prev_state = prev[src_part.state_idx];
-						uint8_t  cur_state = cur [src_part.state_idx];
-						int state = (prev_state << 1) | cur_state;
-						
-						build_line(chip2world, src_pos, dst_pos, inp.wire_points, state);
-					}
-				}
+				build_line(chip2world, src_pos, dst_pos, inp.wire_points, state, lrgba(0.8f, 0.01f, 0.025f, 1));
 			}
-			else {
-				// TODO: recurse
+		}
+
+		{ // Wire preview
+			auto& wire = g.sim.editor.wire_preview;
+		
+			if (wire.dst.part || wire.src.part) { //&& wire.layer == layer) {
+				ZoneScopedN("push wire_preview");
+				
+				float2 a = wire.unconn_pos;
+				float2 b = wire.unconn_pos;
+
+				if (wire.src.part) a = wire.src.part->pos.calc_matrix() * wire.src.part->chip->outputs[wire.src.pin].pos.pos;
+				if (wire.dst.part) b = wire.dst.part->pos.calc_matrix() * wire.dst.part->chip->inputs [wire.dst.pin].pos.pos;
+				
+				build_line(chip2world, a, b, wire.points, 3, lrgba(0.8f, 0.01f, 0.025f, 0.75f));
 			}
 		}
 	}
@@ -348,43 +366,19 @@ struct Renderer : public RendererBackend {
 		{ // Gates and wires
 			ZoneScopedN("push gates");
 			
-			auto chip2world = float2x3::identity();
-			draw_chip(g.sim, g.sim.main_chip, chip2world);
+			draw_chip(g, &g.sim.main_chip, float2x3::identity(), 0, lrgba(1));
 		}
 		
-		//{ // Gate preview
-		//	auto& place = g.sim.gate_preview;
-		//
-		//	if (place.type > GT_NULL) {
-		//		ZoneScopedN("push gate_preview");
-		//
-		//		auto col = gate_info[place.type].color;
-		//		col.w *= 0.5f;
-		//		tri_renderer.push_gate(place, place.state, col);
-		//	}
-		//}
-		//{ // Wire preview
-		//	auto& wire = g.sim.wire_preview;
-		//
-		//	if (wire.dst.gate || wire.src.gate) {
-		//		ZoneScopedN("push wire_preview");
-		//
-		//		float2 a = wire.unconnected_pos;
-		//		float2 b = wire.unconnected_pos;
-		//
-		//		if (wire.src.gate) a = wire.src.gate->get_output_pos(wire.src.io_idx);
-		//		if (wire.dst.gate) b = wire.dst.gate->get_input_pos (wire.dst.io_idx);
-		//		
-		//		build_line(a, b, wire.points, lrgba(0.8f, 0.01f, 0.025f, 0.75f), 3);
-		//	}
-		//}
+		{ // Gate preview
+			auto& preview = g.sim.editor.preview_part;
+		
+			if (preview.chip) {
+				draw_chip(g, preview.chip, preview.pos.calc_matrix(), -1, lrgba(1,1,1,0.5f));
+			}
+		}
 		
 		line_renderer.render(state, g);
 		tri_renderer.render(state);
-		
-		
-		//if (g.sim.hover) highlight(g.sim.hover, lrgba(0.25f,0.25f,0.25f,1), g);
-		//if (g.sim.sel  ) highlight(g.sim.sel  , lrgba(1,1,1,1), g);
 
 		debug_draw.render(state, g.dbgdraw);
 		

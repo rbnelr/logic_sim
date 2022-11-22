@@ -8,11 +8,11 @@
 	"game": {
 		"cam": {
 			"pos": [
-				-6.449995994567871,
-				3.2218880653381348,
+				-5.919209003448486,
+				3.340132713317871,
 				0.0
 			],
-			"zoom": -4.612966537475586,
+			"zoom": -4.362966537475586,
 			"rot": 0.0,
 			"move_speed": 1.0,
 			"zoom_smooth_fac": 16.0,
@@ -35,9 +35,9 @@
 					100.0,
 					100.0
 				],
-				"subparts": [
+				"parts": [
 					{
-						"chip": 4,
+						"chip": 2,
 						"pos": {
 							"pos": [
 								-5.25,
@@ -48,15 +48,29 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": -1
+								"part_idx": 68,
+								"pin_idx": 0,
+								"wire_points": [
+									[
+										-13.893648147583008,
+										3.717928409576416
+									]
+								]
 							},
 							{
-								"subpart_idx": -1
+								"part_idx": 68,
+								"pin_idx": 0,
+								"wire_points": [
+									[
+										-13.515337944030762,
+										3.4212148189544678
+									]
+								]
 							}
 						]
 					},
 					{
-						"chip": 5,
+						"chip": 3,
 						"pos": {
 							"pos": [
 								-2.0,
@@ -67,7 +81,7 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 0,
+								"part_idx": 0,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -81,7 +95,7 @@
 								]
 							},
 							{
-								"subpart_idx": 2,
+								"part_idx": 2,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -101,7 +115,7 @@
 						]
 					},
 					{
-						"chip": 3,
+						"chip": 1,
 						"pos": {
 							"pos": [
 								-5.25,
@@ -112,13 +126,13 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 6,
+								"part_idx": 6,
 								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 8,
+						"chip": 6,
 						"pos": {
 							"pos": [
 								-3.0,
@@ -129,7 +143,7 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 2,
+								"part_idx": 2,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -143,7 +157,7 @@
 								]
 							},
 							{
-								"subpart_idx": 4,
+								"part_idx": 4,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -159,7 +173,7 @@
 						]
 					},
 					{
-						"chip": 7,
+						"chip": 5,
 						"pos": {
 							"pos": [
 								-5.25,
@@ -170,15 +184,15 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": -1
+								"part_idx": -1
 							},
 							{
-								"subpart_idx": -1
+								"part_idx": -1
 							}
 						]
 					},
 					{
-						"chip": 6,
+						"chip": 4,
 						"pos": {
 							"pos": [
 								0.25,
@@ -189,7 +203,7 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 1,
+								"part_idx": 1,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -203,7 +217,7 @@
 								]
 							},
 							{
-								"subpart_idx": 1,
+								"part_idx": 1,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -223,7 +237,7 @@
 						]
 					},
 					{
-						"chip": 8,
+						"chip": 6,
 						"pos": {
 							"pos": [
 								-8.0,
@@ -234,15 +248,39 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": -1
+								"part_idx": 53,
+								"pin_idx": 0,
+								"wire_points": [
+									[
+										-2.030270576477051,
+										7.006465911865234
+									],
+									[
+										-2.1041831970214844,
+										5.517657279968262
+									],
+									[
+										-4.4060282707214355,
+										4.725738048553467
+									],
+									[
+										-8.777421951293945,
+										4.377294063568115
+									],
+									[
+										-8.798540115356445,
+										3.0679876804351807
+									]
+								]
 							},
 							{
-								"subpart_idx": -1
+								"part_idx": 63,
+								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 5,
+						"chip": 3,
 						"pos": {
 							"pos": [
 								-12.0,
@@ -253,7 +291,7 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 21,
+								"part_idx": 21,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -267,7 +305,7 @@
 								]
 							},
 							{
-								"subpart_idx": 21,
+								"part_idx": 21,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -283,7 +321,7 @@
 						]
 					},
 					{
-						"chip": 3,
+						"chip": 1,
 						"pos": {
 							"pos": [
 								-12.0,
@@ -294,13 +332,13 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 22,
+								"part_idx": 22,
 								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 4,
+						"chip": 2,
 						"pos": {
 							"pos": [
 								-8.0,
@@ -311,17 +349,17 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 35,
+								"part_idx": 35,
 								"pin_idx": 0
 							},
 							{
-								"subpart_idx": 34,
+								"part_idx": 34,
 								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 5,
+						"chip": 3,
 						"pos": {
 							"pos": [
 								-8.625,
@@ -332,17 +370,17 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 24,
+								"part_idx": 24,
 								"pin_idx": 0
 							},
 							{
-								"subpart_idx": 26,
+								"part_idx": 26,
 								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 5,
+						"chip": 3,
 						"pos": {
 							"pos": [
 								-7.5,
@@ -353,7 +391,7 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 10,
+								"part_idx": 10,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -367,7 +405,7 @@
 								]
 							},
 							{
-								"subpart_idx": 10,
+								"part_idx": 10,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -383,7 +421,7 @@
 						]
 					},
 					{
-						"chip": 6,
+						"chip": 4,
 						"pos": {
 							"pos": [
 								-3.5,
@@ -394,17 +432,17 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 38,
+								"part_idx": 38,
 								"pin_idx": 0
 							},
 							{
-								"subpart_idx": 37,
+								"part_idx": 37,
 								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 5,
+						"chip": 3,
 						"pos": {
 							"pos": [
 								-3.0,
@@ -415,17 +453,17 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 14,
+								"part_idx": 14,
 								"pin_idx": 0
 							},
 							{
-								"subpart_idx": 15,
+								"part_idx": 15,
 								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 5,
+						"chip": 3,
 						"pos": {
 							"pos": [
 								-4.0,
@@ -436,7 +474,7 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 27,
+								"part_idx": 27,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -450,7 +488,7 @@
 								]
 							},
 							{
-								"subpart_idx": 27,
+								"part_idx": 27,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -466,7 +504,7 @@
 						]
 					},
 					{
-						"chip": 5,
+						"chip": 3,
 						"pos": {
 							"pos": [
 								-4.0,
@@ -477,7 +515,7 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 28,
+								"part_idx": 28,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -491,7 +529,7 @@
 								]
 							},
 							{
-								"subpart_idx": 28,
+								"part_idx": 28,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -507,7 +545,7 @@
 						]
 					},
 					{
-						"chip": 8,
+						"chip": 6,
 						"pos": {
 							"pos": [
 								1.5,
@@ -518,17 +556,17 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 41,
+								"part_idx": 41,
 								"pin_idx": 0
 							},
 							{
-								"subpart_idx": 40,
+								"part_idx": 40,
 								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 5,
+						"chip": 3,
 						"pos": {
 							"pos": [
 								0.375,
@@ -539,7 +577,7 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 30,
+								"part_idx": 30,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -553,7 +591,7 @@
 								]
 							},
 							{
-								"subpart_idx": 31,
+								"part_idx": 31,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -569,7 +607,7 @@
 						]
 					},
 					{
-						"chip": 5,
+						"chip": 3,
 						"pos": {
 							"pos": [
 								1.5,
@@ -580,7 +618,7 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 30,
+								"part_idx": 30,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -594,7 +632,7 @@
 								]
 							},
 							{
-								"subpart_idx": 17,
+								"part_idx": 17,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -610,7 +648,7 @@
 						]
 					},
 					{
-						"chip": 5,
+						"chip": 3,
 						"pos": {
 							"pos": [
 								1.5,
@@ -621,7 +659,7 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 17,
+								"part_idx": 17,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -635,7 +673,7 @@
 								]
 							},
 							{
-								"subpart_idx": 31,
+								"part_idx": 31,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -651,7 +689,7 @@
 						]
 					},
 					{
-						"chip": 5,
+						"chip": 3,
 						"pos": {
 							"pos": [
 								2.5,
@@ -662,17 +700,17 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 18,
+								"part_idx": 18,
 								"pin_idx": 0
 							},
 							{
-								"subpart_idx": 19,
+								"part_idx": 19,
 								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								-13.0,
@@ -683,12 +721,12 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": -1
+								"part_idx": -1
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								-13.0,
@@ -699,12 +737,12 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": -1
+								"part_idx": -1
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								-11.0,
@@ -715,13 +753,13 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 7,
+								"part_idx": 7,
 								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								-9.5,
@@ -732,12 +770,12 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": -1
+								"part_idx": -1
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								-6.5,
@@ -748,13 +786,13 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 11,
+								"part_idx": 11,
 								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								-9.5,
@@ -765,12 +803,12 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": -1
+								"part_idx": -1
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								-5.0,
@@ -781,12 +819,12 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": -1
+								"part_idx": -1
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								-5.0,
@@ -797,12 +835,12 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": -1
+								"part_idx": -1
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								-2.0,
@@ -813,13 +851,13 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 13,
+								"part_idx": 13,
 								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								-0.5,
@@ -830,12 +868,12 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": -1
+								"part_idx": -1
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								-0.5,
@@ -846,12 +884,12 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": -1
+								"part_idx": -1
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								3.5,
@@ -862,13 +900,13 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 20,
+								"part_idx": 20,
 								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								-11.0,
@@ -879,13 +917,13 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 8,
+								"part_idx": 8,
 								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								-9.5,
@@ -896,12 +934,12 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": -1
+								"part_idx": -1
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								-9.5,
@@ -912,12 +950,12 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": -1
+								"part_idx": -1
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								-6.5,
@@ -928,13 +966,13 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 9,
+								"part_idx": 9,
 								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								-5.0,
@@ -945,12 +983,12 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": -1
+								"part_idx": -1
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								-5.0,
@@ -961,12 +999,12 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": -1
+								"part_idx": -1
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								-2.0,
@@ -977,13 +1015,13 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 12,
+								"part_idx": 12,
 								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								-0.5,
@@ -994,12 +1032,12 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": -1
+								"part_idx": -1
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								-0.5,
@@ -1010,12 +1048,12 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": -1
+								"part_idx": -1
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								3.5,
@@ -1026,13 +1064,13 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 16,
+								"part_idx": 16,
 								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 8,
+						"chip": 6,
 						"pos": {
 							"pos": [
 								5.5,
@@ -1043,7 +1081,7 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 44,
+								"part_idx": 44,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -1057,7 +1095,7 @@
 								]
 							},
 							{
-								"subpart_idx": 45,
+								"part_idx": 45,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -1073,7 +1111,7 @@
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								3.5,
@@ -1084,12 +1122,12 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": -1
+								"part_idx": -1
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								3.5,
@@ -1100,12 +1138,12 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": -1
+								"part_idx": -1
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								3.5,
@@ -1116,12 +1154,12 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": -1
+								"part_idx": -1
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								9.5,
@@ -1132,13 +1170,13 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 51,
+								"part_idx": 51,
 								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 6,
+						"chip": 4,
 						"pos": {
 							"pos": [
 								8.5,
@@ -1149,11 +1187,11 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 50,
+								"part_idx": 50,
 								"pin_idx": 0
 							},
 							{
-								"subpart_idx": 52,
+								"part_idx": 52,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -1169,7 +1207,7 @@
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								9.5,
@@ -1180,13 +1218,13 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 48,
+								"part_idx": 48,
 								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 4,
+						"chip": 2,
 						"pos": {
 							"pos": [
 								7.5,
@@ -1197,7 +1235,7 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 46,
+								"part_idx": 46,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -1215,7 +1253,7 @@
 								]
 							},
 							{
-								"subpart_idx": 43,
+								"part_idx": 43,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -1231,7 +1269,7 @@
 						]
 					},
 					{
-						"chip": 8,
+						"chip": 6,
 						"pos": {
 							"pos": [
 								7.5,
@@ -1242,7 +1280,7 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 46,
+								"part_idx": 46,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -1256,7 +1294,7 @@
 								]
 							},
 							{
-								"subpart_idx": 43,
+								"part_idx": 43,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -1272,7 +1310,7 @@
 						]
 					},
 					{
-						"chip": 4,
+						"chip": 2,
 						"pos": {
 							"pos": [
 								5.5,
@@ -1283,7 +1321,7 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 44,
+								"part_idx": 44,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -1297,7 +1335,7 @@
 								]
 							},
 							{
-								"subpart_idx": 45,
+								"part_idx": 45,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -1313,7 +1351,7 @@
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								-2.5,
@@ -1324,13 +1362,13 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 56,
+								"part_idx": 56,
 								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								-4.5,
@@ -1341,13 +1379,13 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 86,
+								"part_idx": 86,
 								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								-3.5,
@@ -1358,7 +1396,7 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 56,
+								"part_idx": 56,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -1382,7 +1420,7 @@
 						]
 					},
 					{
-						"chip": 3,
+						"chip": 1,
 						"pos": {
 							"pos": [
 								-3.5,
@@ -1393,7 +1431,7 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 55,
+								"part_idx": 55,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -1417,7 +1455,7 @@
 						]
 					},
 					{
-						"chip": 7,
+						"chip": 5,
 						"pos": {
 							"pos": [
 								-13.0,
@@ -1428,7 +1466,7 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 59,
+								"part_idx": 59,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -1438,7 +1476,7 @@
 								]
 							},
 							{
-								"subpart_idx": 58,
+								"part_idx": 58,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -1462,7 +1500,7 @@
 						]
 					},
 					{
-						"chip": 7,
+						"chip": 5,
 						"pos": {
 							"pos": [
 								-13.0,
@@ -1473,7 +1511,7 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 57,
+								"part_idx": 57,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -1495,7 +1533,7 @@
 								]
 							},
 							{
-								"subpart_idx": 60,
+								"part_idx": 60,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -1511,7 +1549,7 @@
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								-14.5,
@@ -1522,12 +1560,12 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": -1
+								"part_idx": -1
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								-14.5,
@@ -1538,12 +1576,12 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": -1
+								"part_idx": -1
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								-11.5,
@@ -1554,13 +1592,13 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 58,
+								"part_idx": 58,
 								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								-11.5,
@@ -1571,13 +1609,13 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 57,
+								"part_idx": 57,
 								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								-11.5,
@@ -1588,13 +1626,19 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 65,
-								"pin_idx": 0
+								"part_idx": 64,
+								"pin_idx": 0,
+								"wire_points": [
+									[
+										-11.244565963745117,
+										2.229321241378784
+									]
+								]
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								-11.5,
@@ -1605,13 +1649,13 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 66,
+								"part_idx": 66,
 								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 5,
+						"chip": 3,
 						"pos": {
 							"pos": [
 								-13.0,
@@ -1622,11 +1666,11 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 68,
+								"part_idx": 68,
 								"pin_idx": 0
 							},
 							{
-								"subpart_idx": 66,
+								"part_idx": 66,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -1650,7 +1694,7 @@
 						]
 					},
 					{
-						"chip": 5,
+						"chip": 3,
 						"pos": {
 							"pos": [
 								-13.0,
@@ -1661,7 +1705,7 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 65,
+								"part_idx": 65,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -1683,13 +1727,13 @@
 								]
 							},
 							{
-								"subpart_idx": 67,
+								"part_idx": 67,
 								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 5,
+						"chip": 3,
 						"pos": {
 							"pos": [
 								-14.5,
@@ -1700,7 +1744,7 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 70,
+								"part_idx": 70,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -1714,13 +1758,13 @@
 								]
 							},
 							{
-								"subpart_idx": 71,
+								"part_idx": 71,
 								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 5,
+						"chip": 3,
 						"pos": {
 							"pos": [
 								-14.5,
@@ -1731,7 +1775,7 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 69,
+								"part_idx": 69,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -1745,7 +1789,7 @@
 								]
 							},
 							{
-								"subpart_idx": 70,
+								"part_idx": 70,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -1761,7 +1805,7 @@
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								-17.0,
@@ -1772,12 +1816,12 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": -1
+								"part_idx": -1
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								-17.0,
@@ -1788,12 +1832,12 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": -1
+								"part_idx": -1
 							}
 						]
 					},
 					{
-						"chip": 3,
+						"chip": 1,
 						"pos": {
 							"pos": [
 								-15.5,
@@ -1804,7 +1848,7 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 69,
+								"part_idx": 69,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -1820,7 +1864,7 @@
 						]
 					},
 					{
-						"chip": 5,
+						"chip": 3,
 						"pos": {
 							"pos": [
 								-13.0,
@@ -1831,11 +1875,11 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 73,
+								"part_idx": 73,
 								"pin_idx": 0
 							},
 							{
-								"subpart_idx": 74,
+								"part_idx": 74,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -1859,7 +1903,7 @@
 						]
 					},
 					{
-						"chip": 5,
+						"chip": 3,
 						"pos": {
 							"pos": [
 								-14.5,
@@ -1870,7 +1914,7 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 78,
+								"part_idx": 78,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -1884,7 +1928,7 @@
 								]
 							},
 							{
-								"subpart_idx": 84,
+								"part_idx": 84,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -1900,7 +1944,7 @@
 						]
 					},
 					{
-						"chip": 5,
+						"chip": 3,
 						"pos": {
 							"pos": [
 								-13.0,
@@ -1911,7 +1955,7 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 72,
+								"part_idx": 72,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -1933,13 +1977,13 @@
 								]
 							},
 							{
-								"subpart_idx": 75,
+								"part_idx": 75,
 								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 5,
+						"chip": 3,
 						"pos": {
 							"pos": [
 								-14.5,
@@ -1950,7 +1994,7 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 84,
+								"part_idx": 84,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -1964,7 +2008,7 @@
 								]
 							},
 							{
-								"subpart_idx": 79,
+								"part_idx": 79,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -1980,7 +2024,7 @@
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								-11.5,
@@ -1991,13 +2035,13 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 72,
+								"part_idx": 72,
 								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								-11.5,
@@ -2008,13 +2052,13 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 74,
+								"part_idx": 74,
 								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 5,
+						"chip": 3,
 						"pos": {
 							"pos": [
 								-16.5,
@@ -2025,11 +2069,11 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 81,
+								"part_idx": 81,
 								"pin_idx": 0
 							},
 							{
-								"subpart_idx": 79,
+								"part_idx": 79,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -2053,7 +2097,7 @@
 						]
 					},
 					{
-						"chip": 5,
+						"chip": 3,
 						"pos": {
 							"pos": [
 								-16.5,
@@ -2064,7 +2108,7 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 78,
+								"part_idx": 78,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -2086,13 +2130,13 @@
 								]
 							},
 							{
-								"subpart_idx": 80,
+								"part_idx": 80,
 								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 5,
+						"chip": 3,
 						"pos": {
 							"pos": [
 								-18.0,
@@ -2103,7 +2147,7 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 85,
+								"part_idx": 85,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -2113,13 +2157,13 @@
 								]
 							},
 							{
-								"subpart_idx": 82,
+								"part_idx": 82,
 								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 5,
+						"chip": 3,
 						"pos": {
 							"pos": [
 								-18.0,
@@ -2130,7 +2174,7 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 83,
+								"part_idx": 83,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -2144,7 +2188,7 @@
 								]
 							},
 							{
-								"subpart_idx": 85,
+								"part_idx": 85,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -2156,7 +2200,7 @@
 						]
 					},
 					{
-						"chip": 3,
+						"chip": 1,
 						"pos": {
 							"pos": [
 								-19.125,
@@ -2167,7 +2211,7 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 83,
+								"part_idx": 83,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -2183,7 +2227,7 @@
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								-20.5,
@@ -2194,12 +2238,12 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": -1
+								"part_idx": -1
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								-20.5,
@@ -2210,12 +2254,12 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": -1
+								"part_idx": -1
 							}
 						]
 					},
 					{
-						"chip": 3,
+						"chip": 1,
 						"pos": {
 							"pos": [
 								-19.125,
@@ -2226,7 +2270,7 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 84,
+								"part_idx": 84,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -2242,7 +2286,7 @@
 						]
 					},
 					{
-						"chip": 3,
+						"chip": 1,
 						"pos": {
 							"pos": [
 								-6.0,
@@ -2253,7 +2297,7 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 86,
+								"part_idx": 86,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -2277,7 +2321,7 @@
 						]
 					},
 					{
-						"chip": 3,
+						"chip": 1,
 						"pos": {
 							"pos": [
 								-6.0,
@@ -2288,13 +2332,13 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 89,
+								"part_idx": 89,
 								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								-6.0,
@@ -2305,7 +2349,7 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 87,
+								"part_idx": 87,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -2321,7 +2365,7 @@
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								-7.0,
@@ -2332,13 +2376,13 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 90,
+								"part_idx": 90,
 								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								-8.0,
@@ -2349,13 +2393,13 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 91,
+								"part_idx": 91,
 								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								-9.0,
@@ -2366,13 +2410,13 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 92,
+								"part_idx": 92,
 								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								-10.0,
@@ -2383,7 +2427,7 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 111,
+								"part_idx": 111,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -2399,7 +2443,7 @@
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								-4.75,
@@ -2410,13 +2454,13 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 87,
+								"part_idx": 87,
 								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 8,
+						"chip": 6,
 						"pos": {
 							"pos": [
 								5.5,
@@ -2427,7 +2471,7 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 96,
+								"part_idx": 96,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -2441,13 +2485,13 @@
 								]
 							},
 							{
-								"subpart_idx": 97,
+								"part_idx": 97,
 								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 4,
+						"chip": 2,
 						"pos": {
 							"pos": [
 								4.5,
@@ -2458,7 +2502,7 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 96,
+								"part_idx": 96,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -2472,7 +2516,7 @@
 								]
 							},
 							{
-								"subpart_idx": 97,
+								"part_idx": 97,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -2488,7 +2532,7 @@
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								3.0,
@@ -2499,12 +2543,12 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": -1
+								"part_idx": -1
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								3.0,
@@ -2515,12 +2559,12 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": -1
+								"part_idx": -1
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								7.0,
@@ -2531,13 +2575,13 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 94,
+								"part_idx": 94,
 								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								7.0,
@@ -2548,13 +2592,13 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 101,
+								"part_idx": 101,
 								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 4,
+						"chip": 2,
 						"pos": {
 							"pos": [
 								4.5,
@@ -2565,7 +2609,7 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 95,
+								"part_idx": 95,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -2587,7 +2631,7 @@
 								]
 							},
 							{
-								"subpart_idx": 102,
+								"part_idx": 102,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -2603,7 +2647,7 @@
 						]
 					},
 					{
-						"chip": 8,
+						"chip": 6,
 						"pos": {
 							"pos": [
 								5.5,
@@ -2614,17 +2658,17 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 95,
+								"part_idx": 95,
 								"pin_idx": 0
 							},
 							{
-								"subpart_idx": 102,
+								"part_idx": 102,
 								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								3.0,
@@ -2635,12 +2679,12 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": -1
+								"part_idx": -1
 							}
 						]
 					},
 					{
-						"chip": 8,
+						"chip": 6,
 						"pos": {
 							"pos": [
 								5.5,
@@ -2651,17 +2695,17 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 100,
+								"part_idx": 100,
 								"pin_idx": 0
 							},
 							{
-								"subpart_idx": 105,
+								"part_idx": 105,
 								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 4,
+						"chip": 2,
 						"pos": {
 							"pos": [
 								4.5,
@@ -2672,7 +2716,7 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 100,
+								"part_idx": 100,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -2694,7 +2738,7 @@
 								]
 							},
 							{
-								"subpart_idx": 105,
+								"part_idx": 105,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -2710,7 +2754,7 @@
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								3.0,
@@ -2721,12 +2765,12 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": -1
+								"part_idx": -1
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								7.0,
@@ -2737,13 +2781,13 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 103,
+								"part_idx": 103,
 								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								7.0,
@@ -2754,7 +2798,7 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 104,
+								"part_idx": 104,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -2766,7 +2810,7 @@
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								-7.0,
@@ -2777,13 +2821,13 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 88,
+								"part_idx": 88,
 								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								-8.0,
@@ -2794,13 +2838,13 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 108,
+								"part_idx": 108,
 								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								-9.125,
@@ -2811,13 +2855,13 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 109,
+								"part_idx": 109,
 								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								-10.125,
@@ -2828,13 +2872,13 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 110,
+								"part_idx": 110,
 								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 7,
+						"chip": 5,
 						"pos": {
 							"pos": [
 								-18.0,
@@ -2845,11 +2889,11 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 116,
+								"part_idx": 116,
 								"pin_idx": 0
 							},
 							{
-								"subpart_idx": 113,
+								"part_idx": 113,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -2873,7 +2917,7 @@
 						]
 					},
 					{
-						"chip": 7,
+						"chip": 5,
 						"pos": {
 							"pos": [
 								-18.0,
@@ -2884,7 +2928,7 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 112,
+								"part_idx": 112,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -2906,13 +2950,13 @@
 								]
 							},
 							{
-								"subpart_idx": 117,
+								"part_idx": 117,
 								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								-16.5,
@@ -2923,13 +2967,13 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 112,
+								"part_idx": 112,
 								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								-16.5,
@@ -2940,13 +2984,13 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 113,
+								"part_idx": 113,
 								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 4,
+						"chip": 2,
 						"pos": {
 							"pos": [
 								-19.5,
@@ -2957,7 +3001,7 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 120,
+								"part_idx": 120,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -2971,7 +3015,7 @@
 								]
 							},
 							{
-								"subpart_idx": 119,
+								"part_idx": 119,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -2987,7 +3031,7 @@
 						]
 					},
 					{
-						"chip": 4,
+						"chip": 2,
 						"pos": {
 							"pos": [
 								-19.5,
@@ -2998,7 +3042,7 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 119,
+								"part_idx": 119,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -3012,13 +3056,13 @@
 								]
 							},
 							{
-								"subpart_idx": 118,
+								"part_idx": 118,
 								"pin_idx": 0
 							}
 						]
 					},
 					{
-						"chip": 3,
+						"chip": 1,
 						"pos": {
 							"pos": [
 								-20.5,
@@ -3029,7 +3073,7 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": 120,
+								"part_idx": 120,
 								"pin_idx": 0,
 								"wire_points": [
 									[
@@ -3045,7 +3089,7 @@
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								-22.0,
@@ -3056,12 +3100,12 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": -1
+								"part_idx": -1
 							}
 						]
 					},
 					{
-						"chip": 2,
+						"chip": 0,
 						"pos": {
 							"pos": [
 								-22.0,
@@ -3072,14 +3116,14 @@
 						},
 						"inputs": [
 							{
-								"subpart_idx": -1
+								"part_idx": -1
 							}
 						]
 					}
 				]
 			}
 		},
-		"sim_freq": 20.0,
+		"sim_freq": 5.0,
 		"pause": false
 	},
 	"renderer": null

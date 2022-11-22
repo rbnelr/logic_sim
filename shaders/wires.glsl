@@ -64,6 +64,14 @@ const float radius = 0.05;
 	
 	uniform float sim_t;
 	
+	float slider_anim (float x) {
+		//return clamp((x - sim_t) * 4.0 + 0.5, 0.0, 1.0);
+		//return clamp((x - sim_t) * 4.0 + (1.0 - x), 0.0, 1.0);
+		
+		//return smoothstep(0.0, 1.0, (v.t - sim_t) * 4.0 + 0.5);
+		return smoothstep(0.0, 1.0, (x - sim_t) * 4.0 + (1.0 - x));
+	}
+	
 	void main () {
 		float aa = view.frust_near_size.x * view.inv_viewport_size.x * 1.0; // pixel size in world units
 		
@@ -73,7 +81,8 @@ const float radius = 0.05;
 		//float rbox = abs(offs.y) - radius;
 		
 		// compute wire state animation color
-		float t = clamp((v.t - sim_t) * 10.0, 0.0, 1.0);
+		float t = slider_anim(v.t);
+		
 		vec4 col = mix(col_a, col_b, t);
 		
 		float outline = clamp(aa * 3.0, 0.01, 0.02);

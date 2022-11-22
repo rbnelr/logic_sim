@@ -5,8 +5,11 @@
 #include "logic_sim.hpp"
 
 struct Game {
-	SERIALIZE_RESET_ON_LOAD(Game, cam, sim, sim_freq, pause)
-	
+	SERIALIZE_POST_LOAD(Game, cam, sim, sim_freq, pause)
+	friend void post_load (Game& g) {
+		g.sim_t = 1;
+	}
+
 	Camera2D cam = Camera2D();
 	
 	DebugDraw dbgdraw;
@@ -14,9 +17,13 @@ struct Game {
 	LogicSim sim;
 
 	float sim_freq = 10.0f;
-	float sim_t = 0; // [0,1)  1 means next tick happens, used to animate between prev_state and cur_state
 	bool pause = false;
 	bool manual_tick = false;
+
+	// [0,1)  1 means next tick happens, used to animate between prev_state and cur_state
+	// start out tick at 1 so that there's not a 1 tick pause where we see every gate and wire off
+	// (instead negative gates will start out 'sending' their state to the wire instantly)
+	float sim_t = 1;
 
 	Game () {
 		
@@ -25,21 +32,26 @@ struct Game {
 	void imgui (Input& I) {
 		ZoneScoped;
 
-		if (ImGui::Begin("Misc")) {
+		if (ImGui::Begin("LogicSim")) {
+
+			cam.imgui("cam");
+				
+			ImGui::Separator();
 			
-			if (imgui_Header("Game", true)) {
-
-				cam.imgui("cam");
-				sim.imgui(I);
-
+			if (imgui_Header("Simulation", true)) {
 				ImGui::SliderFloat("Sim Freq", &sim_freq, 0.1f, 200, "%.1f", ImGuiSliderFlags_Logarithmic);
 
 				ImGui::Checkbox("Pause [Space]", &pause);
 				ImGui::SameLine();
 				manual_tick = ImGui::Button("Man. Tick [T]");
 
+				ImGui::SliderFloat("sim_t", &sim_t, 0, 0.999f);
+				
 				ImGui::PopID();
 			}
+
+			sim.imgui(I);
+
 		}
 		ImGui::End();
 	}

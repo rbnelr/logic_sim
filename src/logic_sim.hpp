@@ -5,170 +5,13 @@
 struct LogicSim {
 	SERIALIZE(LogicSim, gates, snapping_size, snapping)
 
-	static constexpr float IO_SIZE = 0.2f;
-
-//// Logic Sim Datas
-	struct Gate;
-	
-	struct WireConnection {
-		Gate* gate;
-		int   io_idx;
-	};
-	
-	struct Gate {
-		GateType type;
-		float2   pos;
-		int      rot;
-
-		uint8_t state; // double buffer
-
-		struct Input {
-			Gate* gate;
-			int   io_idx;
-			std::vector<float2> points;
-		};
-		std::vector<Input> inputs;
-		
-		void init () {
-			inputs.assign(gate_info[type].inputs, Input{}); // no connections
-			inputs.shrink_to_fit();
-		}
-
-		// relative to gate
-		float2 get_io_pos (int i, int count, float x) {
-			float h = 1.0f; // - 0.2f * 2
-			float y = -0.5f;
-			
-			float step = h / (float)count;
-			return ROT[rot] * float2(x, y + step * ((float)i + 0.5f));
-		}
-		// in world space
-		float2 get_input_pos (int i) {
-			assert(type >= GT_NULL);
-			return pos + get_io_pos(i, gate_info[type].inputs, gate_info[type].input_x);
-		}
-		// in world space
-		float2 get_output_pos (int i) {
-			assert(type >= GT_NULL);
-			return pos + get_io_pos(i, gate_info[type].outputs, gate_info[type].output_x);
-		}
-		
-		bool hitbox (float2 point) {
-			return point.x >= pos.x - 0.5f && point.x < pos.x + 0.5f &&
-				   point.y >= pos.y - 0.5f && point.y < pos.y + 0.5f;
-		}
-		int input_hitbox (float2 point) {
-			for (int i=0; i<gate_info[type].inputs; ++i) {
-				float2 p = get_input_pos(i) - IO_SIZE/2;
-			
-				if ( point.x >= p.x && point.x < p.x + IO_SIZE &&
-					 point.y >= p.y && point.y < p.y + IO_SIZE)
-					return i;
-			}
-			return -1;
-		}
-		int output_hitbox (float2 point) {
-			for (int i=0; i<gate_info[type].outputs; ++i) {
-				float2 p = get_output_pos(i) - IO_SIZE/2;
-
-				if ( point.x >= p.x && point.x < p.x + IO_SIZE &&
-					 point.y >= p.y && point.y < p.y + IO_SIZE)
-					return i;
-			}
-			return -1;
-		}
-
-	};
-
 	// Wrapper struct so I can manually write _just_ this part of the serialization
 	struct Gates {
 
 		int cur_buf = 0; // cur state double buffering index
 
 		//SERIALIZE(Gate, type, pos)
-		friend void to_json(nlohmann::ordered_json& j, const Gates& gates) {
-			json list = {};
-			
-			uint8_t cur_smask  = 1u << gates.cur_buf;
-			
-			for (auto& gp : gates.gates) {
-				auto& gate = *gp;
-
-				assert(gate.type > GT_NULL);
-
-				json j_inputs = {};
-				for (auto& inp : gate.inputs) {
-					int idx = inp.gate == nullptr ? -1 : indexof(gates.gates, inp.gate, [] (std::unique_ptr<Gate> const& ptr, Gate* r) { return ptr.get() == r; });
-					json j = { {"g", idx}, {"i", inp.io_idx} };
-					j["points"] = inp.points;
-					
-					j_inputs.emplace_back(std::move(j));
-				}
-
-				json j = {
-					{"type", gate.type},
-					{"pos",  gate.pos},
-					{"rot",  gate.rot},
-					{"state", (gate.state & cur_smask) != 0 },
-					{"inputs", std::move(j_inputs)},
-				};
-
-				list.emplace_back(std::move(j));
-			}
-
-			j["gates"] = std::move(list);
-		}
-		friend void from_json(const nlohmann::ordered_json& j, Gates& gates) {
-			gates.gates.clear();
-
-			if (!j.contains("gates")) return;
-			json list = j.at("gates");
-
-			gates.gates.resize(list.size());
-			for (size_t i=0; i<list.size(); ++i)
-				gates.gates[i] = std::make_unique<Gate>();
-			
-			for (size_t i=0; i<list.size(); ++i) {
-				json& gj = list[i];
-				auto& gp = gates.gates[i];
-
-				gj.at("type").get_to(gp->type);
-				gj.at("pos").get_to(gp->pos);
-				gj.at("rot").get_to(gp->rot);
-				gj.at("state").get_to(gp->state);
-
-				gp->init();
-
-				if (gj.contains("inputs")) {
-					json inputsj = gj.at("inputs");
-					
-					assert(gp->inputs.size() == inputsj.size());
-					
-					for (int i=0; i<gp->inputs.size(); ++i) {
-						int gate_idx = inputsj[i].at("g").get<int>();
-						int outp_idx = inputsj[i].at("i").get<int>();
-
-						if (gate_idx >= 0 && gate_idx < (int)gates.gates.size()) {
-							gp->inputs[i].gate = gates.gates[gate_idx].get();
-							gp->inputs[i].io_idx = outp_idx;
-
-							if (inputsj[i].contains("points")) inputsj[i].at("points").get_to(gp->inputs[i].points);
-						}
-					}
-				}
-			}
-
-			gates.cur_buf = 0; // make sure we reset the current buffer to the one that we actually initialized
-		}
 		
-		std::vector<std::unique_ptr<Gate>> gates;
-		
-		Gate& operator[] (int idx) {
-			assert(idx >= 0 && idx < (int)gates.size());
-			return *gates[idx];
-		}
-		int size () { return (int)gates.size(); }
-
 		void add_gate (Gate&& gate) {
 			ZoneScoped;
 
@@ -203,378 +46,20 @@ struct LogicSim {
 			gates[idx] = std::move(gates.back()); // swap last vector element into this one (works even if this was the last element)
 			gates.pop_back(); // shrink vector
 		}
-		
-		void add_wire (WireConnection src, WireConnection dst, std::vector<float2>&& points) {
-			assert(dst.gate);
-			assert(src.gate);
-			assert(dst.io_idx < gate_info[dst.gate->type].inputs);
-			assert(src.io_idx < gate_info[src.gate->type].outputs);
-			dst.gate->inputs[dst.io_idx] = { src.gate, src.io_idx, std::move(points) };
-		}
 
 	};
 
-	Gates gates;
-
-//// Editor logic
-	
-	enum EditMode {
-		EM_VIEW,  // Can toggle inputs with LMB
-		EM_EDIT,  // Can move/delete gates and connect wires
-		EM_PLACE, // Can place down gates selected in imgui (or per gate picker to pick hovered type?)
-	};
-	EditMode mode = EM_VIEW;
-
-	Gate gate_preview = { GT_NULL };
-
-	struct WirePreview {
-		WireConnection dst = { nullptr, 0 }; // if gate=null then to unconnected_pos
-		WireConnection src = { nullptr, 0 }; // if gate=null then from unconnected_pos
-
-		std::vector<float2> points;
-
-		float2         unconnected_pos = 0; // = cursor pos
-
-		bool was_dst = false;
-	};
-	WirePreview wire_preview = {};
-	
-	struct Selection {
-		enum Type {
-			NONE=0,
-			GATE,
-			INPUT,
-			OUTPUT,
-		};
-		Type type;
-		Gate* gate;
-		int io_idx;
-
-		operator bool () {
-			return type != NONE;
-		}
-	};
-	Selection sel = {};
-	Selection hover = {};
-
-	float snapping_size = 0.125f;
-	bool snapping = true;
-	
-	float2 snap (float2 pos) {
-		return snapping ? round(pos / snapping_size) * snapping_size : pos;
-	}
-
-	bool _cursor_valid;
-	float3 _cursor_pos;
-	
-	bool editing = false; // dragging gate or placing wire
-	float2 drag_offs;
-	
-	Selection gate_hitboxes (Gate& gate, int gate_idx, float2 point) {
-		Selection s = {};
-		
-		// do here for efficincy (avoid iterating twice)
-		if (gate.hitbox(point)) {
-			s = { Selection::GATE, &gate };
-		}
-
-		if (mode == EM_EDIT) {
-			int inp  = gate.input_hitbox(point);
-			if (inp >= 0) {
-				s = { Selection::INPUT, &gate, inp };
-			}
-			int outp = gate.output_hitbox(point);
-			if (outp >= 0) {
-				s = { Selection::OUTPUT, &gate, outp };
-			}
-		}
-		return s;
-	}
-	
-	void imgui (Input& I) {
-		if (imgui_Header("LogicSim", true)) {
-
-			{ // wierd logic that ignores EM_PLACE
-				bool em = mode != EM_VIEW;
-				if (ImGui::Checkbox("Edit Mode [E]", &em))
-					mode = em ? EM_EDIT : EM_VIEW;
-			}
-
-			ImGui::Checkbox("snapping", &snapping);
-			ImGui::SameLine();
-			ImGui::InputFloat("###snapping_size", &snapping_size);
-
-			if (ImGui::BeginTable("Gates", 2, ImGuiTableFlags_Borders)) {
-				
-				ImGui::TableNextColumn();
-				if (ImGui::Selectable("BUF" , gate_preview.type == GT_BUF )) gate_preview.type = GT_BUF;
-				ImGui::TableNextColumn();
-				if (ImGui::Selectable("NOT" , gate_preview.type == GT_NOT )) gate_preview.type = GT_NOT;
-
-				ImGui::TableNextColumn();
-				if (ImGui::Selectable("AND" , gate_preview.type == GT_AND )) gate_preview.type = GT_AND;
-				ImGui::TableNextColumn();
-				if (ImGui::Selectable("NAND", gate_preview.type == GT_NAND)) gate_preview.type = GT_NAND;
-				
-				ImGui::TableNextColumn();
-				if (ImGui::Selectable("OR"  , gate_preview.type == GT_OR  )) gate_preview.type = GT_OR;
-				ImGui::TableNextColumn();
-				if (ImGui::Selectable("NOR" , gate_preview.type == GT_NOR )) gate_preview.type = GT_NOR;
-				
-				ImGui::TableNextColumn();
-				if (ImGui::Selectable("XOR" , gate_preview.type == GT_XOR )) gate_preview.type = GT_XOR;
-				ImGui::TableNextColumn();
-
-				ImGui::EndTable();
-			}
-
-			ImGui::Text("Gates: %d", (int)gates.size());
-
-			ImGui::PopID();
-		}
-	}
-	
-	void rotate_button (Input& I, Gate& g) {
-		if (I.buttons['R'].went_down) {
-			int dir = I.buttons[KEY_LEFT_SHIFT].is_down ? +1 : -1;
-			g.rot = wrap(g.rot + dir, 4);
-		}
-	}
-	
-	void update (Input& I, View3D& view, DebugDraw& dbgdraw, Window& window) {
-		ZoneScoped;
-		
-		_cursor_valid = view.cursor_ray(I, &_cursor_pos);
-
-		if (mode != EM_PLACE && I.buttons['E'].went_down)
-			mode = mode == EM_VIEW ? EM_EDIT : EM_VIEW;
-
-		// unselect gate if imgui to-be-placed is selected
-		if (gate_preview.type > GT_NULL) {
-			mode = EM_PLACE;
-			gate_preview.state = 3;
-		}
-
-		// deselect everthing when in view mode or on RMB in place mode
-		// NOTE: keep selection in EDIT mode because RMB doubles as camera move button (click on empty space to unselect instead)
-		if (mode == EM_VIEW || (mode == EM_PLACE && I.buttons[MOUSE_BUTTON_RIGHT].went_down)) {
-			sel = {};
-			gate_preview.type = GT_NULL;
-			wire_preview = {};
-			editing = false;
-			// go from place mode into edit mode with right click
-			if (mode == EM_PLACE) mode = EM_EDIT;
-		}
-		
-		if (mode == EM_PLACE)
-			rotate_button(I, gate_preview);
-
-		// placing gates
-		if (_cursor_valid) {
-			// move to-be-placed gate preview with cursor
-			gate_preview.pos = snap(_cursor_pos);
-
-			// place gate on left click
-			if (mode == EM_PLACE && I.buttons[MOUSE_BUTTON_LEFT].went_down) {
-				gates.add_gate(std::move(gate_preview)); // preview becomes real gate
-				// preview of gate still exists
-			}
-		}
-
-		
-		bool try_select = mode == EM_EDIT && !editing && _cursor_valid && I.buttons[MOUSE_BUTTON_LEFT].went_down;
-		if (try_select)
-			sel = {}; // unselect if click and nothing was hit
-
-		hover = {};
-
-		for (int i=0; i<(int)gates.size(); ++i) {
-			auto& g = gates[i];
-			assert(g.type > GT_NULL);
-			
-			// do here for efficincy (avoid iterating twice)
-			Selection hit = gate_hitboxes(g, i, _cursor_pos);
-			if (hit) {
-				if (try_select) { // gate was clicked
-					sel = hit;
-				}
-				// gate was hovered
-				hover = hit;
-			}
-		}
-		
-		if (sel.type == Selection::GATE) {
-			if (!editing) {
-				// begin dragging gate
-				if (I.buttons[MOUSE_BUTTON_LEFT].went_down) {
-					drag_offs = _cursor_pos - sel.gate->pos;
-					editing = true;
-				}
-			}
-			if (editing) {
-				// drag gate
-				if (editing && I.buttons[MOUSE_BUTTON_LEFT].is_down) {
-					sel.gate->pos = snap(_cursor_pos - drag_offs);
-				}
-				// stop dragging gate
-				if (editing && I.buttons[MOUSE_BUTTON_LEFT].went_up) {
-					editing = false;
-				}
-			}
-
-			rotate_button(I, *sel.gate);
-
-			// remove gates via DELETE key
-			if (I.buttons[KEY_DELETE].went_down) {
-				gates.remove_gate(sel.gate);
-				if (hover == sel) hover = {};
-				sel = {};
-				wire_preview = {}; // just be to sure no stale pointers exist
-			}
-		}
-		// drag selected IO via left click
-		else if (sel.type == Selection::INPUT || sel.type == Selection::OUTPUT) {
-			if (!editing) {
-				// begin placing wire
-				if (I.buttons[MOUSE_BUTTON_LEFT].went_down || !_cursor_valid) {
-					// remember where dragging started
-					
-					if (sel.type == Selection::INPUT) {
-						wire_preview.was_dst = true;
-						sel.gate->inputs[sel.io_idx] = {}; // remove wire if new wire is begin being placed from input
-						wire_preview.dst = { sel.gate, sel.io_idx };
-					}
-					else {                     
-						wire_preview.src = { sel.gate, sel.io_idx };
-					}
-
-					wire_preview.unconnected_pos = _cursor_pos;
-
-					editing = true;
-				}
-			}
-			else {
-				// if other end is unconnected 'connect' it with cursor
-				wire_preview.unconnected_pos = snap(_cursor_pos);
-				
-				// connect to in/outputs where applicable each frame (does not stick)
-				if (hover && (hover.type == Selection::INPUT || hover.type == Selection::OUTPUT)) {
-				
-					if (hover.type == Selection::OUTPUT && wire_preview.was_dst) {
-						wire_preview.src.gate   = hover.gate;
-						wire_preview.src.io_idx = hover.io_idx;
-					}
-					if (hover.type == Selection::INPUT && !wire_preview.was_dst) {
-						wire_preview.dst.gate   = hover.gate;
-						wire_preview.dst.io_idx = hover.io_idx;
-					}
-				}
-				else {
-					// unconnect if did hover over non-in/output
-					if (wire_preview.was_dst) wire_preview.src = {};
-					else                      wire_preview.dst = {};
-				}
-				
-				//// stop dragging
-				if (I.buttons[MOUSE_BUTTON_LEFT].went_down || !_cursor_valid) {
-					if (hover && (hover.type == Selection::INPUT || hover.type == Selection::OUTPUT)) {
-						// if wire_preview was a connected on both ends, make it a real connection
-						if (wire_preview.src.gate && wire_preview.dst.gate) {
-							gates.add_wire(wire_preview.src, wire_preview.dst, std::move(wire_preview.points));
-						} else {
-							// dragged from output, but did not connect, do nothing
-						}
-
-						wire_preview = {};
-						sel = {};
-						editing = false;
-					}
-					else {
-						// add a wire point, at front or back depending on order that wire is built in
-						if (wire_preview.was_dst) wire_preview.points.insert(wire_preview.points.begin(), wire_preview.unconnected_pos);
-						else                      wire_preview.points.push_back(wire_preview.unconnected_pos);
-					}
-				}
-
-				if (I.buttons[MOUSE_BUTTON_RIGHT].went_down) {
-					// undo one wire point or cancel wire
-					if (wire_preview.points.empty()) {
-						// cancel whole wire edit
-						wire_preview = {};
-						sel = {};
-						editing = false;
-					}
-					else {
-						// just remove last added point
-						if (wire_preview.was_dst) wire_preview.points.erase(wire_preview.points.begin());
-						else                      wire_preview.points.pop_back();
-					}
-				}
-
-				if (!_cursor_valid) {
-					wire_preview = {};
-					sel = {};
-					editing = false;
-				}
-			}
-		}
-
-		bool can_toggle = mode == EM_VIEW && hover.type == Selection::GATE;
-		if (can_toggle && I.buttons[MOUSE_BUTTON_LEFT].went_down) {
-			hover.gate->state ^= 1u <<  gates.cur_buf;
-		}
-
-		window.set_cursor(can_toggle ? Window::CURSOR_FINGER : Window::CURSOR_NORMAL);
-	}
-	
-	void simulate (Input& I, DebugDraw& dbgdraw) {
-		ZoneScoped;
-		
-		gates.cur_buf ^= 1;
-		uint8_t prev_smask = 1u << (gates.cur_buf^1);
-		uint8_t  cur_smask = 1u <<  gates.cur_buf;
-
-		for (int i=0; i<(int)gates.size(); ++i) {
-			auto& g = gates[i];
-			
-			bool a_valid = gate_info[g.type].inputs >= 1 && g.inputs[0].gate;
-			bool b_valid = gate_info[g.type].inputs >= 2 && g.inputs[1].gate;
-
-			uint8_t new_state;
-
-			if (!a_valid && !b_valid) {
-				// keep prev state (needed to toggle gates via LMB)
-				new_state = (g.state & prev_smask) != 0;
-			}
-			else {
-				bool a = a_valid && (g.inputs[0].gate->state & prev_smask) != 0;
-				bool b = b_valid && (g.inputs[1].gate->state & prev_smask) != 0;
-
-				switch (g.type) {
-					case GT_BUF  : new_state =  a;  break;
-					case GT_NOT  : new_state = !a;  break;
-				
-					case GT_AND  : new_state =   a && b;	 break;
-					case GT_NAND : new_state = !(a && b);	 break;
-				
-					case GT_OR   : new_state =   a || b;	 break;
-					case GT_NOR  : new_state = !(a || b);	 break;
-				
-					case GT_XOR  : new_state =   a != b;	 break;
-
-					default: assert(false);
-				}
-			}
-
-			g.state &= ~cur_smask;
-			g.state |= new_state ? cur_smask : 0;
-		}
-	}
 };
 
 #endif
 
 constexpr float2x2 ROT[] = {
+	float2x2(  1, 0,  0, 1 ),
+	float2x2(  0, 1, -1, 0 ),
+	float2x2( -1, 0,  0,-1 ),
+	float2x2(  0,-1,  1, 0 ),
+};
+constexpr float2x2 INV_ROT[] = {
 	float2x2(  1, 0,  0, 1 ),
 	float2x2(  0,-1,  1, 0 ),
 	float2x2( -1, 0,  0,-1 ),
@@ -590,6 +75,9 @@ struct Placement {
 
 	float2x3 calc_matrix () {
 		return ::scale(float2(scale)) * translate(pos) * ROT[rot];
+	}
+	float2x3 calc_inv_matrix () {
+		return INV_ROT[rot] * translate(-pos) * ::scale(float2(1.0f/scale));
 	}
 };
 
@@ -611,12 +99,11 @@ struct LogicSim {
 			// pointing to output of other part that is direct child of chip
 			// can be normal part or chip input pin
 			// or -1 if unconnected
-			int subpart_idx = -1;
+			int part_idx = -1;
 			// which output pin of the part is connected to
-			int     pin_idx = 0;
-			// recursively flattened state index relative to chip
-			// ie. chip.state_idx + state_idx contains the state bits that need to be read for this input
-			int   state_idx = 0;
+			int pin_idx = 0;
+			
+			//int state_idx = 0;
 
 			std::vector<float2> wire_points;
 		};
@@ -625,14 +112,6 @@ struct LogicSim {
 		Part (Chip* chip, Placement pos={}): chip{chip}, pos{pos},
 			inputs{chip->inputs.size() > 0 ? std::make_unique<InputWire[]>(chip->inputs.size()) : nullptr} {}
 		
-		// clone a part (this does not clone the wiring in inputs[], it stays unconnected)
-		// needed for primitives[] to be able to be initialized (c++ can't list init a vector of move-only types)
-		// can also be used to implement a duplicate part button
-		Part (Part const& p) {
-			chip = p.chip;
-			pos = p.pos;
-			inputs = std::make_unique<InputWire[]>(chip->inputs.size());
-		}
 		Part (Part&&) = default;
 		Part& operator= (Part const&) = delete;
 		Part& operator= (Part&&) = default;
@@ -644,41 +123,31 @@ struct LogicSim {
 	struct Chip {
 		std::string name = "";
 		lrgb        col = lrgb(0.8f);
-
-		struct IO_Pin {
-			SERIALIZE(IO_Pin, name)
-
-			std::string name = "";
-		};
-
-		std::vector<IO_Pin> inputs = {};
-		std::vector<IO_Pin> outputs = {};
 		
 		float2 size = 16;
-
+		
 		// how many total outputs are used (recursively)
 		// and thus how many state vars need to be allocated
 		// when this chip is placed in the simulation
 		int state_count = -1; // -1 if stale
 
+		struct IO_Pin {
+			SERIALIZE(IO_Pin, name, pos)
+
+			std::string name = "";
+			Placement   pos;
+		};
+
+		std::vector<IO_Pin> inputs = {};
+		std::vector<IO_Pin> outputs = {};
+		
 		// first all inputs, than all outputs, then all other direct children of this chip
-		std::vector<Part> subparts = {};
+		std::vector<Part> parts = {};
 		
 		// to check against recursive self usage, which would cause a stack overflow
 		// this check is needed to prevent the user from causes a recursive self usage
 		bool _visited = false;
 		
-		Part& get_input_part (int i) {
-			assert(i >= 0 && i < (int)inputs.size());
-			assert(subparts.size() >= inputs.size());
-			return subparts[i];
-		}
-		Part& get_output_part (int i) {
-			assert(i >= 0 && i < (int)outputs.size());
-			assert(subparts.size() >= inputs.size() + outputs.size());
-			return subparts[(int)inputs.size() + i];
-		}
-
 		int update_state_indices () {
 			// state count cached, early out
 			if (state_count >= 0)
@@ -686,7 +155,7 @@ struct LogicSim {
 			
 			// state count stale, recompute
 			state_count = 0;
-			for (auto& part : subparts) {
+			for (auto& part : parts) {
 				// states are placed flattened in order of depth first traversal of part (chip instance) tree
 				part.state_idx = state_count;
 				// allocate as many states as are needed recursively for this part
@@ -698,48 +167,38 @@ struct LogicSim {
 	};
 
 	
-	enum PrimType {
-		INP_PIN   =0,
-		OUT_PIN   ,
-		BUF_GATE  ,
+	enum GateType {
+		//NULL_GATE =-1,
+		BUF_GATE  =0,
 		NOT_GATE  ,
 		AND_GATE  ,
 		NAND_GATE ,
 		OR_GATE   ,
 		NOR_GATE  ,
 		XOR_GATE  ,
-		PRIMITIVE_COUNT,
+		GATE_COUNT,
 	};
 
-	Chip primitives[PRIMITIVE_COUNT];
+	Chip gates[GATE_COUNT] = {
+		{ "Buffer Gate", lrgb(0.5f, 0.5f,0.75f), 1, 1, {{"In", float2(-0.3f, +0)}}, {{"Out", float2(0.28f, 0)}} },
+		{ "NOT Gate",    lrgb(   0,    0,    1), 1, 1, {{"In", float2(-0.3f, +0)}}, {{"Out", float2(0.36f, 0)}} },
+		{ "AND Gate",    lrgb(   1,    0,    0), 1, 1, {{"A", float2(-0.3f, +0.25f)},{"B", float2(-0.3f, -0.25f)}}, {{"Out", float2(0.28f, 0)}} },
+		{ "NAND Gate",   lrgb(0.5f,    1,    0), 1, 1, {{"A", float2(-0.3f, +0.25f)},{"B", float2(-0.3f, -0.25f)}}, {{"Out", float2(0.36f, 0)}} },
+		{ "OR Gate",     lrgb(   1, 0.5f,    0), 1, 1, {{"A", float2(-0.3f, +0.25f)},{"B", float2(-0.3f, -0.25f)}}, {{"Out", float2(0.28f, 0)}} },
+		{ "NOR Gate",    lrgb(   0,    1, 0.5f), 1, 1, {{"A", float2(-0.3f, +0.25f)},{"B", float2(-0.3f, -0.25f)}}, {{"Out", float2(0.36f, 0)}} },
+		{ "XOR Gate",    lrgb(   0,    1,    0), 1, 1, {{"A", float2(-0.3f, +0.25f)},{"B", float2(-0.3f, -0.25f)}}, {{"Out", float2(0.28f, 0)}} },
+	};
+
+	static constexpr float2 PIN_SIZE = 0.25f;
 	
-	bool is_primitive (Chip* chip) const {
-		return chip >= primitives && chip < &primitives[PRIMITIVE_COUNT];
+	bool is_gate (Chip* chip) const {
+		return chip >= gates && chip < &gates[GATE_COUNT];
 	}
-	PrimType primitive_type (Chip* chip) const {
-		assert(is_primitive(chip));
-		return (PrimType)(chip - primitives);
+	GateType gate_type (Chip* chip) const {
+		assert(is_gate(chip));
+		return (GateType)(chip - gates);
 	}
 
-	LogicSim () {
-		#define _INP(x,y) Part(&primitives[INP_PIN], {float2(x, y)})
-		#define _OUT(x,y) Part(&primitives[OUT_PIN], {float2(x, y)})
-
-		primitives[INP_PIN  ] = { "Input Pin"  , lrgb(0.8f, 0.1f, 0.1f), {{"In"}}, {},  0.2f, 0 };
-		primitives[OUT_PIN  ] = { "Output Pin" , lrgb(0.1f, 0.1f, 0.8f), {}, {{"Out"}}, 0.2f, 0 };
-
-		primitives[BUF_GATE ] = { "Buffer Gate", lrgb(0.5f, 0.5f,0.75f), {{"In"}}, {{"Out"}},      1, 1, {_INP(-0.3f, +0), _OUT(0.28f, 0)} };
-		primitives[NOT_GATE ] = { "NOT Gate",    lrgb(   0,    0,    1), {{"In"}}, {{"Out"}},      1, 1, {_INP(-0.3f, +0), _OUT(0.36f, 0)} };
-		primitives[AND_GATE ] = { "AND Gate",    lrgb(   1,    0,    0), {{"A"},{"B"}}, {{"Out"}}, 1, 1, {_INP(-0.3f, +0.25f), _INP(-0.3f, -0.25f), _OUT(0.28f, 0)} };
-		primitives[NAND_GATE] = { "NAND Gate",   lrgb(0.5f,    1,    0), {{"A"},{"B"}}, {{"Out"}}, 1, 1, {_INP(-0.3f, +0.25f), _INP(-0.3f, -0.25f), _OUT(0.36f, 0)} };
-		primitives[OR_GATE  ] = { "OR Gate",     lrgb(   1, 0.5f,    0), {{"A"},{"B"}}, {{"Out"}}, 1, 1, {_INP(-0.3f, +0.25f), _INP(-0.3f, -0.25f), _OUT(0.28f, 0)} };
-		primitives[NOR_GATE ] = { "NOR Gate",    lrgb(   0,    1, 0.5f), {{"A"},{"B"}}, {{"Out"}}, 1, 1, {_INP(-0.3f, +0.25f), _INP(-0.3f, -0.25f), _OUT(0.36f, 0)} };
-		primitives[XOR_GATE ] = { "XOR Gate",    lrgb(   0,    1,    0), {{"A"},{"B"}}, {{"Out"}}, 1, 1, {_INP(-0.3f, +0.25f), _INP(-0.3f, -0.25f), _OUT(0.28f, 0)} };
-		
-		#undef _INP
-		#undef _OUT
-	}
-	
 	friend void to_json (json& j, const Chip& chip, const LogicSim& sim) {
 		
 		j = {
@@ -749,13 +208,13 @@ struct LogicSim {
 			{"outputs", chip.outputs},
 			{"size", chip.size},
 		};
-		json& subparts_j = j["subparts"];
+		json& parts_j = j["parts"];
 
-		for (auto& part : chip.subparts) {
-			json& part_j = subparts_j.emplace_back();
+		for (auto& part : chip.parts) {
+			json& part_j = parts_j.emplace_back();
 
 			part_j = {
-				{"chip", sim.is_primitive(part.chip) ? sim.primitive_type(part.chip) :
+				{"chip", sim.is_gate(part.chip) ? sim.gate_type(part.chip) :
 					-1 },
 				{"pos", part.pos}
 			};
@@ -763,8 +222,8 @@ struct LogicSim {
 
 			for (int i=0; i<part.chip->inputs.size(); ++i) {
 				json& ij = inputs.emplace_back();
-				ij["subpart_idx"] = part.inputs[i].subpart_idx;
-				if (part.inputs[i].subpart_idx >= 0) {
+				ij["part_idx"] = part.inputs[i].part_idx;
+				if (part.inputs[i].part_idx >= 0) {
 					ij["pin_idx"] = part.inputs[i].pin_idx;
 					if (!part.inputs[i].wire_points.empty())
 						ij["wire_points"] = part.inputs[i].wire_points;
@@ -773,7 +232,6 @@ struct LogicSim {
 		}
 	}
 	friend void from_json (const json& j, Chip& chip, LogicSim& sim) {
-		// TODO: temp code
 		
 		chip.name    = j.at("name");
 		chip.col     = j.at("col");
@@ -781,23 +239,23 @@ struct LogicSim {
 		chip.outputs = j.at("outputs");
 		chip.size    = j.at("size");
 		
-		json subparts = j.at("subparts");
-		int part_count = (int)subparts.size();
+		json parts = j.at("parts");
+		int part_count = (int)parts.size();
 
-		chip.subparts.clear();
-		chip.subparts.reserve(part_count);
+		chip.parts.clear();
+		chip.parts.reserve(part_count);
 			
 		for (int i=0; i<part_count; ++i) {
-			json& partj = subparts[i];
+			json& partj = parts[i];
 			
 			int chip_id   = partj.at("chip");
 			Placement pos = partj.at("pos");
 
 			Chip* part_chip;
-			if (chip_id >= 0 && chip_id < sim.PRIMITIVE_COUNT) part_chip = &sim.primitives[chip_id];
+			if (chip_id >= 0 && chip_id < sim.GATE_COUNT) part_chip = &sim.gates[chip_id];
 			else assert(false); // TODO:
 			
-			auto& part = chip.subparts.emplace_back(part_chip, pos);
+			auto& part = chip.parts.emplace_back(part_chip, pos);
 
 			if (partj.contains("inputs")) {
 				json inputsj = partj.at("inputs");
@@ -808,11 +266,11 @@ struct LogicSim {
 					auto& inpj = inputsj.at(i);
 					auto& inp = part.inputs[i];
 
-					int subpart_idx = inpj.at("subpart_idx");
+					int part_idx = inpj.at("part_idx");
 					
-					if (subpart_idx >= 0 && subpart_idx < part_count) {
-						inp.subpart_idx = subpart_idx;
-						inp.pin_idx     = inpj.at("pin_idx");
+					if (part_idx >= 0 && part_idx < part_count) {
+						inp.part_idx = part_idx;
+						inp.pin_idx = inpj.at("pin_idx");
 				
 						if (inpj.contains("wire_points"))
 							inpj.at("wire_points").get_to(inp.wire_points);
@@ -826,32 +284,496 @@ struct LogicSim {
 		to_json(j["main_chip"], t.main_chip, t);
 	}
 	friend void from_json (const json& j, LogicSim& t) {
+		t.reset();
+
 		from_json(j["main_chip"], t.main_chip, t);
 	}
 	
 	// The chip you are viewing, ie editing and simulating
 	// can be cleared or saved as a new chip in the list of chips
-	Chip main_chip = {"<main>", lrgb(1), {}, {}, 100};
+	Chip main_chip = {"<main>", lrgb(1), 100};
 
 
 	std::vector<uint8_t> state[2];
 
 	int cur_state = 0;
+	
+	void reset () {
+		state[0].clear();
+		state[1].clear();
+		cur_state = 0;
+		
+		main_chip = {"<main>", lrgb(1), 100};
+	}
 
-	void imgui (Input& I) {
-		ZoneScoped;
-		if (imgui_Header("LogicSim", true)) {
+	struct ChipEditor {
 
+		enum Mode {
+			VIEW_MODE=0,
+			EDIT_MODE,
+			PLACE_MODE,
+		};
+		Mode mode = VIEW_MODE;
 
-			ImGui::Text("Gates (# of states): %d", (int)state[0].size());
-
-			ImGui::PopID();
+		float snapping_size = 0.125f;
+		bool snapping = true;
+	
+		float2 snap (float2 pos) {
+			return snapping ? round(pos / snapping_size) * snapping_size : pos;
 		}
+
+		struct PartPreview {
+			Chip* chip = nullptr;
+			Placement pos = {};
+		};
+		PartPreview preview_part = {};
+		
+		struct Selection {
+			enum Type {
+				NONE = 0,
+				PART,
+				PIN_INP,
+				PIN_OUT,
+			};
+			Type type = NONE;
+
+			// part in chip
+			Part* part = nullptr;
+			int pin = 0;
+			
+			float2x3 world2chip; // world2chip during hitbox test
+
+			operator bool () {
+				return type != NONE;
+			}
+		};
+
+		void select_preview_gate_imgui (LogicSim& sim, const char* name, GateType type) {
+			
+			bool selected = preview_part.chip && sim.gate_type(preview_part.chip) == type;
+
+			if (ImGui::Selectable(name, selected)) {
+				if (!selected) {
+					mode = PLACE_MODE;
+					preview_part.chip = &sim.gates[type];
+				}
+				else {
+					preview_part.chip = nullptr;
+					mode = EDIT_MODE;
+				}
+			}
+		}
+
+		void selection_imgui (Selection& sel) {
+			if (!sel) {
+				ImGui::Text("No Selection");
+				return;
+			}
+			else if (sel.type == Selection::PIN_INP) {
+				ImGui::Text("Input Pin#%d of %s", sel.pin, sel.part->chip->name.c_str());
+			}
+			else if (sel.type == Selection::PIN_OUT) {
+				ImGui::Text("Output Pin#%d of %s", sel.pin, sel.part->chip->name.c_str());
+			}
+
+			ImGui::Text("%s Instance", sel.part->chip->name.c_str());
+			
+			ImGui::Separator();
+			ImGui::Spacing();
+
+			ImGui::Text("Placement in containing chip:");
+			ImGui::DragFloat2("pos", &sel.part->pos.pos.x, 0.1f);
+			ImGui::SliderInt("rot", &sel.part->pos.rot, 0, 3);
+			ImGui::DragFloat("scale", &sel.part->pos.scale, 0.1f, 0.001f, 100.0f);
+			
+			//ImGui::Spacing();
+			//
+			//ImGui::Text("Input Wires:");
+			//
+			//for (int i=0; i<(int)sel.part->chip->inputs.size(); ++i) {
+			//	ImGui::Text("Input Pin#%d [%s]", i, sel.part->chip->inputs[i].name.c_str());
+			//}
+		}
+
+		void parts_hierarchy_imgui (LogicSim& sim, Chip& chip) {
+			if (ImGui::BeginTable("PartsList", 1, ImGuiTableFlags_Borders | ImGuiTableFlags_ScrollY)) {
+				
+				for (auto& part : chip.parts) {
+					ImGui::TableNextColumn();
+					ImGui::PushID(&part);
+					
+					bool selected = sel.type == Selection::PART && sel.part == &part;
+					if (selected && just_selected)
+						ImGui::SetScrollHereY();
+
+					if (ImGui::Selectable(part.chip->name.c_str(), selected)) {
+						if (!selected) {
+							sel = { Selection::PART, &part };
+							mode = EDIT_MODE;
+						}
+						else
+							sel = {};
+					}
+					if (ImGui::IsItemHovered()) {
+						hover = { Selection::PART, &part };
+						imgui_hovered = true;
+					}
+
+					ImGui::PopID();
+				}
+
+				ImGui::EndTable();
+			}
+		}
+
+		void imgui (LogicSim& sim) {
+			
+			if (imgui_Header("Editor", true)) {
+				ImGui::Indent(10);
+
+				{
+					bool m = mode != VIEW_MODE;
+					if (ImGui::Checkbox("Edit Mode [E]", &m))
+						mode = m ? EDIT_MODE : VIEW_MODE;
+				}
+
+				ImGui::Checkbox("snapping", &snapping);
+				ImGui::SameLine();
+				ImGui::InputFloat("###snapping_size", &snapping_size);
+
+				ImGui::Spacing();
+				if (imgui_Header("Gates", true)) {
+					ImGui::Indent(10);
+
+					if (ImGui::BeginTable("TableGates", 2, ImGuiTableFlags_Borders)) {
+				
+						ImGui::TableNextColumn();
+						select_preview_gate_imgui(sim, "BUF" , BUF_GATE );
+						ImGui::TableNextColumn();
+						select_preview_gate_imgui(sim, "NOT" , NOT_GATE );
+				
+						ImGui::TableNextColumn();
+						select_preview_gate_imgui(sim, "AND" , AND_GATE );
+						ImGui::TableNextColumn();
+						select_preview_gate_imgui(sim, "NAND", NAND_GATE);
+				
+						ImGui::TableNextColumn();
+						select_preview_gate_imgui(sim, "OR"  , OR_GATE  );
+						ImGui::TableNextColumn();
+						select_preview_gate_imgui(sim, "NOR" , NOR_GATE );
+				
+						ImGui::TableNextColumn();
+						select_preview_gate_imgui(sim, "XOR" , XOR_GATE );
+						ImGui::TableNextColumn();
+
+						ImGui::EndTable();
+					}
+
+					ImGui::PopID();
+					ImGui::Unindent(10);
+				}
+			
+				ImGui::Spacing();
+				if (imgui_Header("User-defined Chips", true)) {
+					ImGui::Indent(10);
+
+					ImGui::PopID();
+					ImGui::Unindent(10);
+				}
+				
+				ImGui::Spacing();
+				ImGui::Separator();
+				ImGui::Spacing();
+				if (imgui_Header("Selected Part", true)) {
+					ImGui::Indent(10);
+					
+					selection_imgui(sel);
+					
+					ImGui::PopID();
+					ImGui::Unindent(10);
+				}
+
+				ImGui::Spacing();
+				if (imgui_Header("Parts Hierarchy", true)) {
+					ImGui::Indent(10);
+
+					parts_hierarchy_imgui(sim, sim.main_chip);
+
+					ImGui::PopID();
+					ImGui::Unindent(10);
+				}
+				
+				ImGui::Unindent(10);
+				ImGui::PopID();
+			}
+			
+			just_selected = false;
+		}
+
+		bool _cursor_valid;
+		float2 _cursor_pos;
+		
+		// check mouse cursor against chip hitbox
+		bool hitbox (float2 box_size, float2x3 const& world2chip) {
+			if (!_cursor_valid) return false;
+			
+			// cursor in space of chip normalized to size
+			float2 p = world2chip * _cursor_pos;
+			p /= box_size;
+			// chip is a [-0.5, 0.5] box in this space
+			return p.x >= -0.5f && p.x < 0.5f &&
+			       p.y >= -0.5f && p.y < 0.5f;
+		}
+		
+		bool imgui_hovered = false;
+		bool just_selected = false;
+
+		Selection sel   = {};
+		Selection hover = {};
+		
+		bool dragging = false; // dragging gate
+		float2 drag_offs;
+
+		struct WirePreview {
+			struct Connection {
+				Part* part = nullptr;
+				int   pin = 0;
+			};
+			Connection src = {};
+			Connection dst = {};
+			Chip* chip = nullptr;
+
+			float2 unconn_pos;
+
+			std::vector<float2> points;
+		};
+
+		WirePreview wire_preview = {};
+		
+		void edit_placement (Input& I, Placement& p) {
+			if (I.buttons['R'].went_down) {
+				int dir = I.buttons[KEY_LEFT_SHIFT].is_down ? -1 : +1;
+				p.rot = wrap(p.rot + dir, 4);
+			}
+		}
+		
+		void add_wire (WirePreview& wire) {
+			assert(wire.dst.part);
+			assert(wire.dst.pin < (int)wire.dst.part->chip->inputs.size());
+			if (wire.dst.part) assert(wire.src.pin < (int)wire.src.part->chip->outputs.size());
+			int part_idx = indexof(wire.chip->parts, wire.src.part, [] (Part const& l, Part* r) { return &l == r; });
+
+			wire.dst.part->inputs[wire.dst.pin] = { part_idx, wire.src.pin, std::move(wire.points) };
+		}
+
+		// Currently just recursively handles hitbox testing
+		// TODO: proper chip instancing requires moving more editing code in here?
+		void edit_chip (Input& I, LogicSim& sim, Chip& chip, float2x3 const& world2chip) {
+			
+			for (auto& part : chip.parts) {
+				auto world2part = part.pos.calc_inv_matrix() * world2chip;
+				
+				if (mode != PLACE_MODE && hitbox(part.chip->size, world2part))
+					hover = { Selection::PART, &part, 0, world2chip };
+
+				if (mode == EDIT_MODE) {
+					for (int i=0; i<(int)part.chip->inputs.size(); ++i) {
+						if (hitbox(PIN_SIZE, part.chip->inputs[i].pos.calc_inv_matrix() * world2part))
+							hover = { Selection::PIN_INP, &part, i, world2chip };
+					}
+					for (int i=0; i<(int)part.chip->outputs.size(); ++i) {
+						if (hitbox(PIN_SIZE, part.chip->outputs[i].pos.calc_inv_matrix() * world2part))
+							hover = { Selection::PIN_OUT, &part, i, world2chip };
+					}
+				}
+
+				//edit_chip(I, sim, *part.chip, &part, world2part);
+			}
+		}
+
+		void update (Input& I, View3D& view, Window& window, LogicSim& sim) {
+			{
+				float3 cur;
+				_cursor_valid = view.cursor_ray(I, &cur);
+				_cursor_pos = (float2)cur;
+			}
+
+			if (mode != PLACE_MODE && I.buttons['E'].went_down) {
+				mode = mode == VIEW_MODE ? EDIT_MODE : VIEW_MODE;
+			}
+
+			// reset hover but keep imgui hover
+			if (!imgui_hovered)
+				hover = {};
+			imgui_hovered = false;
+
+			edit_chip(I, sim, sim.main_chip, float2x3::identity());
+			
+			// unselect all when needed
+			if (!_cursor_valid || mode != EDIT_MODE) {
+				sel = {};
+				wire_preview = {};
+				dragging = false;
+			}
+			if (!PLACE_MODE) {
+				preview_part.chip = nullptr;
+			}
+
+			if (mode == PLACE_MODE) {
+
+				edit_placement(I, preview_part.pos);
+				
+				if (_cursor_valid) {
+					// move to-be-placed gate preview with cursor
+					preview_part.pos.pos = snap(_cursor_pos);
+					
+					// place gate on left click
+					if (I.buttons[MOUSE_BUTTON_LEFT].went_down) {
+						//gates.add_gate(std::move(gate_preview)); // preview becomes real gate
+						// preview of gate still exists
+					}
+				}
+
+				// exit edit mode with RMB
+				if (I.buttons[MOUSE_BUTTON_RIGHT].went_down) {
+					preview_part.chip = nullptr;
+					mode = EDIT_MODE;
+				}
+			}
+			else if (mode == EDIT_MODE) {
+
+				// rewire pin when pin is selected
+				if (sel.type == Selection::PIN_INP || sel.type == Selection::PIN_OUT) {
+				
+					bool from_dst = sel.type == Selection::PIN_INP;
+
+					// start wire at selected pin
+					wire_preview.src = {};
+					wire_preview.dst = {};
+
+					if (from_dst) wire_preview.dst = { sel.part, sel.pin };
+					else          wire_preview.src = { sel.part, sel.pin  };
+					wire_preview.chip = &sim.main_chip; // TODO: 
+
+					// unconnect previous connection on input pin when rewiring
+					if (from_dst)
+						sel.part->inputs[sel.pin] = {};
+				
+					// remember temprary end point for wire if not hovered over pin
+					//wire_preview.unconn_pos = snap(world2chip * _cursor_pos);
+					wire_preview.unconn_pos = sel.world2chip * _cursor_pos;
+				 
+					// connect other end of wire to appropriate pin when hovered
+					if (hover.type == Selection::PIN_INP || hover.type == Selection::PIN_OUT) {
+						if (from_dst) {
+							if (hover.type == Selection::PIN_OUT) wire_preview.src = { hover.part, hover.pin };
+						} else {
+							if (hover.type == Selection::PIN_INP) wire_preview.dst = { hover.part, hover.pin };
+						}
+					}
+
+					// establish wire connection or add wire point
+					if (I.buttons[MOUSE_BUTTON_LEFT].went_down) {
+						if (wire_preview.src.part && wire_preview.dst.part) {
+							// clicked correct pin, connect wire
+							add_wire(wire_preview);
+
+							sel = {};
+							wire_preview = {};
+						}
+						else {
+							// add cur cursor position to list of wire points
+							if (from_dst) wire_preview.points.insert(wire_preview.points.begin(), wire_preview.unconn_pos);
+							else          wire_preview.points.push_back(wire_preview.unconn_pos);
+						}
+					}
+					// remove wire point or stop cancel rewiring
+					else if (I.buttons[MOUSE_BUTTON_RIGHT].went_down) {
+						// undo one wire point or cancel wire
+						if (wire_preview.points.empty()) {
+							// cancel whole wire edit
+							sel = {};
+							wire_preview = {};
+						}
+						else {
+							// just remove last added point
+							if (from_dst) wire_preview.points.erase(wire_preview.points.begin());
+							else          wire_preview.points.pop_back();
+						}
+					}
+				}
+				// select thing when hovered and clicked
+				else {
+					// only select hovered things when not in wire placement mode
+					if (I.buttons[MOUSE_BUTTON_LEFT].went_down) {
+						just_selected = true;
+						sel = hover;
+					}
+
+					// edit parts
+					if (sel.type == Selection::PART) {
+						float2 pos = sel.world2chip * _cursor_pos;
+
+						edit_placement(I, sel.part->pos);
+
+						if (!dragging) {
+							// begin dragging gate
+							if (I.buttons[MOUSE_BUTTON_LEFT].went_down) {
+								drag_offs = pos - sel.part->pos.pos; // TODO: respect actual grab point based on matrix?
+								dragging = true;
+							}
+						}
+						if (dragging) {
+							// drag gate
+							if (I.buttons[MOUSE_BUTTON_LEFT].is_down) {
+								sel.part->pos.pos = snap(pos - drag_offs);
+							}
+							// stop dragging gate
+							if (I.buttons[MOUSE_BUTTON_LEFT].went_up) {
+								dragging = false;
+							}
+						}
+
+						// Duplicate selected part with CTRL+C
+						// TODO: CTRL+D moves the camera to the right, change that?
+						if (I.buttons[KEY_LEFT_CONTROL].is_down && I.buttons['C'].went_down) {
+							preview_part.chip = sel.part->chip;
+							mode = PLACE_MODE;
+						}
+
+						//// remove gates via DELETE key
+						//if (I.buttons[KEY_DELETE].went_down) {
+						//	gates.remove_gate(sel.gate);
+						//	if (hover == sel) hover = {};
+						//	sel = {};
+						//	wire_preview = {}; // just be to sure no stale pointers exist
+						//}
+					}
+				}
+
+			}
+
+			// Gate toggle per LMB
+			bool can_toggle = mode == VIEW_MODE && hover.type == Selection::PART;
+			if (can_toggle && I.buttons[MOUSE_BUTTON_LEFT].went_down) {
+				sim.state[sim.cur_state][hover.part->state_idx] ^= 1u;
+			}
+
+			window.set_cursor(can_toggle ? Window::CURSOR_FINGER : Window::CURSOR_NORMAL);
+		}
+	};
+	ChipEditor editor;
+	
+	void imgui (Input& I) {
+		ImGui::Text("Gates (# of states): %d", (int)state[0].size());
+
+		editor.imgui(*this);
 	}
 
 	void update (Input& I, View3D& view, Window& window) {
 		ZoneScoped;
 		
+		editor.update(I, view, window, *this);
 		
 		if (main_chip.state_count < 0) {
 			ZoneScopedN("update_state_indices");
@@ -873,12 +795,15 @@ struct LogicSim {
 		
 		int state_count = 0;
 
-		for (auto& part : chip.subparts) {
-			
+		for (auto& part : chip.parts) {
+			if (!is_gate(part.chip))
+				continue;
+
 			int input_count = (int)part.chip->inputs.size();
 			
-			Part* src_a = input_count >= 1 && part.inputs[0].subpart_idx >= 0 ? &chip.subparts[part.inputs[0].subpart_idx] : nullptr;
-			Part* src_b = input_count >= 2 && part.inputs[1].subpart_idx >= 0 ? &chip.subparts[part.inputs[1].subpart_idx] : nullptr;
+			// TODO: cache part_idx in input as well to avoid indirection
+			Part* src_a = input_count >= 1 && part.inputs[0].part_idx >= 0 ? &chip.parts[part.inputs[0].part_idx] : nullptr;
+			Part* src_b = input_count >= 2 && part.inputs[1].part_idx >= 0 ? &chip.parts[part.inputs[1].part_idx] : nullptr;
 
 			uint8_t new_state;
 
@@ -892,7 +817,7 @@ struct LogicSim {
 				bool a = src_a && cur[src_a->state_idx] != 0;
 				bool b = src_b && cur[src_b->state_idx] != 0;
 
-				switch (primitive_type(part.chip)) {
+				switch (gate_type(part.chip)) {
 					case BUF_GATE : new_state =  a;  break;
 					case NOT_GATE : new_state = !a;  break;
 					

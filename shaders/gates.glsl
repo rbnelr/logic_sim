@@ -10,13 +10,13 @@ VS2FS Vertex v;
 flat VS2FS int v_gate_type;
 flat VS2FS int v_gate_state;
 
-#define GT_BUF  2
-#define GT_NOT  3
-#define GT_AND  4
-#define GT_NAND 5
-#define GT_OR   6
-#define GT_NOR  7
-#define GT_XOR  8
+#define GT_BUF  0
+#define GT_NOT  1
+#define GT_AND  2
+#define GT_NAND 3
+#define GT_OR   4
+#define GT_NOR  5
+#define GT_XOR  6
 
 #ifdef _VERTEX
 	layout(location = 0) in vec2  pos;
