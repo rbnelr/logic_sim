@@ -308,7 +308,7 @@ struct Renderer : public RendererBackend {
 		{ // Wire preview
 			auto& wire = g.sim.editor.wire_preview;
 		
-			if (wire.dst.part || wire.src.part) { //&& wire.layer == layer) {
+			if ((wire.dst.part || wire.src.part) && wire.chip == chip) {
 				ZoneScopedN("push wire_preview");
 				
 				float2 a = wire.unconn_pos;

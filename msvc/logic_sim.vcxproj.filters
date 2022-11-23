@@ -137,13 +137,22 @@
     <None Include="..\shaders\dbg_tris.glsl">
       <Filter>shaders</Filter>
     </None>
-    <None Include="..\shaders\ocean.glsl">
+    <None Include="..\shaders\background.glsl">
       <Filter>shaders</Filter>
     </None>
-    <None Include="..\shaders\skybox.glsl">
+    <None Include="..\shaders\dbg_indirect_draw.glsl">
       <Filter>shaders</Filter>
     </None>
-    <None Include="..\shaders\terrain.glsl">
+    <None Include="..\shaders\fullscreen_triangle.glsl">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\shaders\gates.glsl">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\shaders\text.glsl">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\shaders\wires.glsl">
       <Filter>shaders</Filter>
     </None>
   </ItemGroup>

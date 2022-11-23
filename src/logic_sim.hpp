@@ -1,57 +1,5 @@
 #pragma once
-
-#if 0
-
-struct LogicSim {
-	SERIALIZE(LogicSim, gates, snapping_size, snapping)
-
-	// Wrapper struct so I can manually write _just_ this part of the serialization
-	struct Gates {
-
-		int cur_buf = 0; // cur state double buffering index
-
-		//SERIALIZE(Gate, type, pos)
-		
-		void add_gate (Gate&& gate) {
-			ZoneScoped;
-
-			assert(gate.type > GT_NULL);
-
-			gate.init();
-
-			auto new_gate = std::make_unique<Gate>();
-			*new_gate = std::move(gate);
-			gates.emplace_back(std::move(new_gate));
-		}
-		
-		void _remove_wires (Gate* src) {
-			for (auto& g : gates) {
-				for (auto& inp : g->inputs) {
-					if (inp.gate == src) inp = {};
-				}
-			}
-		}
-		void remove_gate (Gate* gate) {
-			ZoneScoped;
-
-			int idx = indexof(gates, gate, [] (std::unique_ptr<Gate> const& ptr, Gate* r) { return ptr.get() == r; });
-			assert(idx >= 0);
-			
-			// inputs to this gate simply disappear
-			// output connections have to be manually removes to avoid ptr use after free
-			_remove_wires(gate);
-			
-			// replace gate to be removed with last gate and shrink vector by one to not leave holes
-			gates[idx] = nullptr; // delete gate
-			gates[idx] = std::move(gates.back()); // swap last vector element into this one (works even if this was the last element)
-			gates.pop_back(); // shrink vector
-		}
-
-	};
-
-};
-
-#endif
+#include "common.hpp"
 
 constexpr float2x2 ROT[] = {
 	float2x2(  1, 0,  0, 1 ),
@@ -163,6 +111,11 @@ struct LogicSim {
 			}
 
 			return state_count;
+		}
+
+		// TODO: eliminiate these with cached indices?
+		int indexof_part (Part* part) {
+			return indexof(parts, part, [] (Part const& l, Part* r) { return &l == r; });
 		}
 	};
 
@@ -278,6 +231,8 @@ struct LogicSim {
 				}
 			}
 		}
+
+		sim.reset_state();
 	}
 
 	friend void to_json (json& j, const LogicSim& t) {
@@ -288,7 +243,7 @@ struct LogicSim {
 
 		from_json(j["main_chip"], t.main_chip, t);
 	}
-	
+
 	// The chip you are viewing, ie editing and simulating
 	// can be cleared or saved as a new chip in the list of chips
 	Chip main_chip = {"<main>", lrgb(1), 100};
@@ -304,6 +259,15 @@ struct LogicSim {
 		cur_state = 0;
 		
 		main_chip = {"<main>", lrgb(1), 100};
+	}
+	void reset_state () {
+		main_chip.update_state_indices();
+
+		// TODO: Do I need this?
+		state[0].clear();
+		state[0].resize(main_chip.state_count);
+		state[1].clear();
+		state[1].resize(main_chip.state_count);
 	}
 
 	struct ChipEditor {
@@ -340,6 +304,8 @@ struct LogicSim {
 			// part in chip
 			Part* part = nullptr;
 			int pin = 0;
+
+			Chip* chip = nullptr;
 			
 			float2x3 world2chip; // world2chip during hitbox test
 
@@ -541,6 +507,7 @@ struct LogicSim {
 			};
 			Connection src = {};
 			Connection dst = {};
+
 			Chip* chip = nullptr;
 
 			float2 unconn_pos;
@@ -557,11 +524,43 @@ struct LogicSim {
 			}
 		}
 		
+		void add_part (LogicSim& sim, Chip& chip, PartPreview& part) {
+			chip.parts.emplace_back(part.chip, part.pos);
+			
+			assert(part.chip->state_count > 0);
+			for (int i=0; i<2; ++i)
+				sim.state[i].insert(sim.state[i].begin() + chip.state_count, part.chip->state_count, 0);
+
+			chip.state_count = -1; // invalidate state layout
+		}
+		void remove_part (LogicSim& sim, Selection& sel) {
+			int idx = sel.chip->indexof_part(sel.part);
+
+			sel.chip->parts.erase(sel.chip->parts.begin() + idx);
+
+			int first = sel.part->state_idx;
+			int end = sel.part->state_idx + sel.part->chip->state_count;
+			for (int i=0; i<2; ++i)
+				sim.state[i].erase(sim.state[i].begin() + first, sim.state[i].begin() + end);
+
+			// update input wire part indices
+			for (auto& part : sel.chip->parts) {
+				for (int i=0; i<(int)part.chip->inputs.size(); ++i) {
+					if (part.inputs[i].part_idx == idx)
+						part.inputs[i].part_idx = -1;
+					else if (part.inputs[i].part_idx > idx)
+						part.inputs[i].part_idx -= 1;
+				}
+			}
+
+			sel.chip->state_count = -1; // invalidate state layout
+		}
+
 		void add_wire (WirePreview& wire) {
 			assert(wire.dst.part);
 			assert(wire.dst.pin < (int)wire.dst.part->chip->inputs.size());
 			if (wire.dst.part) assert(wire.src.pin < (int)wire.src.part->chip->outputs.size());
-			int part_idx = indexof(wire.chip->parts, wire.src.part, [] (Part const& l, Part* r) { return &l == r; });
+			int part_idx = wire.chip->indexof_part(wire.src.part);
 
 			wire.dst.part->inputs[wire.dst.pin] = { part_idx, wire.src.pin, std::move(wire.points) };
 		}
@@ -574,16 +573,16 @@ struct LogicSim {
 				auto world2part = part.pos.calc_inv_matrix() * world2chip;
 				
 				if (mode != PLACE_MODE && hitbox(part.chip->size, world2part))
-					hover = { Selection::PART, &part, 0, world2chip };
+					hover = { Selection::PART, &part, 0, &chip, world2chip };
 
 				if (mode == EDIT_MODE) {
 					for (int i=0; i<(int)part.chip->inputs.size(); ++i) {
 						if (hitbox(PIN_SIZE, part.chip->inputs[i].pos.calc_inv_matrix() * world2part))
-							hover = { Selection::PIN_INP, &part, i, world2chip };
+							hover = { Selection::PIN_INP, &part, i, &chip, world2chip };
 					}
 					for (int i=0; i<(int)part.chip->outputs.size(); ++i) {
 						if (hitbox(PIN_SIZE, part.chip->outputs[i].pos.calc_inv_matrix() * world2part))
-							hover = { Selection::PIN_OUT, &part, i, world2chip };
+							hover = { Selection::PIN_OUT, &part, i, &chip, world2chip };
 					}
 				}
 
@@ -629,7 +628,7 @@ struct LogicSim {
 					
 					// place gate on left click
 					if (I.buttons[MOUSE_BUTTON_LEFT].went_down) {
-						//gates.add_gate(std::move(gate_preview)); // preview becomes real gate
+						add_part(sim, sim.main_chip, preview_part); // preview becomes real gate
 						// preview of gate still exists
 					}
 				}
@@ -741,13 +740,14 @@ struct LogicSim {
 							mode = PLACE_MODE;
 						}
 
-						//// remove gates via DELETE key
-						//if (I.buttons[KEY_DELETE].went_down) {
-						//	gates.remove_gate(sel.gate);
-						//	if (hover == sel) hover = {};
-						//	sel = {};
-						//	wire_preview = {}; // just be to sure no stale pointers exist
-						//}
+						// remove gates via DELETE key
+						if (I.buttons[KEY_DELETE].went_down) {
+							remove_part(sim, sel);
+
+							if (hover == sel) hover = {};
+							sel = {};
+							wire_preview = {}; // just be to sure no stale pointers exist
+						}
 					}
 				}
 
@@ -779,12 +779,12 @@ struct LogicSim {
 			ZoneScopedN("update_state_indices");
 			main_chip.update_state_indices();
 
-			// TODO: for now just zero and resize the state to fit all the states
-			// later I want to be able to insert parts and have the states be moved correctly, which requires the recursive editor code to do this
-			state[0].clear();
-			state[0].resize(main_chip.state_count);
-			state[1].clear();
-			state[1].resize(main_chip.state_count);
+			//// TODO: for now just zero and resize the state to fit all the states
+			//// later I want to be able to insert parts and have the states be moved correctly, which requires the recursive editor code to do this
+			//state[0].clear();
+			//state[0].resize(main_chip.state_count);
+			//state[1].clear();
+			//state[1].resize(main_chip.state_count);
 		}
 	}
 	
