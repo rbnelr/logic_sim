@@ -232,21 +232,38 @@ struct LogicSim {
 			}
 		}
 
-		sim.reset_state();
+		chip.state_count = -1; // force update
+		chip.update_state_indices();
 	}
 
-	friend void to_json (json& j, const LogicSim& t) {
-		to_json(j["main_chip"], t.main_chip, t);
-	}
-	friend void from_json (const json& j, LogicSim& t) {
-		t.reset();
+	friend void to_json (json& j, const LogicSim& sim) {
+		//to_json(j["main_chip"], sim.main_chip, sim);
 
-		from_json(j["main_chip"], t.main_chip, t);
+		json& jchips = j["chips"];
+		for (auto& chip : sim.saved_chips) {
+			json& jchip = jchips.emplace_back();
+			to_json(jchip, chip, sim);
+		}
 	}
+	friend void from_json (const json& j, LogicSim& sim) {
+		sim.reset();
+		sim.saved_chips.clear();
+
+		//from_json(j["main_chip"], sim.main_chip, sim);
+
+		for (auto& jchip : j["chips"]) {
+			auto& chip = sim.saved_chips.emplace_back();
+			from_json(jchip, chip, sim);
+		}
+		
+		sim.init_state();
+	}
+
+	std::vector<Chip> saved_chips;
 
 	// The chip you are viewing, ie editing and simulating
 	// can be cleared or saved as a new chip in the list of chips
-	Chip main_chip = {"<main>", lrgb(1), 100};
+	Chip main_chip = {"", lrgb(1), float2(10, 6)};
 
 
 	std::vector<uint8_t> state[2];
@@ -258,11 +275,11 @@ struct LogicSim {
 		state[1].clear();
 		cur_state = 0;
 		
-		main_chip = {"<main>", lrgb(1), 100};
-	}
-	void reset_state () {
-		main_chip.update_state_indices();
+		main_chip = {"", lrgb(1), float2(10, 6)};
 
+		main_chip.update_state_indices();
+	}
+	void init_state () {
 		// TODO: Do I need this?
 		state[0].clear();
 		state[0].resize(main_chip.state_count);
@@ -314,14 +331,14 @@ struct LogicSim {
 			}
 		};
 
-		void select_preview_gate_imgui (LogicSim& sim, const char* name, GateType type) {
+		void select_preview_chip_imgui (LogicSim& sim, const char* name, Chip* type) {
 			
-			bool selected = preview_part.chip && sim.gate_type(preview_part.chip) == type;
+			bool selected = preview_part.chip && preview_part.chip == type;
 
 			if (ImGui::Selectable(name, selected)) {
 				if (!selected) {
 					mode = PLACE_MODE;
-					preview_part.chip = &sim.gates[type];
+					preview_part.chip = type;
 				}
 				else {
 					preview_part.chip = nullptr;
@@ -414,22 +431,22 @@ struct LogicSim {
 					if (ImGui::BeginTable("TableGates", 2, ImGuiTableFlags_Borders)) {
 				
 						ImGui::TableNextColumn();
-						select_preview_gate_imgui(sim, "BUF" , BUF_GATE );
+						select_preview_chip_imgui(sim, "BUF" , &sim.gates[BUF_GATE ] );
 						ImGui::TableNextColumn();
-						select_preview_gate_imgui(sim, "NOT" , NOT_GATE );
+						select_preview_chip_imgui(sim, "NOT" , &sim.gates[NOT_GATE ] );
 				
 						ImGui::TableNextColumn();
-						select_preview_gate_imgui(sim, "AND" , AND_GATE );
+						select_preview_chip_imgui(sim, "AND" , &sim.gates[AND_GATE ] );
 						ImGui::TableNextColumn();
-						select_preview_gate_imgui(sim, "NAND", NAND_GATE);
+						select_preview_chip_imgui(sim, "NAND", &sim.gates[NAND_GATE] );
 				
 						ImGui::TableNextColumn();
-						select_preview_gate_imgui(sim, "OR"  , OR_GATE  );
+						select_preview_chip_imgui(sim, "OR"  , &sim.gates[OR_GATE  ] );
 						ImGui::TableNextColumn();
-						select_preview_gate_imgui(sim, "NOR" , NOR_GATE );
+						select_preview_chip_imgui(sim, "NOR" , &sim.gates[NOR_GATE ] );
 				
 						ImGui::TableNextColumn();
-						select_preview_gate_imgui(sim, "XOR" , XOR_GATE );
+						select_preview_chip_imgui(sim, "XOR" , &sim.gates[XOR_GATE ] );
 						ImGui::TableNextColumn();
 
 						ImGui::EndTable();
@@ -442,6 +459,26 @@ struct LogicSim {
 				ImGui::Spacing();
 				if (imgui_Header("User-defined Chips", true)) {
 					ImGui::Indent(10);
+
+					ImGui::InputText("name", &sim.main_chip.name);
+					ImGui::ColorEdit3("col", &sim.main_chip.col.x);
+					ImGui::DragFloat2("size", &sim.main_chip.size.x);
+
+					if (ImGui::Button("Save as New")) {
+						sim.saved_chips.emplace_back(std::move(sim.main_chip));
+						sim.reset();
+					}
+
+
+					if (ImGui::BeginTable("ChipsList", 1, ImGuiTableFlags_Borders | ImGuiTableFlags_ScrollY)) {
+						
+						for (auto& chip : sim.saved_chips) {
+							ImGui::TableNextColumn();
+							select_preview_chip_imgui(sim, chip.name.c_str(), &chip);
+						}
+
+						ImGui::EndTable();
+					}
 
 					ImGui::PopID();
 					ImGui::Unindent(10);
@@ -459,15 +496,15 @@ struct LogicSim {
 					ImGui::Unindent(10);
 				}
 
-				ImGui::Spacing();
-				if (imgui_Header("Parts Hierarchy", true)) {
-					ImGui::Indent(10);
-
-					parts_hierarchy_imgui(sim, sim.main_chip);
-
-					ImGui::PopID();
-					ImGui::Unindent(10);
-				}
+				//ImGui::Spacing();
+				//if (imgui_Header("Parts Hierarchy", true)) {
+				//	ImGui::Indent(10);
+				//
+				//	parts_hierarchy_imgui(sim, sim.main_chip);
+				//
+				//	ImGui::PopID();
+				//	ImGui::Unindent(10);
+				//}
 				
 				ImGui::Unindent(10);
 				ImGui::PopID();
@@ -531,7 +568,7 @@ struct LogicSim {
 			for (int i=0; i<2; ++i)
 				sim.state[i].insert(sim.state[i].begin() + chip.state_count, part.chip->state_count, 0);
 
-			chip.state_count = -1; // invalidate state layout
+			chip.state_count = -1;
 		}
 		void remove_part (LogicSim& sim, Selection& sel) {
 			int idx = sel.chip->indexof_part(sel.part);
@@ -659,8 +696,7 @@ struct LogicSim {
 						sel.part->inputs[sel.pin] = {};
 				
 					// remember temprary end point for wire if not hovered over pin
-					//wire_preview.unconn_pos = snap(world2chip * _cursor_pos);
-					wire_preview.unconn_pos = sel.world2chip * _cursor_pos;
+					wire_preview.unconn_pos = snap(sel.world2chip * _cursor_pos);
 				 
 					// connect other end of wire to appropriate pin when hovered
 					if (hover.type == Selection::PIN_INP || hover.type == Selection::PIN_OUT) {
@@ -774,18 +810,6 @@ struct LogicSim {
 		ZoneScoped;
 		
 		editor.update(I, view, window, *this);
-		
-		if (main_chip.state_count < 0) {
-			ZoneScopedN("update_state_indices");
-			main_chip.update_state_indices();
-
-			//// TODO: for now just zero and resize the state to fit all the states
-			//// later I want to be able to insert parts and have the states be moved correctly, which requires the recursive editor code to do this
-			//state[0].clear();
-			//state[0].resize(main_chip.state_count);
-			//state[1].clear();
-			//state[1].resize(main_chip.state_count);
-		}
 	}
 	
 	void simulate (Input& I, Chip& chip) {
@@ -838,7 +862,7 @@ struct LogicSim {
 			state_count += part.chip->state_count;
 		}
 		
-		assert(chip.state_count > 0); // state_count stale!
+		assert(chip.state_count >= 0); // state_count stale!
 		assert(state_count == chip.state_count); // state_count invalid!
 
 		cur_state ^= 1;

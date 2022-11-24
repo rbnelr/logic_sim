@@ -275,51 +275,57 @@ struct Renderer : public RendererBackend {
 			
 			draw_gate(chip2world, type, state, lrgba(chip->col, 1) * col);
 		}
+		else {
+			float2 pos = chip2world * (-chip->size * 0.5f);
+			float2 sz = (float2x2)chip2world * chip->size;
+			g.dbgdraw.wire_quad(float3(pos, 0), sz, lrgba(0.9f, 0.9f, 1, 1));
 
-		for (auto& part : chip->parts) {
+			for (auto& part : chip->parts) {
 			
-			if (editor.hover && editor.hover.part == &part) highlight(g, editor.hover, chip2world, lrgba(0.25f,0.25f,0.25f,1));
-			if (editor.sel   && editor.sel  .part == &part) highlight(g, editor.sel  , chip2world, lrgba(1,1,1,1));
+				if (editor.hover && editor.hover.part == &part) highlight(g, editor.hover, chip2world, lrgba(0.25f,0.25f,0.25f,1));
+				if (editor.sel   && editor.sel  .part == &part) highlight(g, editor.sel  , chip2world, lrgba(1,1,1,1));
 			
-			auto part2chip = part.pos.calc_matrix();
-			auto part2world = chip2world * part2chip;
+				auto part2chip = part.pos.calc_matrix();
+				auto part2world = chip2world * part2chip;
 
-			draw_chip(g, part.chip, part2world, chip_state >= 0 ? chip_state + part.state_idx : -1, col);
+				draw_chip(g, part.chip, part2world, chip_state >= 0 ? chip_state + part.state_idx : -1, col);
 
-			for (int i=0; i<(int)part.chip->inputs.size(); ++i) {
-				auto& inp = part.inputs[i];
-				if (inp.part_idx < 0) continue;
+				for (int i=0; i<(int)part.chip->inputs.size(); ++i) {
+					auto& inp = part.inputs[i];
+					if (inp.part_idx < 0) continue;
 
-				// get connected part
-				auto& src_part = chip->parts[inp.part_idx];
-				// center position of connected output
-				float2 src_pos = src_part.pos.calc_matrix() * src_part.chip->outputs[inp.pin_idx].pos.pos;
-				// center position input
-				float2 dst_pos =                  part2chip * part.chip->inputs[i].pos.pos;
+					// get connected part
+					auto& src_part = chip->parts[inp.part_idx];
+					// center position of connected output
+					float2 src_pos = src_part.pos.calc_matrix() * src_part.chip->outputs[inp.pin_idx].pos.pos;
+					// center position input
+					float2 dst_pos =                  part2chip * part.chip->inputs[i].pos.pos;
 
-				uint8_t prev_state = chip_state >= 0 ? prev[chip_state + src_part.state_idx] : 1;
-				uint8_t  cur_state = chip_state >= 0 ? cur [chip_state + src_part.state_idx] : 1;
-				int state = (prev_state << 1) | cur_state;
+					uint8_t prev_state = chip_state >= 0 ? prev[chip_state + src_part.state_idx] : 1;
+					uint8_t  cur_state = chip_state >= 0 ? cur [chip_state + src_part.state_idx] : 1;
+					int state = (prev_state << 1) | cur_state;
 						
-				build_line(chip2world, src_pos, dst_pos, inp.wire_points, state, lrgba(0.8f, 0.01f, 0.025f, 1));
+					build_line(chip2world, src_pos, dst_pos, inp.wire_points, state, lrgba(0.8f, 0.01f, 0.025f, 1));
+				}
 			}
-		}
 
-		{ // Wire preview
-			auto& wire = g.sim.editor.wire_preview;
+			{ // Wire preview
+				auto& wire = g.sim.editor.wire_preview;
 		
-			if ((wire.dst.part || wire.src.part) && wire.chip == chip) {
-				ZoneScopedN("push wire_preview");
+				if ((wire.dst.part || wire.src.part) && wire.chip == chip) {
+					ZoneScopedN("push wire_preview");
 				
-				float2 a = wire.unconn_pos;
-				float2 b = wire.unconn_pos;
+					float2 a = wire.unconn_pos;
+					float2 b = wire.unconn_pos;
 
-				if (wire.src.part) a = wire.src.part->pos.calc_matrix() * wire.src.part->chip->outputs[wire.src.pin].pos.pos;
-				if (wire.dst.part) b = wire.dst.part->pos.calc_matrix() * wire.dst.part->chip->inputs [wire.dst.pin].pos.pos;
+					if (wire.src.part) a = wire.src.part->pos.calc_matrix() * wire.src.part->chip->outputs[wire.src.pin].pos.pos;
+					if (wire.dst.part) b = wire.dst.part->pos.calc_matrix() * wire.dst.part->chip->inputs [wire.dst.pin].pos.pos;
 				
-				build_line(chip2world, a, b, wire.points, 3, lrgba(0.8f, 0.01f, 0.025f, 0.75f));
+					build_line(chip2world, a, b, wire.points, 3, lrgba(0.8f, 0.01f, 0.025f, 0.75f));
+				}
 			}
 		}
+
 	}
 
 	virtual void render (Window& window, Game& g, int2 window_size) {
