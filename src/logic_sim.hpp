@@ -568,7 +568,13 @@ struct LogicSim {
 			for (int i=0; i<2; ++i)
 				sim.state[i].insert(sim.state[i].begin() + chip.state_count, part.chip->state_count, 0);
 
+			// whole tree might be invalid
+			// (chips not depending on this one are not, but how do I know this?
+			//  -> if I keep chips in saved_chips strictly in dependency order I can know this easily)
+
+
 			chip.state_count = -1;
+			chip.update_state_indices(); // TODO: this but actually assume every 
 		}
 		void remove_part (LogicSim& sim, Selection& sel) {
 			int idx = sel.chip->indexof_part(sel.part);
