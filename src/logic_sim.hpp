@@ -22,10 +22,10 @@ struct Placement {
 	float  scale = 1.0f;
 
 	float2x3 calc_matrix () {
-		return ::scale(float2(scale)) * translate(pos) * ROT[rot];
+		return translate(pos) * ::scale(float2(scale)) * ROT[rot];
 	}
 	float2x3 calc_inv_matrix () {
-		return INV_ROT[rot] * translate(-pos) * ::scale(float2(1.0f/scale));
+		return INV_ROT[rot] * ::scale(float2(1.0f/scale)) * translate(-pos);
 	}
 };
 
@@ -92,9 +92,9 @@ struct LogicSim {
 		// first all inputs, than all outputs, then all other direct children of this chip
 		std::vector<Part> parts = {};
 		
-		// to check against recursive self usage, which would cause a stack overflow
-		// this check is needed to prevent the user from causes a recursive self usage
-		bool _visited = false;
+		//// to check against recursive self usage, which would cause a stack overflow
+		//// this check is needed to prevent the user from causes a recursive self usage
+		//bool _visited = false;
 		
 		int update_state_indices () {
 			// state count cached, early out
@@ -285,6 +285,23 @@ struct LogicSim {
 		state[0].resize(main_chip.state_count);
 		state[1].clear();
 		state[1].resize(main_chip.state_count);
+	}
+
+	// TODO: Is this needed?
+	void update_all_chip_state_indices () {
+
+		// Only one chip (except on json reload) was invalidated
+		// (chips not depending on this one are not, but how do I know this?
+		//  -> if I keep chips in saved_chips strictly in dependency order I can know this easily)
+
+		// invalidate all chips and recompute state_counts
+		for (auto& c : saved_chips)
+			c.state_count = -1;
+		main_chip.state_count = -1;
+
+		for (auto& c : saved_chips)
+			c.update_state_indices();
+		main_chip.update_state_indices();
 	}
 
 	struct ChipEditor {
@@ -568,13 +585,7 @@ struct LogicSim {
 			for (int i=0; i<2; ++i)
 				sim.state[i].insert(sim.state[i].begin() + chip.state_count, part.chip->state_count, 0);
 
-			// whole tree might be invalid
-			// (chips not depending on this one are not, but how do I know this?
-			//  -> if I keep chips in saved_chips strictly in dependency order I can know this easily)
-
-
-			chip.state_count = -1;
-			chip.update_state_indices(); // TODO: this but actually assume every 
+			sim.update_all_chip_state_indices();
 		}
 		void remove_part (LogicSim& sim, Selection& sel) {
 			int idx = sel.chip->indexof_part(sel.part);
@@ -596,7 +607,7 @@ struct LogicSim {
 				}
 			}
 
-			sel.chip->state_count = -1; // invalidate state layout
+			sim.update_all_chip_state_indices();
 		}
 
 		void add_wire (WirePreview& wire) {
@@ -796,7 +807,7 @@ struct LogicSim {
 			}
 
 			// Gate toggle per LMB
-			bool can_toggle = mode == VIEW_MODE && hover.type == Selection::PART;
+			bool can_toggle = mode == VIEW_MODE && hover.type == Selection::PART && sim.is_gate(hover.chip);
 			if (can_toggle && I.buttons[MOUSE_BUTTON_LEFT].went_down) {
 				sim.state[sim.cur_state][hover.part->state_idx] ^= 1u;
 			}
@@ -818,65 +829,66 @@ struct LogicSim {
 		editor.update(I, view, window, *this);
 	}
 	
-	void simulate (Input& I, Chip& chip) {
+	void simulate (Chip& chip, int state_base) {
 
 		uint8_t* cur  = state[cur_state  ].data();
 		uint8_t* next = state[cur_state^1].data();
 		
-		int state_count = 0;
+		int state_offs = 0;
 
 		for (auto& part : chip.parts) {
-			if (!is_gate(part.chip))
-				continue;
-
-			int input_count = (int)part.chip->inputs.size();
-			
-			// TODO: cache part_idx in input as well to avoid indirection
-			Part* src_a = input_count >= 1 && part.inputs[0].part_idx >= 0 ? &chip.parts[part.inputs[0].part_idx] : nullptr;
-			Part* src_b = input_count >= 2 && part.inputs[1].part_idx >= 0 ? &chip.parts[part.inputs[1].part_idx] : nullptr;
-
-			uint8_t new_state;
-
-			assert(part.chip->state_count); // state_count stale!
-
-			if (!src_a && !src_b) {
-				// keep prev state (needed to toggle gates via LMB)
-				new_state = cur[part.state_idx];
+			if (!is_gate(part.chip)) {
+				simulate(*part.chip, state_base + state_offs);
 			}
 			else {
-				bool a = src_a && cur[src_a->state_idx] != 0;
-				bool b = src_b && cur[src_b->state_idx] != 0;
+				int input_count = (int)part.chip->inputs.size();
+			
+				// TODO: cache part_idx in input as well to avoid indirection
+				Part* src_a = input_count >= 1 && part.inputs[0].part_idx >= 0 ? &chip.parts[part.inputs[0].part_idx] : nullptr;
+				Part* src_b = input_count >= 2 && part.inputs[1].part_idx >= 0 ? &chip.parts[part.inputs[1].part_idx] : nullptr;
 
-				switch (gate_type(part.chip)) {
-					case BUF_GATE : new_state =  a;  break;
-					case NOT_GATE : new_state = !a;  break;
-					
-					case AND_GATE : new_state =   a && b;	 break;
-					case NAND_GATE: new_state = !(a && b);	 break;
-					
-					case OR_GATE  : new_state =   a || b;	 break;
-					case NOR_GATE : new_state = !(a || b);	 break;
-					
-					case XOR_GATE : new_state =   a != b;	 break;
+				uint8_t new_state;
 
-					default: assert(false);
+				assert(part.chip->state_count); // state_count stale!
+
+				if (!src_a && !src_b) {
+					// keep prev state (needed to toggle gates via LMB)
+					new_state = cur[state_base + part.state_idx];
 				}
+				else {
+					bool a = src_a && cur[state_base + src_a->state_idx] != 0;
+					bool b = src_b && cur[state_base + src_b->state_idx] != 0;
+
+					switch (gate_type(part.chip)) {
+						case BUF_GATE : new_state =  a;  break;
+						case NOT_GATE : new_state = !a;  break;
+					
+						case AND_GATE : new_state =   a && b;	 break;
+						case NAND_GATE: new_state = !(a && b);	 break;
+					
+						case OR_GATE  : new_state =   a || b;	 break;
+						case NOR_GATE : new_state = !(a || b);	 break;
+					
+						case XOR_GATE : new_state =   a != b;	 break;
+
+						default: assert(false);
+					}
+				}
+
+				next[state_base + part.state_idx] = new_state;
 			}
-
-			next[part.state_idx] = new_state;
-
-			state_count += part.chip->state_count;
+			state_offs += part.chip->state_count;
 		}
 		
 		assert(chip.state_count >= 0); // state_count stale!
-		assert(state_count == chip.state_count); // state_count invalid!
-
-		cur_state ^= 1;
+		assert(state_offs == chip.state_count); // state_count invalid!
 	}
 
 	void simulate (Input& I) {
 		ZoneScoped;
 		
-		simulate(I, main_chip);
+		simulate(main_chip, 0);
+
+		cur_state ^= 1;
 	}
 };
