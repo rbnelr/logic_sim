@@ -372,7 +372,7 @@ struct Renderer : public RendererBackend {
 		{ // Gates and wires
 			ZoneScopedN("push gates");
 			
-			draw_chip(g, &g.sim.main_chip, float2x3::identity(), 0, lrgba(1));
+			draw_chip(g, g.sim.main_chip.get(), float2x3::identity(), 0, lrgba(1));
 		}
 		
 		{ // Gate preview

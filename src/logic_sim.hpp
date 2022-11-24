@@ -119,6 +119,9 @@ struct LogicSim {
 		}
 	};
 
+	int indexof_chip (Chip* chip) const {
+		return indexof(saved_chips, chip, [] (std::shared_ptr<Chip> const& l, Chip* r) { return l.get() == r; });
+	}
 	
 	enum GateType {
 		//NULL_GATE =-1,
@@ -167,8 +170,9 @@ struct LogicSim {
 			json& part_j = parts_j.emplace_back();
 
 			part_j = {
-				{"chip", sim.is_gate(part.chip) ? sim.gate_type(part.chip) :
-					-1 },
+				{"chip", sim.is_gate(part.chip) ?
+					sim.gate_type(part.chip) :
+					sim.indexof_chip(part.chip) + sim.GATE_COUNT },
 				{"pos", part.pos}
 			};
 			auto& inputs = part_j["inputs"];
@@ -204,10 +208,15 @@ struct LogicSim {
 			int chip_id   = partj.at("chip");
 			Placement pos = partj.at("pos");
 
-			Chip* part_chip;
-			if (chip_id >= 0 && chip_id < sim.GATE_COUNT) part_chip = &sim.gates[chip_id];
-			else assert(false); // TODO:
-			
+			assert(chip_id >= 0);
+			Chip* part_chip = nullptr;
+			if (chip_id >= 0) {
+				if (chip_id >= 0 && chip_id < sim.GATE_COUNT)
+					part_chip = &sim.gates[chip_id];
+				else if (chip_id >= 0)
+					part_chip = sim.saved_chips[chip_id - sim.GATE_COUNT].get();
+			}
+
 			auto& part = chip.parts.emplace_back(part_chip, pos);
 
 			if (partj.contains("inputs")) {
@@ -231,9 +240,6 @@ struct LogicSim {
 				}
 			}
 		}
-
-		chip.state_count = -1; // force update
-		chip.update_state_indices();
 	}
 
 	friend void to_json (json& j, const LogicSim& sim) {
@@ -242,7 +248,7 @@ struct LogicSim {
 		json& jchips = j["chips"];
 		for (auto& chip : sim.saved_chips) {
 			json& jchip = jchips.emplace_back();
-			to_json(jchip, chip, sim);
+			to_json(jchip, *chip, sim);
 		}
 	}
 	friend void from_json (const json& j, LogicSim& sim) {
@@ -252,39 +258,57 @@ struct LogicSim {
 		//from_json(j["main_chip"], sim.main_chip, sim);
 
 		for (auto& jchip : j["chips"]) {
-			auto& chip = sim.saved_chips.emplace_back();
-			from_json(jchip, chip, sim);
+			auto& chip = sim.saved_chips.emplace_back(std::make_unique<Chip>());
+			from_json(jchip, *chip, sim);
 		}
 		
-		sim.init_state();
+		sim.update_all_chip_state_indices();
 	}
 
-	std::vector<Chip> saved_chips;
+	std::vector<std::shared_ptr<Chip>> saved_chips;
 
 	// The chip you are viewing, ie editing and simulating
 	// can be cleared or saved as a new chip in the list of chips
-	Chip main_chip = {"", lrgb(1), float2(10, 6)};
+	std::shared_ptr<Chip> main_chip;
 
 
 	std::vector<uint8_t> state[2];
 
 	int cur_state = 0;
-	
+
+	void switch_to_chip_view (std::shared_ptr<Chip>& chip) {
+		state[0].clear();
+		state[1].clear();
+		cur_state = 0;
+
+		main_chip = chip;
+
+		update_all_chip_state_indices();
+
+		state[0].clear();
+		state[0].resize(main_chip->state_count);
+		state[1].clear();
+		state[1].resize(main_chip->state_count);
+
+		editor.reset();
+	}
+
 	void reset () {
 		state[0].clear();
 		state[1].clear();
 		cur_state = 0;
 		
-		main_chip = {"", lrgb(1), float2(10, 6)};
+		main_chip = std::make_shared<Chip>("", lrgb(1), float2(10, 6));
 
-		main_chip.update_state_indices();
+		update_all_chip_state_indices();
+		editor.reset();
 	}
 	void init_state () {
 		// TODO: Do I need this?
 		state[0].clear();
-		state[0].resize(main_chip.state_count);
+		state[0].resize(main_chip->state_count);
 		state[1].clear();
-		state[1].resize(main_chip.state_count);
+		state[1].resize(main_chip->state_count);
 	}
 
 	// TODO: Is this needed?
@@ -296,12 +320,12 @@ struct LogicSim {
 
 		// invalidate all chips and recompute state_counts
 		for (auto& c : saved_chips)
-			c.state_count = -1;
-		main_chip.state_count = -1;
+			c->state_count = -1;
+		main_chip->state_count = -1;
 
 		for (auto& c : saved_chips)
-			c.update_state_indices();
-		main_chip.update_state_indices();
+			c->update_state_indices();
+		main_chip->update_state_indices();
 	}
 
 	struct ChipEditor {
@@ -348,8 +372,34 @@ struct LogicSim {
 			}
 		};
 
-		void select_preview_chip_imgui (LogicSim& sim, const char* name, Chip* type) {
+		void select_preview_chip_imgui (LogicSim& sim, const char* name, std::shared_ptr<Chip>& chip) {
 			
+			bool selected = preview_part.chip && preview_part.chip == chip.get();
+
+			bool res = ImGui::Selectable(name, selected);
+
+			if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+				sim.reset();
+				sim.main_chip = chip;
+
+				preview_part.chip = nullptr;
+				mode = EDIT_MODE;
+			}
+			else {
+				if (res) {
+					if (!selected) {
+						mode = PLACE_MODE;
+						preview_part.chip = chip.get();
+					}
+					else {
+						preview_part.chip = nullptr;
+						mode = EDIT_MODE;
+					}
+				}
+			}
+		}
+		void select_preview_gate_imgui (LogicSim& sim, const char* name, Chip* type) {
+
 			bool selected = preview_part.chip && preview_part.chip == type;
 
 			if (ImGui::Selectable(name, selected)) {
@@ -448,22 +498,22 @@ struct LogicSim {
 					if (ImGui::BeginTable("TableGates", 2, ImGuiTableFlags_Borders)) {
 				
 						ImGui::TableNextColumn();
-						select_preview_chip_imgui(sim, "BUF" , &sim.gates[BUF_GATE ] );
+						select_preview_gate_imgui(sim, "BUF" , &sim.gates[BUF_GATE ] );
 						ImGui::TableNextColumn();
-						select_preview_chip_imgui(sim, "NOT" , &sim.gates[NOT_GATE ] );
+						select_preview_gate_imgui(sim, "NOT" , &sim.gates[NOT_GATE ] );
 				
 						ImGui::TableNextColumn();
-						select_preview_chip_imgui(sim, "AND" , &sim.gates[AND_GATE ] );
+						select_preview_gate_imgui(sim, "AND" , &sim.gates[AND_GATE ] );
 						ImGui::TableNextColumn();
-						select_preview_chip_imgui(sim, "NAND", &sim.gates[NAND_GATE] );
+						select_preview_gate_imgui(sim, "NAND", &sim.gates[NAND_GATE] );
 				
 						ImGui::TableNextColumn();
-						select_preview_chip_imgui(sim, "OR"  , &sim.gates[OR_GATE  ] );
+						select_preview_gate_imgui(sim, "OR"  , &sim.gates[OR_GATE  ] );
 						ImGui::TableNextColumn();
-						select_preview_chip_imgui(sim, "NOR" , &sim.gates[NOR_GATE ] );
+						select_preview_gate_imgui(sim, "NOR" , &sim.gates[NOR_GATE ] );
 				
 						ImGui::TableNextColumn();
-						select_preview_chip_imgui(sim, "XOR" , &sim.gates[XOR_GATE ] );
+						select_preview_gate_imgui(sim, "XOR" , &sim.gates[XOR_GATE ] );
 						ImGui::TableNextColumn();
 
 						ImGui::EndTable();
@@ -477,9 +527,9 @@ struct LogicSim {
 				if (imgui_Header("User-defined Chips", true)) {
 					ImGui::Indent(10);
 
-					ImGui::InputText("name", &sim.main_chip.name);
-					ImGui::ColorEdit3("col", &sim.main_chip.col.x);
-					ImGui::DragFloat2("size", &sim.main_chip.size.x);
+					ImGui::InputText("name",  &sim.main_chip->name);
+					ImGui::ColorEdit3("col",  &sim.main_chip->col.x);
+					ImGui::DragFloat2("size", &sim.main_chip->size.x);
 
 					if (ImGui::Button("Save as New")) {
 						sim.saved_chips.emplace_back(std::move(sim.main_chip));
@@ -488,10 +538,12 @@ struct LogicSim {
 
 
 					if (ImGui::BeginTable("ChipsList", 1, ImGuiTableFlags_Borders | ImGuiTableFlags_ScrollY)) {
-						
+
+						//select_preview_chip_imgui(sim, chip->name.c_str(), chip.get());
+
 						for (auto& chip : sim.saved_chips) {
 							ImGui::TableNextColumn();
-							select_preview_chip_imgui(sim, chip.name.c_str(), &chip);
+							select_preview_chip_imgui(sim, chip->name.c_str(), chip);
 						}
 
 						ImGui::EndTable();
@@ -570,6 +622,16 @@ struct LogicSim {
 		};
 
 		WirePreview wire_preview = {};
+
+		void reset () {
+			hover = {};
+			sel = {};
+
+			dragging = false;
+
+			wire_preview = {};
+			preview_part.chip = nullptr;
+		}
 		
 		void edit_placement (Input& I, Placement& p) {
 			if (I.buttons['R'].went_down) {
@@ -621,27 +683,33 @@ struct LogicSim {
 
 		// Currently just recursively handles hitbox testing
 		// TODO: proper chip instancing requires moving more editing code in here?
-		void edit_chip (Input& I, LogicSim& sim, Chip& chip, float2x3 const& world2chip) {
+		Selection edit_chip (Input& I, LogicSim& sim, Chip& chip, float2x3 const& world2chip) {
 			
+			Selection chip_hover = {};
+			Selection sub_hover = {};
+
 			for (auto& part : chip.parts) {
 				auto world2part = part.pos.calc_inv_matrix() * world2chip;
 				
 				if (mode != PLACE_MODE && hitbox(part.chip->size, world2part))
-					hover = { Selection::PART, &part, 0, &chip, world2chip };
+					chip_hover = { Selection::PART, &part, 0, &chip, world2chip };
 
 				if (mode == EDIT_MODE) {
 					for (int i=0; i<(int)part.chip->inputs.size(); ++i) {
 						if (hitbox(PIN_SIZE, part.chip->inputs[i].pos.calc_inv_matrix() * world2part))
-							hover = { Selection::PIN_INP, &part, i, &chip, world2chip };
+							chip_hover = { Selection::PIN_INP, &part, i, &chip, world2chip };
 					}
 					for (int i=0; i<(int)part.chip->outputs.size(); ++i) {
 						if (hitbox(PIN_SIZE, part.chip->outputs[i].pos.calc_inv_matrix() * world2part))
-							hover = { Selection::PIN_OUT, &part, i, &chip, world2chip };
+							chip_hover = { Selection::PIN_OUT, &part, i, &chip, world2chip };
 					}
 				}
 
-				//edit_chip(I, sim, *part.chip, &part, world2part);
+				Selection hov = edit_chip(I, sim, *part.chip, world2part);
+				if (hov) sub_hover = hov;
 			}
+
+			return sub_hover ? sub_hover : chip_hover;
 		}
 
 		void update (Input& I, View3D& view, Window& window, LogicSim& sim) {
@@ -660,7 +728,7 @@ struct LogicSim {
 				hover = {};
 			imgui_hovered = false;
 
-			edit_chip(I, sim, sim.main_chip, float2x3::identity());
+			hover = edit_chip(I, sim, *sim.main_chip, float2x3::identity());
 			
 			// unselect all when needed
 			if (!_cursor_valid || mode != EDIT_MODE) {
@@ -682,7 +750,7 @@ struct LogicSim {
 					
 					// place gate on left click
 					if (I.buttons[MOUSE_BUTTON_LEFT].went_down) {
-						add_part(sim, sim.main_chip, preview_part); // preview becomes real gate
+						add_part(sim, *sim.main_chip, preview_part); // preview becomes real gate
 						// preview of gate still exists
 					}
 				}
@@ -706,7 +774,7 @@ struct LogicSim {
 
 					if (from_dst) wire_preview.dst = { sel.part, sel.pin };
 					else          wire_preview.src = { sel.part, sel.pin  };
-					wire_preview.chip = &sim.main_chip; // TODO: 
+					wire_preview.chip = sim.main_chip.get(); // TODO: 
 
 					// unconnect previous connection on input pin when rewiring
 					if (from_dst)
@@ -806,6 +874,11 @@ struct LogicSim {
 
 			}
 
+			if (I.buttons['K'].went_down) {
+				printf("");
+			}
+
+
 			// Gate toggle per LMB
 			bool can_toggle = mode == VIEW_MODE && hover.type == Selection::PART && sim.is_gate(hover.chip);
 			if (can_toggle && I.buttons[MOUSE_BUTTON_LEFT].went_down) {
@@ -887,7 +960,7 @@ struct LogicSim {
 	void simulate (Input& I) {
 		ZoneScoped;
 		
-		simulate(main_chip, 0);
+		simulate(*main_chip, 0);
 
 		cur_state ^= 1;
 	}
