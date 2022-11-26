@@ -257,10 +257,10 @@ struct Renderer : public RendererBackend {
 			draw_highlight(g, chip.name, sel.part->pos, chip.size, chip2world, col);
 		else if (sel.type == LogicSim::ChipEditor::Selection::PIN_INP)
 			draw_highlight(g, chip.inputs[sel.pin].name, chip.inputs[sel.pin].pos,
-				LogicSim::PIN_SIZE, sel.part->pos.calc_matrix() * chip2world, col * lrgba(1,1, 0.6f, 1));
+				LogicSim::PIN_SIZE, chip2world * sel.part->pos.calc_matrix(), col * lrgba(1,1, 0.6f, 1));
 		else
 			draw_highlight(g, chip.outputs[sel.pin].name, chip.outputs[sel.pin].pos,
-				LogicSim::PIN_SIZE, sel.part->pos.calc_matrix() * chip2world, col * lrgba(1,1, 0.6f, 1));
+				LogicSim::PIN_SIZE, chip2world * sel.part->pos.calc_matrix(), col * lrgba(1,1, 0.6f, 1));
 	}
 
 	void draw_chip (Game& g, LogicSim::Chip* chip, float2x3 const& chip2world, int chip_state, lrgba col) {
@@ -372,13 +372,13 @@ struct Renderer : public RendererBackend {
 		{ // Gates and wires
 			ZoneScopedN("push gates");
 			
-			draw_chip(g, g.sim.main_chip.get(), float2x3::identity(), 0, lrgba(1));
+			draw_chip(g, g.sim.viewed_chip.get(), float2x3::identity(), 0, lrgba(1));
 		}
 		
 		{ // Gate preview
 			auto& preview = g.sim.editor.preview_part;
 		
-			if (preview.chip) {
+			if (preview.chip && !ImGui::GetIO().WantCaptureMouse) {
 				draw_chip(g, preview.chip, preview.pos.calc_matrix(), -1, lrgba(1,1,1,0.5f));
 			}
 		}

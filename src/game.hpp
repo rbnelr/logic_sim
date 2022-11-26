@@ -8,6 +8,7 @@ struct Game {
 	SERIALIZE_POST_LOAD(Game, cam, sim, sim_freq, pause)
 	friend void post_load (Game& g) {
 		g.sim_t = 1;
+		g.tick_counter = 0;
 	}
 
 	Camera2D cam = Camera2D();
@@ -24,6 +25,10 @@ struct Game {
 	// start out tick at 1 so that there's not a 1 tick pause where we see every gate and wire off
 	// (instead negative gates will start out 'sending' their state to the wire instantly)
 	float sim_t = 1;
+
+	// Tick counter just for circuit 'debugging'
+	// set to zero using imgui input field, let sim run via unpause and now you know how many ticks something takes
+	int tick_counter = 0;
 
 	Game () {
 		
@@ -45,8 +50,18 @@ struct Game {
 				ImGui::SameLine();
 				manual_tick = ImGui::Button("Man. Tick [T]");
 
-				ImGui::SliderFloat("sim_t", &sim_t, 0, 0.999f);
-				
+				ImGui::SliderFloat("sim_t", &sim_t, 0, 0.9999f);
+
+				{
+					ImGui::InputInt("##Tick", &tick_counter, 0,0);
+					ImGui::SameLine();
+					if (ImGui::Button("0", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
+						tick_counter = 0;
+
+					ImGui::SameLine();
+					ImGui::TextEx("Tick");
+				}
+
 				ImGui::PopID();
 			}
 
@@ -79,6 +94,7 @@ struct Game {
 			for (int i=0; i<10 && sim_t >= 1.0f; ++i) {
 				
 				sim.simulate(I);
+				tick_counter++;
 				
 				sim_t -= 1.0f;
 			}
@@ -88,6 +104,8 @@ struct Game {
 		}
 		else if (manual_tick) {
 			sim.simulate(I);
+			tick_counter++;
+
 			sim_t = 0.5f;
 		}
 		manual_tick = false;
