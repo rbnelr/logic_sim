@@ -346,7 +346,9 @@ struct LogicSim {
 
 			Chip* chip = nullptr;
 			
-			float2x3 world2chip; // world2chip during hitbox test
+			float2x3 world2chip = float2x3(0); // world2chip during hitbox test
+			
+			int part_state_idx = -1; // needed to toggle gates even when they are part of a chip placed in the viewed chip
 
 			operator bool () {
 				return type != NONE;
@@ -678,16 +680,19 @@ struct LogicSim {
 
 		// Currently just recursively handles hitbox testing
 		// TODO: proper chip instancing requires moving more editing code in here?
-		Selection edit_chip (Input& I, LogicSim& sim, Chip& chip, float2x3 const& world2chip) {
+		Selection edit_chip (Input& I, LogicSim& sim, Chip& chip, float2x3 const& world2chip, int state_base) {
+			
+			int state_offs = 0;
 			
 			Selection chip_hover = {};
 			Selection sub_hover = {};
-
+			
 			for (auto& part : chip.parts) {
 				auto world2part = part.pos.calc_inv_matrix() * world2chip;
+				int part_state_idx = state_base + state_offs;
 				
 				if (mode != PLACE_MODE && hitbox(part.chip->size, world2part))
-					chip_hover = { Selection::PART, &part, 0, &chip, world2chip };
+					chip_hover = { Selection::PART, &part, 0, &chip, world2chip, part_state_idx };
 
 				if (mode == EDIT_MODE) {
 					for (int i=0; i<(int)part.chip->inputs.size(); ++i) {
@@ -700,8 +705,10 @@ struct LogicSim {
 					}
 				}
 
-				Selection hov = edit_chip(I, sim, *part.chip, world2part);
+				Selection hov = edit_chip(I, sim, *part.chip, world2part, part_state_idx);
 				if (hov) sub_hover = hov;
+
+				state_offs += part.chip->state_count;
 			}
 
 			return sub_hover ? sub_hover : chip_hover;
@@ -723,7 +730,7 @@ struct LogicSim {
 				hover = {};
 			imgui_hovered = false;
 
-			hover = edit_chip(I, sim, *sim.viewed_chip, float2x3::identity());
+			hover = edit_chip(I, sim, *sim.viewed_chip, float2x3::identity(), 0);
 			
 			// unselect all when needed
 			if (!_cursor_valid || mode != EDIT_MODE) {
@@ -875,14 +882,10 @@ struct LogicSim {
 
 			}
 
-			if (I.buttons['K'].went_down) {
-				printf("");
-			}
-
 			// Gate toggle per LMB
 			bool can_toggle = mode == VIEW_MODE && hover.type == Selection::PART && sim.is_gate(hover.part->chip);
 			if (can_toggle && I.buttons[MOUSE_BUTTON_LEFT].went_down) {
-				sim.state[sim.cur_state][hover.part->state_idx] ^= 1u; // TODO: hover.part->state_idx is wrong, how to find correct one?
+				sim.state[sim.cur_state][hover.part_state_idx] ^= 1u;
 			}
 
 			window.set_cursor(can_toggle ? Window::CURSOR_FINGER : Window::CURSOR_NORMAL);
@@ -949,7 +952,10 @@ struct LogicSim {
 				}
 
 				next[state_base + part.state_idx] = new_state;
+
+				assert(part.chip->state_count == 1);
 			}
+
 			state_offs += part.chip->state_count;
 		}
 		
