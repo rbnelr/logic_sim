@@ -242,7 +242,9 @@ struct Renderer : public RendererBackend {
 	}
 	
 	void draw_highlight (Game& g, std::string_view name, Placement& pos, float2 size, float2x3 const& chip2world, lrgba col) {
-		size  = abs((float2x2)chip2world * size * pos.scale);
+		//chip2world * pos.calc_matrix();
+
+		size  = abs((float2x2)chip2world * ROT[pos.rot] * size * pos.scale);
 		float2 center = chip2world * pos.pos;
 		
 		g.dbgdraw.wire_quad(float3(center - size*0.5f, 5.0f), size, col);
@@ -256,10 +258,10 @@ struct Renderer : public RendererBackend {
 		if (sel.type == LogicSim::ChipEditor::Selection::PART)
 			draw_highlight(g, chip.name, sel.part->pos, chip.size, chip2world, col);
 		else if (sel.type == LogicSim::ChipEditor::Selection::PIN_INP)
-			draw_highlight(g, chip.inputs[sel.pin].name, chip.inputs[sel.pin].pos,
+			draw_highlight(g, chip.inputs[sel.pin].name, chip.get_input(sel.pin).pos,
 				LogicSim::PIN_SIZE, chip2world * sel.part->pos.calc_matrix(), col * lrgba(1,1, 0.6f, 1));
 		else
-			draw_highlight(g, chip.outputs[sel.pin].name, chip.outputs[sel.pin].pos,
+			draw_highlight(g, chip.outputs[sel.pin].name, chip.get_output(sel.pin).pos,
 				LogicSim::PIN_SIZE, chip2world * sel.part->pos.calc_matrix(), col * lrgba(1,1, 0.6f, 1));
 	}
 
@@ -276,9 +278,11 @@ struct Renderer : public RendererBackend {
 			draw_gate(chip2world, type, state, lrgba(chip->col, 1) * col);
 		}
 		else {
-			float2 pos = chip2world * (-chip->size * 0.5f);
-			float2 sz = (float2x2)chip2world * chip->size;
-			g.dbgdraw.wire_quad(float3(pos, 0), sz, lrgba(0.9f, 0.9f, 1, 1));
+			{
+				float2 center = chip2world * float2(0);
+				float2 size = abs( (float2x2)chip2world * chip->size );
+				g.dbgdraw.wire_quad(float3(center - size*0.5f, 0.0f), size, lrgba(0.9f, 0.9f, 0.3f, 1));
+			}
 
 			for (auto& part : chip->parts) {
 			
@@ -297,9 +301,9 @@ struct Renderer : public RendererBackend {
 					// get connected part
 					auto& src_part = chip->parts[inp.part_idx];
 					// center position of connected output
-					float2 src_pos = src_part.pos.calc_matrix() * src_part.chip->outputs[inp.pin_idx].pos.pos;
+					float2 src_pos = src_part.pos.calc_matrix() * src_part.chip->get_output(inp.pin_idx).pos.pos;
 					// center position input
-					float2 dst_pos =                  part2chip * part.chip->inputs[i].pos.pos;
+					float2 dst_pos =                  part2chip * part.chip->get_input(i).pos.pos;
 
 					uint8_t prev_state = chip_state >= 0 ? prev[chip_state + src_part.state_idx] : 1;
 					uint8_t  cur_state = chip_state >= 0 ? cur [chip_state + src_part.state_idx] : 1;
@@ -318,8 +322,8 @@ struct Renderer : public RendererBackend {
 					float2 a = wire.unconn_pos;
 					float2 b = wire.unconn_pos;
 
-					if (wire.src.part) a = wire.src.part->pos.calc_matrix() * wire.src.part->chip->outputs[wire.src.pin].pos.pos;
-					if (wire.dst.part) b = wire.dst.part->pos.calc_matrix() * wire.dst.part->chip->inputs [wire.dst.pin].pos.pos;
+					if (wire.src.part) a = wire.src.part->pos.calc_matrix() * wire.src.part->chip->get_output(wire.src.pin).pos.pos;
+					if (wire.dst.part) b = wire.dst.part->pos.calc_matrix() * wire.dst.part->chip->get_input (wire.dst.pin).pos.pos;
 				
 					build_line(chip2world, a, b, wire.points, 3, lrgba(0.8f, 0.01f, 0.025f, 0.75f));
 				}

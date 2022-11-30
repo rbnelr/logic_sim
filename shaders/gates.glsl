@@ -10,13 +10,15 @@ VS2FS Vertex v;
 flat VS2FS int v_gate_type;
 flat VS2FS int v_gate_state;
 
-#define GT_BUF  0
-#define GT_NOT  1
-#define GT_AND  2
-#define GT_NAND 3
-#define GT_OR   4
-#define GT_NOR  5
-#define GT_XOR  6
+#define INP_PIN   0
+#define OUT_PIN   1
+#define BUF_GATE  2
+#define NOT_GATE  3
+#define AND_GATE  4
+#define NAND_GATE 5
+#define OR_GATE   6
+#define NOR_GATE  7
+#define XOR_GATE  8
 
 #ifdef _VERTEX
 	layout(location = 0) in vec2  pos;
@@ -123,12 +125,12 @@ flat VS2FS int v_gate_state;
 	
 	void main () {
 		
-		int ty = v_gate_type/2;
-		int inv = v_gate_type%2;
+		int ty  = v_gate_type/2;
+		bool inv = v_gate_type%2 != 0 && v_gate_type > OUT_PIN;
 		
 		bool base_state = v_gate_state != 0;
 		bool inv_state  = v_gate_state != 0;
-		if (inv != 0) base_state = !base_state;
+		if (inv) base_state = !base_state;
 		
 		float du = fwidth(v.uv.x);
 		
@@ -138,9 +140,10 @@ flat VS2FS int v_gate_state;
 		{ // draw base gate symbol
 			float d;
 			
-			if      (ty == GT_BUF/2) d =  buf_gate(v.uv);
-			else if (ty == GT_AND/2) d =  and_gate(v.uv);
-			else if (ty == GT_OR /2) d =   or_gate(v.uv);
+			if      (ty == INP_PIN /2) d =  buf_gate(v.uv);
+			else if (ty == BUF_GATE/2) d =  buf_gate(v.uv);
+			else if (ty == AND_GATE/2) d =  and_gate(v.uv);
+			else if (ty == OR_GATE /2) d =   or_gate(v.uv);
 			else /* ty == GT_XOR */ d =  xor_gate(v.uv);
 			
 			float alpha      = map_clamp(d, -aa/2.0, +aa/2.0, 1.0, 0.0);
@@ -155,7 +158,7 @@ flat VS2FS int v_gate_state;
 			
 			frag_col = c;
 		} 
-		if (inv != 0) { // draw invert circ
+		if (inv) { // draw invert circ
 			float d = invert_circ(v.uv);
 			
 			float alpha      = map_clamp(d, -aa/2.0, +aa/2.0, 1.0, 0.0);

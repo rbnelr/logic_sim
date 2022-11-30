@@ -35,13 +35,13 @@ struct LogicSim {
 	// An instance of a chip placed down in a chip
 	// (Primitive gates are also implemented as chips)
 	struct Part {
-		Chip* chip;
+		Chip* chip = nullptr;
 
-		Placement pos;
+		Placement pos = {};
 
 		// where the states of this parts outputs are stored for this chip
 		// ie. any chip being placed itself is a part with a state_idx, it's subparts then each have a state_idx relative to it
-		int state_idx; // check parent chip for state state_count, then this is also stale
+		int state_idx = -1; // check parent chip for state state_count, then this is also stale
 
 		struct InputWire {
 			// pointing to output of other part that is direct child of chip
@@ -56,13 +56,14 @@ struct LogicSim {
 			std::vector<float2> wire_points;
 		};
 		std::unique_ptr<InputWire[]> inputs = nullptr;
-
+		
+		Part () {}
 		Part (Chip* chip, Placement pos={}): chip{chip}, pos{pos},
 			inputs{chip->inputs.size() > 0 ? std::make_unique<InputWire[]>(chip->inputs.size()) : nullptr} {}
 		
-		Part (Part&&) = default;
-		Part& operator= (Part const&) = delete;
-		Part& operator= (Part&&) = default;
+		//Part (Part&&) = default;
+		//Part& operator= (Part const&) = delete;
+		//Part& operator= (Part&&) = default;
 	};
 
 	// A chip design that can be edited or simulated if viewed as the "global" chip
@@ -80,10 +81,9 @@ struct LogicSim {
 		int state_count = -1; // -1 if stale
 
 		struct IO_Pin {
-			SERIALIZE(IO_Pin, name, pos)
+			SERIALIZE(IO_Pin, name)
 
 			std::string name = "";
-			Placement   pos;
 		};
 
 		std::vector<IO_Pin> inputs = {};
@@ -92,6 +92,18 @@ struct LogicSim {
 		// first all inputs, than all outputs, then all other direct children of this chip
 		std::vector<Part> parts = {};
 		
+		Part& get_input (int i) {
+			assert(i >= 0 && i < (int)inputs.size());
+			assert(parts.size() >= (int)inputs.size());
+			return parts[i];
+		}
+		Part& get_output (int i) {
+			int inps = (int)inputs.size();
+			assert(i >= 0 && i < (int)outputs.size());
+			assert(parts.size() >= inps + (int)outputs.size());
+			return parts[inps + i];
+		}
+
 		//// to check against recursive self usage, which would cause a stack overflow
 		//// this check is needed to prevent the user from causes a recursive self usage
 		//bool _visited = false;
@@ -125,7 +137,10 @@ struct LogicSim {
 	
 	enum GateType {
 		//NULL_GATE =-1,
-		BUF_GATE  =0,
+		INP_PIN   =0,
+		OUT_PIN   ,
+
+		BUF_GATE  ,
 		NOT_GATE  ,
 		AND_GATE  ,
 		NAND_GATE ,
@@ -135,17 +150,39 @@ struct LogicSim {
 		GATE_COUNT,
 	};
 
-	Chip gates[GATE_COUNT] = {
-		{ "Buffer Gate", lrgb(0.5f, 0.5f,0.75f), 1, 1, {{"In", float2(-0.3f, +0)}}, {{"Out", float2(0.28f, 0)}} },
-		{ "NOT Gate",    lrgb(   0,    0,    1), 1, 1, {{"In", float2(-0.3f, +0)}}, {{"Out", float2(0.36f, 0)}} },
-		{ "AND Gate",    lrgb(   1,    0,    0), 1, 1, {{"A", float2(-0.3f, +0.25f)},{"B", float2(-0.3f, -0.25f)}}, {{"Out", float2(0.28f, 0)}} },
-		{ "NAND Gate",   lrgb(0.5f,    1,    0), 1, 1, {{"A", float2(-0.3f, +0.25f)},{"B", float2(-0.3f, -0.25f)}}, {{"Out", float2(0.36f, 0)}} },
-		{ "OR Gate",     lrgb(   1, 0.5f,    0), 1, 1, {{"A", float2(-0.3f, +0.25f)},{"B", float2(-0.3f, -0.25f)}}, {{"Out", float2(0.28f, 0)}} },
-		{ "NOR Gate",    lrgb(   0,    1, 0.5f), 1, 1, {{"A", float2(-0.3f, +0.25f)},{"B", float2(-0.3f, -0.25f)}}, {{"Out", float2(0.36f, 0)}} },
-		{ "XOR Gate",    lrgb(   0,    1,    0), 1, 1, {{"A", float2(-0.3f, +0.25f)},{"B", float2(-0.3f, -0.25f)}}, {{"Out", float2(0.28f, 0)}} },
-	};
-
 	static constexpr float2 PIN_SIZE = 0.25f;
+
+	struct _IO {
+		const char* name;
+		float2 pos;
+	};
+	Chip _GATE (const char* name, lrgb col, float2 size, std::initializer_list<_IO> inputs, std::initializer_list<_IO> outputs) {
+		Chip c(name, col, 1, 1);
+		c.inputs .resize(inputs .size());
+		c.outputs.resize(outputs.size());
+		c.parts  .resize(inputs .size() + outputs.size());
+		for (int i=0; i<(int)inputs.size(); ++i) {
+			c.inputs[i].name = (inputs.begin() + i)->name;
+			c.parts[i].pos.pos = (inputs.begin() + i)->pos;
+		}
+		for (int i=0; i<(int)outputs.size(); ++i) {
+			c.outputs[i].name = (outputs.begin() + i)->name;
+			c.parts[(int)inputs.size() + i].pos.pos = (outputs.begin() + i)->pos;
+		}
+		return c;
+	}
+	Chip gates[GATE_COUNT] = {
+		_GATE("<inp>", srgb(190,255,  0), PIN_SIZE, {}, {}),
+		_GATE("<out>", srgb(255, 10, 10), PIN_SIZE, {}, {}),
+
+		_GATE("Buffer Gate", lrgb(0.5f, 0.5f,0.75f), 1, {{"In", float2(-0.3f, +0)}}, {{"Out", float2(0.28f, 0)}}),
+		_GATE("NOT Gate",    lrgb(   0,    0,    1), 1, {{"In", float2(-0.3f, +0)}}, {{"Out", float2(0.36f, 0)}}),
+		_GATE("AND Gate",    lrgb(   1,    0,    0), 1, {{"A", float2(-0.3f, +0.25f)}, {"B", float2(-0.3f, -0.25f)}}, {{"Out", float2(0.28f, 0)}}),
+		_GATE("NAND Gate",   lrgb(0.5f,    1,    0), 1, {{"A", float2(-0.3f, +0.25f)}, {"B", float2(-0.3f, -0.25f)}}, {{"Out", float2(0.36f, 0)}}),
+		_GATE("OR Gate",     lrgb(   1, 0.5f,    0), 1, {{"A", float2(-0.3f, +0.25f)}, {"B", float2(-0.3f, -0.25f)}}, {{"Out", float2(0.28f, 0)}}),
+		_GATE("NOR Gate",    lrgb(   0,    1, 0.5f), 1, {{"A", float2(-0.3f, +0.25f)}, {"B", float2(-0.3f, -0.25f)}}, {{"Out", float2(0.36f, 0)}}),
+		_GATE("XOR Gate",    lrgb(   0,    1,    0), 1, {{"A", float2(-0.3f, +0.25f)}, {"B", float2(-0.3f, -0.25f)}}, {{"Out", float2(0.28f, 0)}}),
+	};
 	
 	bool is_gate (Chip* chip) const {
 		return chip >= gates && chip < &gates[GATE_COUNT];
@@ -273,18 +310,18 @@ struct LogicSim {
 	int cur_state = 0;
 
 	void switch_to_chip_view (std::shared_ptr<Chip> chip) {
-		state[0].clear();
-		state[1].clear();
-		cur_state = 0;
-
 		// TODO: delete chip warning if main_chip will be deleted by this?
 		viewed_chip = std::move(chip); // move copy of shared ptr (ie original still exists)
 
 		// not actually needed?
 		update_all_chip_state_indices();
 
-		state[0].resize(viewed_chip->state_count);
-		state[1].resize(viewed_chip->state_count);
+		for (int i=0; i<2; ++i) {
+			state[i].clear();
+			state[i].resize(viewed_chip->state_count);
+			state[i].shrink_to_fit();
+		}
+		cur_state = 0;
 
 		editor.reset();
 	}
@@ -476,6 +513,11 @@ struct LogicSim {
 
 					if (ImGui::BeginTable("TableGates", 2, ImGuiTableFlags_Borders)) {
 				
+						ImGui::TableNextColumn();
+						select_preview_gate_imgui(sim, "INP" , &sim.gates[INP_PIN  ] );
+						ImGui::TableNextColumn();
+						select_preview_gate_imgui(sim, "OUT" , &sim.gates[OUT_PIN  ] );
+
 						ImGui::TableNextColumn();
 						select_preview_gate_imgui(sim, "BUF" , &sim.gates[BUF_GATE ] );
 						ImGui::TableNextColumn();
@@ -696,17 +738,19 @@ struct LogicSim {
 
 				if (mode == EDIT_MODE) {
 					for (int i=0; i<(int)part.chip->inputs.size(); ++i) {
-						if (hitbox(PIN_SIZE, part.chip->inputs[i].pos.calc_inv_matrix() * world2part))
+						if (hitbox(PIN_SIZE, part.chip->get_input(i).pos.calc_inv_matrix() * world2part))
 							chip_hover = { Selection::PIN_INP, &part, i, &chip, world2chip };
 					}
 					for (int i=0; i<(int)part.chip->outputs.size(); ++i) {
-						if (hitbox(PIN_SIZE, part.chip->outputs[i].pos.calc_inv_matrix() * world2part))
+						if (hitbox(PIN_SIZE, part.chip->get_output(i).pos.calc_inv_matrix() * world2part))
 							chip_hover = { Selection::PIN_OUT, &part, i, &chip, world2chip };
 					}
 				}
 
-				Selection hov = edit_chip(I, sim, *part.chip, world2part, part_state_idx);
-				if (hov) sub_hover = hov;
+				if (!sim.is_gate(part.chip)) {
+					Selection hov = edit_chip(I, sim, *part.chip, world2part, part_state_idx);
+					if (hov) sub_hover = hov;
+				}
 
 				state_offs += part.chip->state_count;
 			}
@@ -716,9 +760,9 @@ struct LogicSim {
 
 		void update (Input& I, View3D& view, Window& window, LogicSim& sim) {
 			{
-				float3 cur;
-				_cursor_valid = view.cursor_ray(I, &cur);
-				_cursor_pos = (float2)cur;
+				float3 cur_pos;
+				_cursor_valid = view.cursor_ray(I, &cur_pos);
+				_cursor_pos = (float2)cur_pos;
 			}
 
 			if (mode != PLACE_MODE && I.buttons['E'].went_down) {
@@ -812,7 +856,7 @@ struct LogicSim {
 							else          wire_preview.points.push_back(wire_preview.unconn_pos);
 						}
 					}
-					// remove wire point or stop cancel rewiring
+					// remove wire point or cancel rewiring
 					else if (I.buttons[MOUSE_BUTTON_RIGHT].went_down) {
 						// undo one wire point or cancel wire
 						if (wire_preview.points.empty()) {
@@ -936,8 +980,11 @@ struct LogicSim {
 					bool b = src_b && cur[state_base + src_b->state_idx] != 0;
 
 					switch (gate_type(part.chip)) {
-						case BUF_GATE : new_state =  a;  break;
-						case NOT_GATE : new_state = !a;  break;
+						case INP_PIN  : new_state = false;  break; // TODO
+						case OUT_PIN  : new_state = false;  break;
+
+						case BUF_GATE : new_state =  a;     break;
+						case NOT_GATE : new_state = !a;     break;
 					
 						case AND_GATE : new_state =   a && b;	 break;
 						case NAND_GATE: new_state = !(a && b);	 break;
@@ -954,6 +1001,8 @@ struct LogicSim {
 				next[state_base + part.state_idx] = new_state;
 
 				assert(part.chip->state_count == 1);
+
+				// don't recurse
 			}
 
 			state_offs += part.chip->state_count;
