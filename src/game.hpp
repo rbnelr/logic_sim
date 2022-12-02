@@ -50,7 +50,9 @@ struct Game {
 				ImGui::SameLine();
 				manual_tick = ImGui::Button("Man. Tick [T]");
 
-				ImGui::SliderFloat("sim_t", &sim_t, 0, 0.9999f);
+				if (ImGui::SliderFloat("sim_t", &sim_t, 0, 1)) {
+					sim_t = min(sim_t, 0.999f); // don't trigger tick while dragging
+				}
 
 				{
 					ImGui::InputInt("##Tick", &tick_counter, 0,0);
