@@ -241,11 +241,11 @@ struct Renderer : public RendererBackend {
 		ogl::push_quad(pi, idx+0, idx+1, idx+2, idx+3);
 	}
 	
-	void draw_highlight (Game& g, std::string_view name, Placement& pos, float2 size, float2x3 const& chip2world, lrgba col) {
+	void draw_highlight (Game& g, std::string_view name, float2 size, float2x3 const& chip2world, lrgba col) {
 		//chip2world * pos.calc_matrix();
 
-		size  = abs((float2x2)chip2world * ROT[pos.rot] * size * pos.scale);
-		float2 center = chip2world * pos.pos;
+		size  = abs((float2x2)chip2world * size);
+		float2 center = chip2world * float2(0);
 		
 		g.dbgdraw.wire_quad(float3(center - size*0.5f, 5.0f), size, col);
 				
@@ -253,16 +253,19 @@ struct Renderer : public RendererBackend {
 			TextRenderer::map_text(center + size*float2(-0.5f, 0.5f), g.view), float2(0,1));
 	}
 
-	void highlight (Game& g, LogicSim::ChipEditor::Selection& sel, float2x3 const& chip2world, lrgba col) {
+	void highlight (Game& g, LogicSim::ChipEditor::Selection& sel, lrgba col) {
 		auto& chip = *sel.part->chip;
-		if (sel.type == LogicSim::ChipEditor::Selection::PART)
-			draw_highlight(g, chip.name, sel.part->pos, chip.size, chip2world, col);
-		else if (sel.type == LogicSim::ChipEditor::Selection::PIN_INP)
-			draw_highlight(g, chip.inputs[sel.pin].name, chip.get_input(sel.pin).pos,
-				LogicSim::PIN_SIZE, chip2world * sel.part->pos.calc_matrix(), col * lrgba(1,1, 0.6f, 1));
-		else
-			draw_highlight(g, chip.outputs[sel.pin].name, chip.get_output(sel.pin).pos,
-				LogicSim::PIN_SIZE, chip2world * sel.part->pos.calc_matrix(), col * lrgba(1,1, 0.6f, 1));
+		if (sel.type == LogicSim::ChipEditor::Selection::PART) {
+			draw_highlight(g, chip.name, chip.size, sel.chip2world, col);
+		}
+		else {
+			bool inp = sel.type == LogicSim::ChipEditor::Selection::PIN_INP;
+			auto& io   = inp ? chip.inputs[sel.pin] : chip.outputs[sel.pin];
+			
+			draw_highlight(g,
+				io.name.empty() ? "<unnamed_io>" : io.name,
+				LogicSim::PIN_SIZE, sel.chip2world, col * lrgba(1,1, 0.6f, 1));
+		}
 	}
 
 	void draw_chip (Game& g, LogicSim::Chip* chip, float2x3 const& chip2world, int chip_state, lrgba col) {
@@ -285,10 +288,7 @@ struct Renderer : public RendererBackend {
 			}
 
 			for (auto& part : chip->parts) {
-			
-				if (editor.hover && editor.hover.part == &part) highlight(g, editor.hover, chip2world, lrgba(0.25f,0.25f,0.25f,1));
-				if (editor.sel   && editor.sel  .part == &part) highlight(g, editor.sel  , chip2world, lrgba(1,1,1,1));
-			
+				
 				auto part2chip = part.pos.calc_matrix();
 				auto part2world = chip2world * part2chip;
 
@@ -305,8 +305,8 @@ struct Renderer : public RendererBackend {
 					// center position input
 					float2 dst_pos =                  part2chip * part.chip->get_input(i).pos.pos;
 
-					uint8_t prev_state = chip_state >= 0 ? prev[chip_state + src_part.state_idx] : 1;
-					uint8_t  cur_state = chip_state >= 0 ? cur [chip_state + src_part.state_idx] : 1;
+					uint8_t prev_state = chip_state >= 0 ? prev[chip_state + src_part.state_idx + inp.pin_idx] : 1;
+					uint8_t  cur_state = chip_state >= 0 ? cur [chip_state + src_part.state_idx + inp.pin_idx] : 1;
 					int state = (prev_state << 1) | cur_state;
 						
 					build_line(chip2world, src_pos, dst_pos, inp.wire_points, state, lrgba(0.8f, 0.01f, 0.025f, 1));
@@ -378,6 +378,10 @@ struct Renderer : public RendererBackend {
 			
 			draw_chip(g, g.sim.viewed_chip.get(), float2x3::identity(), 0, lrgba(1));
 		}
+		
+		auto& edit = g.sim.editor;
+		if (edit.hover) highlight(g, edit.hover, lrgba(0.25f,0.25f,0.25f,1));
+		if (edit.sel  ) highlight(g, edit.sel  , lrgba(1,1,1,1));
 		
 		{ // Gate preview
 			auto& preview = g.sim.editor.preview_part;
