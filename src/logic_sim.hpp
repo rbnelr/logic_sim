@@ -393,6 +393,9 @@ namespace logic_sim {
 		PartPreview preview_part = {};
 		WirePreview preview_wire = {};
 
+		Selection toggle_gate = {};
+		bool state_toggle_value; // new state value while toggle is 'held'
+
 		void reset () {
 			mode = EDIT_MODE;
 
@@ -403,6 +406,8 @@ namespace logic_sim {
 
 			preview_wire = {};
 			preview_part.chip = nullptr;
+
+			toggle_gate = {};
 		}
 		
 	////
@@ -425,7 +430,9 @@ namespace logic_sim {
 		void edit_chip (Input& I, LogicSim& sim, Chip& chip,
 				float2x3 const& world2chip, float2x3 const& chip2world, int state_base);
 
-		void update (Input& I, View3D& view, Window& window, LogicSim& sim);
+		void update (Input& I, LogicSim& sim, View3D& view);
+		
+		void update_toggle_gate (Input& I, LogicSim& sim, Window& window);
 	};
 	
 }

@@ -678,7 +678,7 @@ void Editor::edit_chip (Input& I, LogicSim& sim, Chip& chip,
 	}
 }
 
-void Editor::update (Input& I, View3D& view, Window& window, LogicSim& sim) {
+void Editor::update (Input& I, LogicSim& sim, View3D& view) {
 	{
 		float3 cur_pos;
 		_cursor_valid = view.cursor_ray(I, &cur_pos);
@@ -839,17 +839,30 @@ void Editor::update (Input& I, View3D& view, Window& window, LogicSim& sim) {
 
 					if (hover == sel) hover = {};
 					sel = {};
-					preview_wire = {}; // just be to sure no stale pointers exist
+					// just be to sure no stale pointers exist
+					preview_wire = {};
+					toggle_gate = {};
 				}
 			}
 		}
 
 	}
+	
+}
 
-	// Gate toggle per LMB
+void Editor::update_toggle_gate (Input& I, LogicSim& sim, Window& window) {
+	
 	bool can_toggle = mode == VIEW_MODE && hover.type == Selection::PART && is_gate(hover.part->chip);
-	if (can_toggle && I.buttons[MOUSE_BUTTON_LEFT].went_down) {
-		sim.state[sim.cur_state][hover.part_state_idx] ^= 1u;
+	
+	if (!toggle_gate && can_toggle && I.buttons[MOUSE_BUTTON_LEFT].went_down) {
+		toggle_gate = hover;
+		state_toggle_value = !sim.state[sim.cur_state][toggle_gate.part_state_idx];
+	}
+	if (toggle_gate) {
+		sim.state[sim.cur_state][toggle_gate.part_state_idx] = state_toggle_value;
+
+		if (I.buttons[MOUSE_BUTTON_LEFT].went_up)
+			toggle_gate = {};
 	}
 
 	window.set_cursor(can_toggle ? Window::CURSOR_FINGER : Window::CURSOR_NORMAL);

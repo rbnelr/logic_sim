@@ -69,7 +69,7 @@ const float radius = 0.05;
 		//return clamp((x - sim_t) * 4.0 + (1.0 - x), 0.0, 1.0);
 		
 		//return smoothstep(0.0, 1.0, (v.t - sim_t) * 4.0 + 0.5);
-		return smoothstep(0.0, 1.0, (x - sim_t) * 4.0 + (1.0 - x));
+		return smoothstep(0.0, 1.0, (x - sim_t) * 1.5 + (1.0 - x));
 	}
 	
 	void main () {

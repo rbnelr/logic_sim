@@ -93,7 +93,7 @@ struct Game {
 
 		view = cam.update(I, (float2)I.window_size);
 		
-		editor.update(I, view, window, sim);
+		editor.update(I, sim, view);
 
 		if (!pause && sim_freq >= 0.1f) {
 			
@@ -115,5 +115,8 @@ struct Game {
 			sim_t = 0.5f;
 		}
 		manual_tick = false;
+		
+		// toggle gate after simulate to overwrite simulated state for that gate
+		editor.update_toggle_gate(I, sim, window);
 	}
 };
