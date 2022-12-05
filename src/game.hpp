@@ -5,17 +5,21 @@
 #include "logic_sim.hpp"
 
 struct Game {
-	SERIALIZE_POST_LOAD(Game, cam, sim, sim_freq, pause)
-	friend void post_load (Game& g) {
-		g.sim_t = 1;
-		g.tick_counter = 0;
+	friend SERIALIZE_TO_JSON(Game) { SERIALIZE_TO_JSON_EXPAND(cam, sim, sim_freq, pause) }
+	friend SERIALIZE_FROM_JSON(Game) {
+		t.editor = {}; // reset editor
+		t.sim = {}; // reset entire sim
+		SERIALIZE_FROM_JSON_EXPAND(sim, cam, sim_freq, pause);
+		t.sim_t = 1;
+		t.tick_counter = 0;
 	}
 
 	Camera2D cam = Camera2D();
 	
 	DebugDraw dbgdraw;
 	
-	LogicSim sim;
+	logic_sim::LogicSim sim;
+	logic_sim::Editor   editor;
 
 	float sim_freq = 10.0f;
 	bool pause = false;
@@ -68,7 +72,7 @@ struct Game {
 			}
 
 			sim.imgui(I);
-
+			editor.imgui(sim);
 		}
 		ImGui::End();
 	}
@@ -89,7 +93,7 @@ struct Game {
 
 		view = cam.update(I, (float2)I.window_size);
 		
-		sim.update(I, view, window);
+		editor.update(I, view, window, sim);
 
 		if (!pause && sim_freq >= 0.1f) {
 			

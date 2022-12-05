@@ -5,6 +5,8 @@
 #include "gl_dbgdraw.hpp"
 #include "../engine/opengl_text.hpp"
 
+using namespace logic_sim;
+
 namespace ogl {
 
 struct TriRenderer {
@@ -120,8 +122,8 @@ struct LineRenderer {
 };
 
 struct Renderer : public RendererBackend {
-    virtual void to_json(nlohmann::ordered_json& j) const {}
-    virtual void from_json(const nlohmann::ordered_json& j) {}
+	virtual void to_json(nlohmann::ordered_json& j) const {}
+	virtual void from_json(const nlohmann::ordered_json& j) {}
 	
 	virtual ~Renderer() {}
 
@@ -253,29 +255,29 @@ struct Renderer : public RendererBackend {
 			TextRenderer::map_text(center + size*float2(-0.5f, 0.5f), g.view), float2(0,1));
 	}
 
-	void highlight (Game& g, LogicSim::ChipEditor::Selection& sel, lrgba col) {
+	void highlight (Game& g, Editor::Selection& sel, lrgba col) {
 		auto& chip = *sel.part->chip;
-		if (sel.type == LogicSim::ChipEditor::Selection::PART) {
+		if (sel.type == Editor::Selection::PART) {
 			draw_highlight(g, chip.name, chip.size, sel.chip2world, col);
 		}
 		else {
-			bool inp = sel.type == LogicSim::ChipEditor::Selection::PIN_INP;
+			bool inp = sel.type == Editor::Selection::PIN_INP;
 			auto& io   = inp ? chip.inputs[sel.pin] : chip.outputs[sel.pin];
 			
 			draw_highlight(g,
 				io.name.empty() ? "<unnamed_io>" : io.name,
-				LogicSim::PIN_SIZE, sel.chip2world, col * lrgba(1,1, 0.6f, 1));
+				PIN_SIZE, sel.chip2world, col * lrgba(1,1, 0.6f, 1));
 		}
 	}
 
-	void draw_chip (Game& g, LogicSim::Chip* chip, float2x3 const& chip2world, int chip_state, lrgba col) {
-		auto& editor = g.sim.editor;
+	void draw_chip (Game& g, Chip* chip, float2x3 const& chip2world, int chip_state, lrgba col) {
+		auto& editor = g.editor;
 
 		uint8_t* prev = g.sim.state[g.sim.cur_state^1].data();
 		uint8_t* cur  = g.sim.state[g.sim.cur_state  ].data();
 		
-		if (g.sim.is_gate(chip)) {
-			auto type = g.sim.gate_type(chip);
+		if (is_gate(chip)) {
+			auto type = gate_type(chip);
 			uint8_t state = chip_state >= 0 ? cur[chip_state] : 1;
 			
 			draw_gate(chip2world, type, state, lrgba(chip->col, 1) * col);
@@ -314,7 +316,7 @@ struct Renderer : public RendererBackend {
 			}
 
 			{ // Wire preview
-				auto& wire = g.sim.editor.wire_preview;
+				auto& wire = g.editor.preview_wire;
 		
 				if ((wire.dst.part || wire.src.part) && wire.chip == chip) {
 					ZoneScopedN("push wire_preview");
@@ -379,12 +381,12 @@ struct Renderer : public RendererBackend {
 			draw_chip(g, g.sim.viewed_chip.get(), float2x3::identity(), 0, lrgba(1));
 		}
 		
-		auto& edit = g.sim.editor;
+		auto& edit = g.editor;
 		if (edit.hover) highlight(g, edit.hover, lrgba(0.25f,0.25f,0.25f,1));
 		if (edit.sel  ) highlight(g, edit.sel  , lrgba(1,1,1,1));
 		
 		{ // Gate preview
-			auto& preview = g.sim.editor.preview_part;
+			auto& preview = g.editor.preview_part;
 		
 			if (preview.chip && !ImGui::GetIO().WantCaptureMouse) {
 				draw_chip(g, preview.chip, preview.pos.calc_matrix(), -1, lrgba(1,1,1,0.5f));
@@ -413,7 +415,7 @@ struct Renderer : public RendererBackend {
 	}
 };
 
-}
+} // namespace ogl
 
 std::unique_ptr<RendererBackend> make_ogl_renderer () {
 	return std::unique_ptr<RendererBackend>( new ogl::Renderer() );

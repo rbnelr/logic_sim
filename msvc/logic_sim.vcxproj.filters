@@ -83,6 +83,10 @@
     <ClCompile Include="..\src\opengl\renderer.cpp">
       <Filter>opengl</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\logic_sim.cpp" />
+    <ClCompile Include="..\src\engine\common.cpp">
+      <Filter>engine</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="engine">
