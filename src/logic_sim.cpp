@@ -621,14 +621,12 @@ void edit_placement (Input& I, Placement& p) {
 	}
 }
 
-void Editor::edit_chip (Input& I, LogicSim& sim, Chip& chip,
-		float2x3 const& world2chip, float2x3 const& chip2world, int state_base) {
+void Editor::edit_chip (Input& I, LogicSim& sim, Chip& chip, float2x3 const& world2chip, int state_base) {
 	
 	int state_offs = 0;
 	
 	for (auto& part : chip.parts) {
 		auto world2part = part.pos.calc_inv_matrix() * world2chip;
-		auto part2world = chip2world * part.pos.calc_matrix();
 
 		int part_state_idx = state_base + state_offs;
 		
@@ -637,40 +635,34 @@ void Editor::edit_chip (Input& I, LogicSim& sim, Chip& chip,
 		//}
 
 		if (mode != PLACE_MODE && hitbox(part.chip->size, world2part))
-			hover = { Selection::PART, &part, 0, &chip, world2chip, part2world, part_state_idx };
+			hover = { Selection::PART, &part, 0, &chip, world2chip, part_state_idx };
 
 		if (mode == EDIT_MODE) {
 			if (part.chip != &gates[OUT_PIN]) {
 				for (int i=0; i<(int)part.chip->outputs.size(); ++i) {
-					if (hitbox(PIN_SIZE, part.chip->get_output(i).pos.calc_inv_matrix() * world2part))
-						hover = { Selection::PIN_OUT, &part, i, &chip, world2chip, part2world * part.chip->get_output(i).pos.calc_matrix() };
+					if (hitbox(PIN_SIZE, get_out_pos_invmat(part.chip->get_output(i)) * world2part))
+						hover = { Selection::PIN_OUT, &part, i, &chip, world2chip };
 				}
 			}
 			if (part.chip != &gates[INP_PIN]) {
 				for (int i=0; i<(int)part.chip->inputs.size(); ++i) {
-					if (hitbox(PIN_SIZE, part.chip->get_input(i).pos.calc_inv_matrix() * world2part))
-						hover = { Selection::PIN_INP, &part, i, &chip, world2chip, part2world * part.chip->get_input(i).pos.calc_matrix() };
+					if (hitbox(PIN_SIZE, get_inp_pos_invmat(part.chip->get_input(i)) * world2part))
+						hover = { Selection::PIN_INP, &part, i, &chip, world2chip };
 				}
 			}
 		}
 
 		if (!is_gate(part.chip)) {
-					
-			edit_chip(I, sim, *part.chip, world2part, part2world, part_state_idx);
-					
-			if (mode == EDIT_MODE) {
-				for (int i=0; i<(int)part.chip->outputs.size(); ++i) {
-					auto& out_gate = part.chip->get_output(i);
-					assert(out_gate.chip == &gates[OUT_PIN]);
-					if (hitbox(PIN_SIZE, out_gate.chip->parts[0].pos.calc_inv_matrix() * out_gate.pos.calc_inv_matrix() * world2part))
-						hover = { Selection::PIN_OUT, &part, i, &chip, world2chip, part2world * out_gate.pos.calc_matrix() };
-				}
-				for (int i=0; i<(int)part.chip->inputs.size(); ++i) {
-					auto& inp_gate = part.chip->get_input(i);
-					assert(inp_gate.chip == &gates[INP_PIN]);
-					if (hitbox(PIN_SIZE, inp_gate.chip->parts[1].pos.calc_inv_matrix() * inp_gate.pos.calc_inv_matrix() * world2part))
-						hover = { Selection::PIN_INP, &part, i, &chip, world2chip, part2world * inp_gate.pos.calc_matrix() };
-				}
+			
+			edit_chip(I, sim, *part.chip, world2part, part_state_idx);
+
+			for (int i=0; i<(int)part.chip->outputs.size(); ++i) {
+				if (hitbox(PIN_SIZE, get_out_pos_invmat(part.chip->get_output(i)) * world2part))
+					hover = { Selection::PIN_OUT, &part, i, &chip, world2chip };
+			}
+			for (int i=0; i<(int)part.chip->inputs.size(); ++i) {
+				if (hitbox(PIN_SIZE, get_inp_pos_invmat(part.chip->get_input(i)) * world2part))
+					hover = { Selection::PIN_INP, &part, i, &chip, world2chip };
 			}
 		}
 
@@ -680,8 +672,8 @@ void Editor::edit_chip (Input& I, LogicSim& sim, Chip& chip,
 
 void Editor::update (Input& I, LogicSim& sim, View3D& view) {
 	{
-		float3 cur_pos;
-		_cursor_valid = view.cursor_ray(I, &cur_pos);
+		float3 cur_pos = 0;
+		_cursor_valid = !ImGui::GetIO().WantCaptureMouse && view.cursor_ray(I, &cur_pos);
 		_cursor_pos = (float2)cur_pos;
 	}
 
@@ -694,7 +686,7 @@ void Editor::update (Input& I, LogicSim& sim, View3D& view) {
 		hover = {};
 	imgui_hovered = false;
 
-	edit_chip(I, sim, *sim.viewed_chip, float2x3::identity(), float2x3::identity(), 0);
+	edit_chip(I, sim, *sim.viewed_chip, float2x3::identity(), 0);
 			
 	// unselect all when needed
 	if (!_cursor_valid || mode != EDIT_MODE) {

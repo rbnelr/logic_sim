@@ -151,7 +151,8 @@ namespace logic_sim {
 
 
 ////
-	inline constexpr float2 PIN_SIZE = 0.25f;
+	inline constexpr float PIN_SIZE   = 0.25f; // IO Pin hitbox size
+	inline constexpr float PIN_LENGTH = 0.5f; // IO Pin base wire length
 
 	enum GateType {
 		//NULL_GATE =-1,
@@ -193,16 +194,16 @@ namespace logic_sim {
 	// Not const because we use Chip* for both editable (user-defined) chips and primitve gates
 	// alternatively just cast const away?
 	inline Chip gates[GATE_COUNT] = {
-		_GATE("<input>",  srgb(190,255,  0), PIN_SIZE, {{"In", float2(-0.3f, +0)}}, {{"Out", float2(0.28f, 0)}}),
-		_GATE("<output>", srgb(255, 10, 10), PIN_SIZE, {{"In", float2(-0.3f, +0)}}, {{"Out", float2(0.28f, 0)}}),
+		_GATE("<input>",  srgb(190,255,  0), float2(PIN_LENGTH+0.2f, PIN_SIZE+0.1f), {{"In", float2(0)}}, {{"Out", float2(0)}}),
+		_GATE("<output>", srgb(255, 10, 10), float2(PIN_LENGTH+0.2f, PIN_SIZE+0.1f), {{"In", float2(0)}}, {{"Out", float2(0)}}),
 
-		_GATE("Buffer Gate", lrgb(0.5f, 0.5f,0.75f), 1, {{"In", float2(-0.3f, +0)}}, {{"Out", float2(0.28f, 0)}}),
-		_GATE("NOT Gate",    lrgb(   0,    0,    1), 1, {{"In", float2(-0.3f, +0)}}, {{"Out", float2(0.36f, 0)}}),
-		_GATE("AND Gate",    lrgb(   1,    0,    0), 1, {{"A", float2(-0.3f, +0.25f)}, {"B", float2(-0.3f, -0.25f)}}, {{"Out", float2(0.28f, 0)}}),
-		_GATE("NAND Gate",   lrgb(0.5f,    1,    0), 1, {{"A", float2(-0.3f, +0.25f)}, {"B", float2(-0.3f, -0.25f)}}, {{"Out", float2(0.36f, 0)}}),
-		_GATE("OR Gate",     lrgb(   1, 0.5f,    0), 1, {{"A", float2(-0.3f, +0.25f)}, {"B", float2(-0.3f, -0.25f)}}, {{"Out", float2(0.28f, 0)}}),
-		_GATE("NOR Gate",    lrgb(   0,    1, 0.5f), 1, {{"A", float2(-0.3f, +0.25f)}, {"B", float2(-0.3f, -0.25f)}}, {{"Out", float2(0.36f, 0)}}),
-		_GATE("XOR Gate",    lrgb(   0,    1,    0), 1, {{"A", float2(-0.3f, +0.25f)}, {"B", float2(-0.3f, -0.25f)}}, {{"Out", float2(0.28f, 0)}}),
+		_GATE("Buffer Gate", lrgb(0.5f, 0.5f,0.75f), float2(1,0.5f), {{"In", float2(-0.25f, +0)}}, {{"Out", float2(0.25f, 0)}}),
+		_GATE("NOT Gate",    lrgb(   0,    0,    1), float2(1,0.5f), {{"In", float2(-0.25f, +0)}}, {{"Out", float2(0.25f, 0)}}),
+		_GATE("AND Gate",    lrgb(   1,    0,    0), float2(1,   1), {{"A", float2(-0.25f, +0.25f)}, {"B", float2(-0.25f, -0.25f)}}, {{"Out", float2(0.25f, 0)}}),
+		_GATE("NAND Gate",   lrgb(0.5f,    1,    0), float2(1,   1), {{"A", float2(-0.25f, +0.25f)}, {"B", float2(-0.25f, -0.25f)}}, {{"Out", float2(0.25f, 0)}}),
+		_GATE("OR Gate",     lrgb(   1, 0.5f,    0), float2(1,   1), {{"A", float2(-0.25f, +0.25f)}, {"B", float2(-0.25f, -0.25f)}}, {{"Out", float2(0.25f, 0)}}),
+		_GATE("NOR Gate",    lrgb(   0,    1, 0.5f), float2(1,   1), {{"A", float2(-0.25f, +0.25f)}, {"B", float2(-0.25f, -0.25f)}}, {{"Out", float2(0.25f, 0)}}),
+		_GATE("XOR Gate",    lrgb(   0,    1,    0), float2(1,   1), {{"A", float2(-0.25f, +0.25f)}, {"B", float2(-0.25f, -0.25f)}}, {{"Out", float2(0.25f, 0)}}),
 	};
 	
 	inline bool is_gate (Chip* chip) {
@@ -213,6 +214,20 @@ namespace logic_sim {
 		return (GateType)(chip - gates);
 	}
 	
+	inline float2 get_inp_pos (Part& pin_part) {
+		return pin_part.pos.calc_matrix() * float2(-PIN_LENGTH/2, 0);
+	}
+	inline float2 get_out_pos (Part& pin_part) {
+		return pin_part.pos.calc_matrix() * float2(+PIN_LENGTH/2, 0);
+	}
+	
+	inline float2x3 get_inp_pos_invmat (Part& pin_part) {
+		return translate(float2(+PIN_LENGTH/2, 0)) * pin_part.pos.calc_inv_matrix();
+	}
+	inline float2x3 get_out_pos_invmat (Part& pin_part) {
+		return translate(float2(-PIN_LENGTH/2, 0)) * pin_part.pos.calc_inv_matrix();
+	}
+
 ////
 	inline int update_state_indices (Chip& chip) {
 		// state count cached, early out
@@ -322,7 +337,6 @@ namespace logic_sim {
 			Chip* chip = nullptr;
 			
 			float2x3 world2chip = float2x3(0); // world2chip during hitbox test
-			float2x3 chip2world = float2x3(0);
 			
 			int part_state_idx = -1; // needed to toggle gates even when they are part of a chip placed in the viewed chip
 
@@ -427,8 +441,7 @@ namespace logic_sim {
 		void remove_part (LogicSim& sim, Selection& sel);
 		void add_wire (WirePreview& wire);
 
-		void edit_chip (Input& I, LogicSim& sim, Chip& chip,
-				float2x3 const& world2chip, float2x3 const& chip2world, int state_base);
+		void edit_chip (Input& I, LogicSim& sim, Chip& chip, float2x3 const& world2chip, int state_base);
 
 		void update (Input& I, LogicSim& sim, View3D& view);
 		

@@ -72,6 +72,7 @@ struct LineRenderer {
 		float2 pos0;
 		float2 pos1;
 		float2 t; // t0 t1
+		float  radius;
 		int    states;
 		float4 col;
 
@@ -79,6 +80,7 @@ struct LineRenderer {
 			ATTRIB_INSTANCED( idx++, GL_FLOAT,2, LineInstance, pos0);
 			ATTRIB_INSTANCED( idx++, GL_FLOAT,2, LineInstance, pos1);
 			ATTRIB_INSTANCED( idx++, GL_FLOAT,2, LineInstance, t);
+			ATTRIB_INSTANCED( idx++, GL_FLOAT,1, LineInstance, radius);
 			ATTRIBI_INSTANCED(idx++, GL_INT  ,1, LineInstance, states);
 			ATTRIB_INSTANCED( idx++, GL_FLOAT,4, LineInstance, col);
 		}
@@ -200,27 +202,40 @@ struct Renderer : public RendererBackend {
 		
 	}
 	
-	void build_line (float2x3 const& chip2world, float2 start, float2 end, std::vector<float2> const& points, int states, lrgba col) {
-		float2 prev = chip2world * end;
+	void build_line (float2x3 const& chip2world,
+			float2 start0, float2 start1, std::vector<float2> const& points, float2 end0, float2 end1,
+			int states, lrgba col) {
+		float2 prev = chip2world * end1;
 		float dist = 0;
 		
-		size_t count = 1 + points.size();
+		size_t count = 3 + points.size();
 		auto* lines = push_back(line_renderer.lines, count);
 
 		auto* out = lines;
 
-		// output lines in reverse so that earlier segments appear on top
-		// (because I think it looks nicer with my weird outlines)
-		for (int i=(int)points.size(); i>=0; --i) {
-			float2 cur = chip2world * (i > 0 ? points[i-1] : start);
+		float radius = ((float2x2)chip2world * float2(0.06f)).x;
+
+		auto line_seg = [&] (float2 p) {
+			float2 cur = chip2world * p;
 
 			float dist0 = dist;
 			dist += distance(prev, cur);
 
-			*out++ = { prev, cur, float2(dist0, dist), states, col };
+			*out++ = { prev, cur, float2(dist0, dist), radius, states, col };
 
 			prev = cur;
+		};
+
+		// output lines in reverse so that earlier segments appear on top
+		// (because I think it looks nicer with my weird outlines)
+		line_seg(end0);
+
+		for (int i=(int)points.size()-1; i>=0; --i) {
+			line_seg(points[i]);
 		}
+
+		line_seg(start1);
+		line_seg(start0);
 
 		// flip and normalize t to [0,1]
 		float norm = 1.0f / dist;
@@ -230,24 +245,29 @@ struct Renderer : public RendererBackend {
 	}
 	
 
-	void draw_gate (float2x3 const& mat, int type, int state, lrgba col) {
+	void draw_gate (float2x3 const& mat, float2 size, int type, int state, lrgba col) {
 		uint16_t idx = (uint16_t)tri_renderer.verticies.size();
 		
+		constexpr float2 verts[] = {
+			float2(-0.5f, -0.5f),
+			float2(+0.5f, -0.5f),
+			float2(+0.5f, +0.5f),
+			float2(-0.5f, +0.5f),
+		};
+
 		auto* pv = push_back(tri_renderer.verticies, 4);
-		pv[0] = { mat * float2(-0.5f, -0.5f), float2(0,0), type, state, col };
-		pv[1] = { mat * float2(+0.5f, -0.5f), float2(1,0), type, state, col };
-		pv[2] = { mat * float2(+0.5f, +0.5f), float2(1,1), type, state, col };
-		pv[3] = { mat * float2(-0.5f, +0.5f), float2(0,1), type, state, col };
-	
+		pv[0] = { mat * (verts[0] * size), (verts[0] * size) + 0.5f, type, state, col };
+		pv[1] = { mat * (verts[1] * size), (verts[1] * size) + 0.5f, type, state, col };
+		pv[2] = { mat * (verts[2] * size), (verts[2] * size) + 0.5f, type, state, col };
+		pv[3] = { mat * (verts[3] * size), (verts[3] * size) + 0.5f, type, state, col };
+		
 		auto* pi = push_back(tri_renderer.indices, 6);
 		ogl::push_quad(pi, idx+0, idx+1, idx+2, idx+3);
 	}
 	
-	void draw_highlight (Game& g, std::string_view name, float2 size, float2x3 const& chip2world, lrgba col) {
-		//chip2world * pos.calc_matrix();
-
-		size  = abs((float2x2)chip2world * size);
-		float2 center = chip2world * float2(0);
+	void draw_highlight (Game& g, std::string_view name, float2 size, float2x3 const& mat, lrgba col) {
+		size  = abs((float2x2)mat * size);
+		float2 center = mat * float2(0);
 		
 		g.dbgdraw.wire_quad(float3(center - size*0.5f, 5.0f), size, col);
 				
@@ -255,18 +275,24 @@ struct Renderer : public RendererBackend {
 			TextRenderer::map_text(center + size*float2(-0.5f, 0.5f), g.view), float2(0,1));
 	}
 
-	void highlight (Game& g, Editor::Selection& sel, lrgba col) {
+	void highlight (Game& g, Editor::Selection& sel, float2x3 const& chip2world, lrgba col) {
+		auto mat = chip2world * sel.part->pos.calc_matrix();
+
 		auto& chip = *sel.part->chip;
 		if (sel.type == Editor::Selection::PART) {
-			draw_highlight(g, chip.name, chip.size, sel.chip2world, col);
+			draw_highlight(g, chip.name, chip.size, mat, col);
 		}
 		else {
 			bool inp = sel.type == Editor::Selection::PIN_INP;
 			auto& io   = inp ? chip.inputs[sel.pin] : chip.outputs[sel.pin];
 			
+			auto pos = inp ?
+				get_inp_pos(sel.part->chip->get_input(sel.pin)) :
+				get_out_pos(sel.part->chip->get_output(sel.pin));
+			
 			draw_highlight(g,
 				io.name.empty() ? "<unnamed_io>" : io.name,
-				PIN_SIZE, sel.chip2world, col * lrgba(1,1, 0.6f, 1));
+				PIN_SIZE, mat * translate(pos), col * lrgba(1,1, 0.6f, 1));
 		}
 	}
 
@@ -280,7 +306,7 @@ struct Renderer : public RendererBackend {
 			auto type = gate_type(chip);
 			uint8_t state = chip_state >= 0 ? cur[chip_state] : 1;
 			
-			draw_gate(chip2world, type, state, lrgba(chip->col, 1) * col);
+			draw_gate(chip2world, chip->size, type, state, lrgba(chip->col, 1) * col);
 		}
 		else {
 			{
@@ -294,6 +320,11 @@ struct Renderer : public RendererBackend {
 				auto part2chip = part.pos.calc_matrix();
 				auto part2world = chip2world * part2chip;
 
+				if (g.editor.hover && &part == g.editor.hover.part)
+					highlight(g, g.editor.hover, chip2world, lrgba(0.25f,0.25f,0.25f,1));
+				if (g.editor.sel && &part == g.editor.sel.part)
+					highlight(g, g.editor.sel, chip2world, lrgba(1,1,1,1));
+
 				draw_chip(g, part.chip, part2world, chip_state >= 0 ? chip_state + part.state_idx : -1, col);
 
 				for (int i=0; i<(int)part.chip->inputs.size(); ++i) {
@@ -302,16 +333,24 @@ struct Renderer : public RendererBackend {
 
 					// get connected part
 					auto& src_part = chip->parts[inp.part_idx];
+					
 					// center position of connected output
-					float2 src_pos = src_part.pos.calc_matrix() * src_part.chip->get_output(inp.pin_idx).pos.pos;
+					auto smat = src_part.pos.calc_matrix();
+					auto& spart = src_part.chip->get_output(inp.pin_idx);
+					float2 src0 = smat * spart.pos.pos;
+					float2 src1 = smat * get_out_pos(spart);
 					// center position input
-					float2 dst_pos =                  part2chip * part.chip->get_input(i).pos.pos;
+					auto& dpart = part.chip->get_input(i);
+					float2 dst0 = part2chip * get_inp_pos(dpart);
+					float2 dst1 = part2chip * dpart.pos.pos;
 
 					uint8_t prev_state = chip_state >= 0 ? prev[chip_state + src_part.state_idx + inp.pin_idx] : 1;
 					uint8_t  cur_state = chip_state >= 0 ? cur [chip_state + src_part.state_idx + inp.pin_idx] : 1;
 					int state = (prev_state << 1) | cur_state;
-						
-					build_line(chip2world, src_pos, dst_pos, inp.wire_points, state, lrgba(0.8f, 0.01f, 0.025f, 1));
+					
+					build_line(chip2world,
+						src0, src1, inp.wire_points, dst0, dst1,
+						state, lrgba(0.8f, 0.01f, 0.025f, 1));
 				}
 			}
 
@@ -321,13 +360,25 @@ struct Renderer : public RendererBackend {
 				if ((wire.dst.part || wire.src.part) && wire.chip == chip) {
 					ZoneScopedN("push wire_preview");
 				
-					float2 a = wire.unconn_pos;
-					float2 b = wire.unconn_pos;
+					float2 src0 = wire.unconn_pos;
+					float2 src1 = wire.unconn_pos;
+					float2 dst0 = wire.unconn_pos;
+					float2 dst1 = wire.unconn_pos;
 
-					if (wire.src.part) a = wire.src.part->pos.calc_matrix() * wire.src.part->chip->get_output(wire.src.pin).pos.pos;
-					if (wire.dst.part) b = wire.dst.part->pos.calc_matrix() * wire.dst.part->chip->get_input (wire.dst.pin).pos.pos;
-				
-					build_line(chip2world, a, b, wire.points, 3, lrgba(0.8f, 0.01f, 0.025f, 0.75f));
+					if (wire.src.part) {
+						auto mat = wire.src.part->pos.calc_matrix();
+						auto& part = wire.src.part->chip->get_output(wire.src.pin);
+						src0 = mat * part.pos.pos;
+						src1 = mat * get_out_pos(part);
+					}
+					if (wire.dst.part) {
+						auto mat = wire.dst.part->pos.calc_matrix();
+						auto& part = wire.dst.part->chip->get_input(wire.dst.pin);
+						dst0 = mat * get_inp_pos(part);
+						dst1 = mat * part.pos.pos;
+					}
+
+					build_line(chip2world, src0, src1, wire.points, dst0, dst1, 3, lrgba(0.8f, 0.01f, 0.025f, 0.75f));
 				}
 			}
 		}
@@ -380,10 +431,6 @@ struct Renderer : public RendererBackend {
 			
 			draw_chip(g, g.sim.viewed_chip.get(), float2x3::identity(), 0, lrgba(1));
 		}
-		
-		auto& edit = g.editor;
-		if (edit.hover) highlight(g, edit.hover, lrgba(0.25f,0.25f,0.25f,1));
-		if (edit.sel  ) highlight(g, edit.sel  , lrgba(1,1,1,1));
 		
 		{ // Gate preview
 			auto& preview = g.editor.preview_part;

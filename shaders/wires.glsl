@@ -5,20 +5,20 @@ struct Vertex {
 	float t;
 	vec2 coord;
 	float len;
+	float radius;
 };
 VS2FS Vertex v;
 
 flat VS2FS vec4 col_a;
 flat VS2FS vec4 col_b;
 
-const float radius = 0.05;
-
 #ifdef _VERTEX
 	layout(location = 0) in vec2  pos0;
 	layout(location = 1) in vec2  pos1;
 	layout(location = 2) in vec2  t;
-	layout(location = 3) in int   states;
-	layout(location = 4) in vec4  col;
+	layout(location = 3) in float radius;
+	layout(location = 4) in int   states;
+	layout(location = 5) in vec4  col;
 	
 	vec2 uvs[6] = {
 		vec2(+1.0, -1.0),
@@ -38,6 +38,8 @@ const float radius = 0.05;
 		vec2 dir = pos1 - pos0;
 		v.len = length(dir);
 		dir = v.len > 0.001 ? normalize(dir) : vec2(1.0,0.0);
+		
+		v.radius = radius;
 		
 		vec2 norm = vec2(-dir.y, dir.x);
 		
@@ -63,13 +65,17 @@ const float radius = 0.05;
 	out vec4 frag_col;
 	
 	uniform float sim_t;
+	uniform float anim_fade = 0.5;
 	
 	float slider_anim (float x) {
+		
+		
 		//return clamp((x - sim_t) * 4.0 + 0.5, 0.0, 1.0);
 		//return clamp((x - sim_t) * 4.0 + (1.0 - x), 0.0, 1.0);
 		
 		//return smoothstep(0.0, 1.0, (v.t - sim_t) * 4.0 + 0.5);
-		return smoothstep(0.0, 1.0, (x - sim_t) * 1.5 + (1.0 - x));
+		return smoothstep(0.0, 1.0,
+			(x - sim_t) * (1.0 + 1.0 / anim_fade) + (1.0 - x));
 	}
 	
 	void main () {
@@ -77,8 +83,8 @@ const float radius = 0.05;
 		
 		// compute end cap circle
 		vec2 offs = v.coord - vec2(clamp(v.coord.x, 0.0, v.len), 0.0);
-		float r = length(offs) - radius;
-		//float rbox = abs(offs.y) - radius;
+		float r = length(offs) - v.radius;
+		//float rbox = abs(offs.y) - v.radius;
 		
 		// compute wire state animation color
 		float t = slider_anim(v.t);

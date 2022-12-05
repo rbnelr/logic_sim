@@ -66,16 +66,29 @@ flat VS2FS int v_gate_state;
 	//float d = SDF_ellipse(uv -0.5, vec2(0.2, 0.3));
 	//float d = SDF_line(uv -0.5, vec2(0,0.5), vec2(0.5,-0.2));
 	
+	float io_gate (vec2 uv) {
+		vec2 uv_mirr = vec2(uv.x, abs(uv.y - 0.5));
+		
+		float d  = SDF_line(uv, vec2(0.3, 0.0), vec2(0.3, 1.0));
+		d = max(d, SDF_line(uv, vec2(0.7, 1.0), vec2(0.7, 0.0)));
+		
+		d = max(d, SDF_line(uv_mirr, vec2(0.3,0.15), vec2(0.7, 0.01)));
+		
+		return d;
+	}
 	float buf_gate (vec2 uv) {
+		vec2 uv_mirr = vec2(uv.x, abs(uv.y - 0.5));
 		
-		vec2 uv_mirror = vec2(uv.x, abs(uv.y - 0.5));
+		float d  = SDF_line(uv, vec2(0.2, 0.0), vec2(0.2, 1.0));
+		d = max(d, SDF_line(uv, vec2(0.8, 1.0), vec2(0.8, 0.0)));
 		
-		float d   = SDF_line(uv, vec2(0.14,0.0), vec2(0.14,1.0));
-		d = max(d, SDF_line(uv_mirror, vec2(0.0,0.3), vec2(0.83, 0.0)));
+		d = max(d, SDF_line(uv_mirr, vec2(0.0,0.25), vec2(0.8, 0.01)));
 		
 		return d;
 	}
 	float and_gate (vec2 uv) {
+		vec2 uv_mirr = vec2(uv.x, abs(uv.y - 0.5));
+		
 		float a = 0.3;
 		
 		float d;
@@ -87,22 +100,25 @@ flat VS2FS int v_gate_state;
 		return d;
 	}
 	float or_gate (vec2 uv) {
+		vec2 uv_mirr = vec2(uv.x, abs(uv.y - 0.5));
 		
-		vec2 uv_mirror = vec2(uv.x, abs(uv.y - 0.5));
+		float a = 0.25;
 		
-		float d = SDF_ellipse(uv_mirror - vec2(0.02,-0.1), vec2(0.8, 0.5));
-		d = max(d, -SDF_ellipse(uv - vec2(-0.33,0.5), vec2(0.5, 0.6)));
+		float d;
+		if (uv.x < a)
+			d = SDF_line(uv_mirr, vec2(0.0, 0.4), vec2(1.0,0.4));
+		else
+			d = SDF_ellipse(uv_mirr - vec2(a,-0.1), vec2(0.8-a, 0.5));
+			
+		d = max(d, -SDF_ellipse(uv - vec2(-0.3,0.5), vec2(0.5, 0.6)));
 		
 		return d;
 	}
 	float xor_gate (vec2 uv) {
-		vec2 uv_mirror = vec2(uv.x, abs(uv.y - 0.5));
+		float d = or_gate(uv);
 		
-		float d = SDF_ellipse(uv_mirror - vec2(0.02,-0.1), vec2(0.8, 0.5));
-		d = max(d, -SDF_ellipse(uv - vec2(-0.33,0.5), vec2(0.5, 0.6)));
-		
-		float d2 = SDF_ellipse(uv - vec2(-0.15,0.5), vec2(0.5, 0.6));
-		d2 = max(d2, -SDF_ellipse(uv - vec2(-0.19,0.5), vec2(0.5, 0.6)));
+		float d2 = SDF_ellipse(uv - vec2(-0.12,0.5), vec2(0.5, 0.6));
+		d2 = max(d2, -SDF_ellipse(uv - vec2(-0.17,0.5), vec2(0.5, 0.6)));
 		
 		return max(d, -d2);
 	}
@@ -120,7 +136,7 @@ flat VS2FS int v_gate_state;
 	//	return min(d, SDF_circ(uv - vec2(0.88,0.5), 0.10));
 	//}
 	float invert_circ (vec2 uv) {
-		return SDF_circ(uv - vec2(0.86,0.5), 0.12);
+		return SDF_circ(uv - vec2(0.84,0.5), 0.10);
 	}
 	
 	void main () {
@@ -140,7 +156,7 @@ flat VS2FS int v_gate_state;
 		{ // draw base gate symbol
 			float d;
 			
-			if      (ty == INP_PIN /2) d =  buf_gate(v.uv);
+			if      (ty == INP_PIN /2) d =   io_gate(v.uv);
 			else if (ty == BUF_GATE/2) d =  buf_gate(v.uv);
 			else if (ty == AND_GATE/2) d =  and_gate(v.uv);
 			else if (ty == OR_GATE /2) d =   or_gate(v.uv);
@@ -157,7 +173,7 @@ flat VS2FS int v_gate_state;
 			c.a *= alpha;
 			
 			frag_col = c;
-		} 
+		}
 		if (inv) { // draw invert circ
 			float d = invert_circ(v.uv);
 			
