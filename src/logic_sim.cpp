@@ -142,13 +142,7 @@ void to_json (json& j, const Chip& chip, const LogicSim& sim) {
 	}
 }
 void from_json (const json& j, Chip& chip, LogicSim& sim) {
-		
-	chip.name    = j.at("name");
-	chip.col     = j.at("col");
-	chip.inputs  = j.at("inputs");
-	chip.outputs = j.at("outputs");
-	chip.size    = j.at("size");
-		
+	
 	json parts = j.at("parts");
 	int part_count = (int)parts.size();
 
@@ -203,15 +197,45 @@ void to_json (json& j, const LogicSim& sim) {
 	}
 }
 void from_json (const json& j, LogicSim& sim) {
+	// create chips without parts
 	for (auto& jchip : j["chips"]) {
 		auto& chip = sim.saved_chips.emplace_back(std::make_unique<Chip>());
-		from_json(jchip, *chip, sim);
+		
+		chip->name    = jchip.at("name");
+		chip->col     = jchip.at("col");
+		chip->inputs  = jchip.at("inputs");
+		chip->outputs = jchip.at("outputs");
+		chip->size    = jchip.at("size");
+	}
+	// then convert chip ids references in parts to valid chips
+	auto cur = sim.saved_chips.begin();
+	for (auto& jchip : j["chips"]) {
+		from_json(jchip, *(*cur++), sim);
 	}
 
 	sim.reset_chip_view();
 }
 
 ////
+
+// Test if to_place is used in place_inside
+// if true need to disallow placing place_inside in to_place to avoid infinite recursion
+bool check_recursion (Chip* to_place, Chip* place_inside) {
+	if (to_place == place_inside)
+		return true;
+
+	for (auto& part : to_place->parts) {
+		if (!is_gate(part.chip) && to_place->_recurs == 0) { // only check every chip once
+			to_place->_recurs++;
+			bool used_recursively = check_recursion(part.chip, place_inside);
+			to_place->_recurs--;
+			if (used_recursively)
+				return true;
+		}
+	}
+	return false;
+}
+
 void Editor::select_preview_gate_imgui (LogicSim& sim, const char* name, Chip* type) {
 
 	bool selected = preview_part.chip && preview_part.chip == type;
@@ -227,15 +251,16 @@ void Editor::select_preview_gate_imgui (LogicSim& sim, const char* name, Chip* t
 		}
 	}
 }
-void Editor::select_preview_chip_imgui (LogicSim& sim, const char* name, std::shared_ptr<Chip>& chip, bool can_place, bool is_viewed) {
+void Editor::select_preview_chip_imgui (LogicSim& sim, std::shared_ptr<Chip>& chip, bool can_place, bool is_viewed) {
 			
 	bool selected = preview_part.chip && preview_part.chip == chip.get();
 			
 	if (is_viewed)
 		ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg, ImGui::ColorConvertFloat4ToU32({0.4f, 0.4f, 0.1f, 1}));
+	else if (!can_place)
+		ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg, ImGui::ColorConvertFloat4ToU32({0.6f, 0.2f, 0.2f, 1}));
 
-	if (ImGui::Selectable(name, &selected, ImGuiSelectableFlags_AllowDoubleClick)) {
-
+	if (ImGui::Selectable(chip->name.c_str(), &selected, ImGuiSelectableFlags_AllowDoubleClick)) {
 		// Open chip as main chip on double click (Previous chips is saved
 		if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
 			sim.switch_to_chip_view(chip);
@@ -252,7 +277,10 @@ void Editor::select_preview_chip_imgui (LogicSim& sim, const char* name, std::sh
 			}
 		}
 	}
-	//ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg, ImGui::ColorConvertFloat4ToU32({0.9f, 0.9f, 0.3f, 1}));
+	if (!can_place && ImGui::IsItemHovered()) {
+		ImGui::SetTooltip("Cannot place chip \"%s\" because it uses itself directly or inside a subchip.\n"
+		                  "Doing so would create infinite recursion!", chip->name.c_str());
+	}
 }
 
 void Editor::saved_chips_imgui (LogicSim& sim) {
@@ -272,23 +300,40 @@ void Editor::saved_chips_imgui (LogicSim& sim) {
 	}
 
 	if (ImGui::BeginTable("ChipsList", 1, ImGuiTableFlags_Borders)) {
+		
+		for (int i=0; i<(int)sim.saved_chips.size(); ++i) {
+			auto& chip = sim.saved_chips[i];
+			
+			bool can_place = !check_recursion(chip.get(), sim.viewed_chip.get());
+			bool is_viewed = chip.get() == sim.viewed_chip.get();
 
-		// can only use chips eariler in the list to ensure no recursive dependencies via i < viewed_idx
-		// if want to create a basic chip after a complex one has been created, need to use a feature to move chips up in the list
-		int viewed_idx = indexof_chip(sim.saved_chips, sim.viewed_chip.get());
-		if (viewed_idx < 0) viewed_idx = (int)sim.saved_chips.size();
-
-		for (int i=0; i<viewed_idx; ++i) {
 			ImGui::TableNextColumn();
-			select_preview_chip_imgui(sim, sim.saved_chips[i]->name.c_str(), sim.saved_chips[i], true, false);
-		}
+			select_preview_chip_imgui(sim, chip, can_place, is_viewed);
 
-		ImGui::TableNextColumn();
-		ImGui::Spacing();
+			if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None)) {
+				// Set payload to carry the index of our item (could be anything)
+				ImGui::SetDragDropPayload("DND_ChipReorder", &i, sizeof(int));
 
-		for (int i=viewed_idx; i<(int)sim.saved_chips.size(); ++i) {
-			ImGui::TableNextColumn();
-			select_preview_chip_imgui(sim, sim.saved_chips[i]->name.c_str(), sim.saved_chips[i], false, i == viewed_idx);
+				ImGui::Text(chip->name.c_str());
+				ImGui::EndDragDropSource();
+			}
+			if (ImGui::BeginDragDropTarget()) {
+
+				auto* payload = ImGui::GetDragDropPayload();
+				assert(payload && payload->DataSize == sizeof(int));
+				int payload_i = *(const int*)payload->Data;
+				
+				ImGui::Selectable(sim.saved_chips[payload_i]->name.c_str(), false, ImGuiSelectableFlags_Disabled);
+
+				if (ImGui::AcceptDragDropPayload("DND_ChipReorder")) {
+					
+					auto c = std::move(sim.saved_chips[payload_i]);
+					sim.saved_chips.erase(sim.saved_chips.begin() + payload_i);
+					sim.saved_chips.insert(sim.saved_chips.begin() + i + (i < payload_i ? 1 : 0)
+						, std::move(c));
+				}
+				ImGui::EndDragDropTarget();
+			}
 		}
 
 		ImGui::EndTable();
@@ -338,9 +383,13 @@ void Editor::selection_imgui (Selection& sel) {
 	ImGui::Spacing();
 
 	ImGui::Text("Placement in containing chip:");
-	ImGui::DragFloat2("pos",  &sel.part->pos.pos.x, 0.1f);
-	ImGui::SliderInt("rot",   &sel.part->pos.rot, 0, 3);
-	ImGui::DragFloat("scale", &sel.part->pos.scale, 0.1f, 0.001f, 100.0f);
+
+	int rot = (int)sel.part->pos.rot;
+	ImGui::DragFloat2("pos",          &sel.part->pos.pos.x, 0.1f);
+	ImGui::SliderInt("rot [R]",       &rot, 0, 3);
+	ImGui::Checkbox("mirror (X) [M]", &sel.part->pos.mirror);
+	ImGui::DragFloat("scale",         &sel.part->pos.scale, 0.1f, 0.001f, 100.0f);
+	sel.part->pos.rot = (short)rot;
 			
 	//ImGui::Spacing();
 	//
@@ -484,14 +533,17 @@ void Editor::imgui (LogicSim& sim) {
 }
 
 void Editor::add_part (LogicSim& sim, Chip& chip, PartPreview& part) {
+	assert(&chip == sim.viewed_chip.get());
 
 	int idx;
 	if (part.chip == &gates[OUT_PIN]) {
 		// insert output at end of outputs list
 		idx = (int)chip.outputs.size();
+		int old_outputs = (int)chip.outputs.size();
+
 		// add chip output at end
 		chip.outputs.emplace_back("");
-
+		
 		// No pin_idx needs to be changed because we can only add at the end of the outputs list
 	}
 	else if (part.chip == &gates[INP_PIN]) {
@@ -541,15 +593,18 @@ void Editor::add_part (LogicSim& sim, Chip& chip, PartPreview& part) {
 	sim.update_all_chip_state_indices();
 }
 void Editor::remove_part (LogicSim& sim, Selection& sel) {
+	assert(sel.chip == sim.viewed_chip.get());
 
 	int idx = indexof_part(sel.chip->parts, sel.part);
 			
 	if (sel.part->chip == &gates[OUT_PIN]) {
 		assert(idx < (int)sel.chip->outputs.size());
+		
+		int old_outputs = (int)sel.chip->outputs.size();
 
 		// erase output at out_idx
 		sel.chip->outputs.erase(sel.chip->outputs.begin() + idx);
-				
+		
 		// remove wires to this output with horribly nested code
 		for (auto& schip : sim.saved_chips) {
 			for (auto& part : schip->parts) {
@@ -571,26 +626,27 @@ void Editor::remove_part (LogicSim& sim, Selection& sel) {
 		int old_inputs = (int)sel.chip->inputs.size();
 
 		// erase input at idx
-		sel.chip->inputs.erase(sel.chip->inputs.begin() + idx);
-				
+		sel.chip->inputs.erase(sel.chip->inputs.begin() + inp_idx);
+		
 		// resize input array of every part of this chip type
 		for (auto& schip : sim.saved_chips) {
 			for (auto& part : schip->parts) {
 				if (part.chip == sel.chip) {
-					part.inputs.erase(old_inputs, idx);
+					part.inputs.erase(old_inputs, inp_idx);
 				}
 			}
 		}
 	}
+	
+	// erase part state  TODO: this is wrong if anything but the viewed chip (top level state) is edited (which I currently can't do)
+	int first = sel.part->state_idx;
+	int end   = sel.part->state_idx + sel.part->chip->state_count;
+
+	for (int i=0; i<2; ++i)
+		sim.state[i].erase(sim.state[i].begin() + first, sim.state[i].begin() + end);
 
 	// erase part from chip parts
 	sel.chip->parts.erase(sel.chip->parts.begin() + idx);
-
-	// erase part state  TODO: this is wrong if anything but the viewed chip (top level state) is edited (which I currently can't do)
-	int first = sel.part->state_idx;
-	int end = sel.part->state_idx + sel.part->chip->state_count;
-	for (int i=0; i<2; ++i)
-		sim.state[i].erase(sim.state[i].begin() + first, sim.state[i].begin() + end);
 
 	// update input wire part indices
 	for (auto& cpart : sel.chip->parts) {
@@ -618,6 +674,9 @@ void edit_placement (Input& I, Placement& p) {
 	if (I.buttons['R'].went_down) {
 		int dir = I.buttons[KEY_LEFT_SHIFT].is_down ? -1 : +1;
 		p.rot = wrap(p.rot + dir, 4);
+	}
+	if (I.buttons['M'].went_down) {
+		p.mirror = !p.mirror;
 	}
 }
 
@@ -688,9 +747,11 @@ void Editor::update (Input& I, LogicSim& sim, View3D& view) {
 
 	edit_chip(I, sim, *sim.viewed_chip, float2x3::identity(), 0);
 			
-	// unselect all when needed
-	if (!_cursor_valid || mode != EDIT_MODE) {
+	// unselect when needed
+	if (mode != EDIT_MODE) {
 		sel = {};
+	}
+	if (!_cursor_valid) {
 		preview_wire = {};
 		dragging = false;
 	}
@@ -826,7 +887,7 @@ void Editor::update (Input& I, LogicSim& sim, View3D& view) {
 				}
 
 				// remove gates via DELETE key
-				if (I.buttons[KEY_DELETE].went_down) {
+				if (sel.chip == sim.viewed_chip.get() && I.buttons[KEY_DELETE].went_down) {
 					remove_part(sim, sel);
 
 					if (hover == sel) hover = {};

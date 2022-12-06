@@ -55,6 +55,7 @@ struct TriRenderer {
 				s.depth_test = false;
 				s.depth_write = false;
 				s.blend_enable = true;
+				s.cull_face = false;
 				state.set(s);
 
 				glBindVertexArray(vbo_tris.vao);
@@ -112,6 +113,7 @@ struct LineRenderer {
 				s.depth_test = false;
 				s.depth_write = false;
 				s.blend_enable = true;
+				s.cull_face = false;
 				state.set(s);
 
 				glBindVertexArray(vbo_lines.vao);
@@ -213,7 +215,7 @@ struct Renderer : public RendererBackend {
 
 		auto* out = lines;
 
-		float radius = ((float2x2)chip2world * float2(0.06f)).x;
+		float radius = abs(((float2x2)chip2world * float2(0.06f)).x);
 
 		auto line_seg = [&] (float2 p) {
 			float2 cur = chip2world * p;
@@ -243,7 +245,19 @@ struct Renderer : public RendererBackend {
 			lines[i].t = 1.0f - (lines[i].t * norm);
 		}
 	}
-	
+	void build_line (float2x3 const& chip2world, float2 a, float2 b, int states, lrgba col) {
+		
+		auto* out = push_back(line_renderer.lines, 1);
+
+		float radius = abs(((float2x2)chip2world * float2(0.06f)).x);
+
+		{
+			float2 p0 = chip2world * a;
+			float2 p1 = chip2world * b;
+
+			*out++ = { p0, p1, float2(0, 1), radius, states, col };
+		}
+	}
 
 	void draw_gate (float2x3 const& mat, float2 size, int type, int state, lrgba col) {
 		uint16_t idx = (uint16_t)tri_renderer.verticies.size();
@@ -277,22 +291,32 @@ struct Renderer : public RendererBackend {
 
 	void highlight (Game& g, Editor::Selection& sel, float2x3 const& chip2world, lrgba col) {
 		auto mat = chip2world * sel.part->pos.calc_matrix();
-
+		
 		auto& chip = *sel.part->chip;
+
 		if (sel.type == Editor::Selection::PART) {
-			draw_highlight(g, chip.name, chip.size, mat, col);
+			
+			std::string_view name = chip.name;
+			if (sel.part->chip == &gates[INP_PIN])
+				name = sel.chip->inputs[indexof_part(sel.chip->parts, sel.part) - (int)sel.chip->outputs.size()].name;
+			if (sel.part->chip == &gates[OUT_PIN])
+				name = sel.chip->outputs[indexof_part(sel.chip->parts, sel.part)].name;
+
+			draw_highlight(g, name, chip.size, mat, col);
 		}
 		else {
-			bool inp = sel.type == Editor::Selection::PIN_INP;
-			auto& io   = inp ? chip.inputs[sel.pin] : chip.outputs[sel.pin];
 			
+			bool inp = sel.type == Editor::Selection::PIN_INP;
+			auto& io = inp ? chip.inputs[sel.pin] : chip.outputs[sel.pin];
+			
+			std::string_view name = "<unnamed io>"; // NOTE: ternary operator and implicit casting is bug prone -_-
+			if (!io.name.empty()) name = io.name;
+
 			auto pos = inp ?
 				get_inp_pos(sel.part->chip->get_input(sel.pin)) :
 				get_out_pos(sel.part->chip->get_output(sel.pin));
 			
-			draw_highlight(g,
-				io.name.empty() ? "<unnamed_io>" : io.name,
-				PIN_SIZE, mat * translate(pos), col * lrgba(1,1, 0.6f, 1));
+			draw_highlight(g, name, PIN_SIZE, mat * translate(pos), col * lrgba(1,1, 0.6f, 1));
 		}
 	}
 
@@ -327,31 +351,58 @@ struct Renderer : public RendererBackend {
 
 				draw_chip(g, part.chip, part2world, chip_state >= 0 ? chip_state + part.state_idx : -1, col);
 
-				for (int i=0; i<(int)part.chip->inputs.size(); ++i) {
-					auto& inp = part.inputs[i];
-					if (inp.part_idx < 0) continue;
+				constexpr lrgba col = lrgba(0.8f, 0.01f, 0.025f, 1);
 
-					// get connected part
-					auto& src_part = chip->parts[inp.part_idx];
+				for (int i=0; i<(int)part.chip->inputs.size(); ++i) {
 					
-					// center position of connected output
-					auto smat = src_part.pos.calc_matrix();
-					auto& spart = src_part.chip->get_output(inp.pin_idx);
-					float2 src0 = smat * spart.pos.pos;
-					float2 src1 = smat * get_out_pos(spart);
 					// center position input
 					auto& dpart = part.chip->get_input(i);
 					float2 dst0 = part2chip * get_inp_pos(dpart);
 					float2 dst1 = part2chip * dpart.pos.pos;
 
-					uint8_t prev_state = chip_state >= 0 ? prev[chip_state + src_part.state_idx + inp.pin_idx] : 1;
-					uint8_t  cur_state = chip_state >= 0 ? cur [chip_state + src_part.state_idx + inp.pin_idx] : 1;
-					int state = (prev_state << 1) | cur_state;
+					auto& inp = part.inputs[i];
+					if (inp.part_idx < 0) {
+						
+						auto& dpart = part.chip->get_input(i);
+						float2 dst0 = part2chip * get_inp_pos(dpart);
+						float2 dst1 = part2chip * dpart.pos.pos;
+
+						build_line(chip2world, dst0, dst1, 0, col);
+					}
+					else {
+						// get connected part
+						auto& src_part = chip->parts[inp.part_idx];
 					
-					build_line(chip2world,
-						src0, src1, inp.wire_points, dst0, dst1,
-						state, lrgba(0.8f, 0.01f, 0.025f, 1));
+						// center position of connected output
+						auto smat = src_part.pos.calc_matrix();
+						auto& spart = src_part.chip->get_output(inp.pin_idx);
+						float2 src0 = smat * spart.pos.pos;
+						float2 src1 = smat * get_out_pos(spart);
+
+						uint8_t prev_state = chip_state >= 0 ? prev[chip_state + src_part.state_idx + inp.pin_idx] : 1;
+						uint8_t  cur_state = chip_state >= 0 ? cur [chip_state + src_part.state_idx + inp.pin_idx] : 1;
+						int state = (prev_state << 1) | cur_state;
+					
+						build_line(chip2world,
+							src0, src1, inp.wire_points, dst0, dst1,
+							state, col);
+					}
 				}
+				
+				//for (int i=0; i<(int)part.chip->outputs.size(); ++i) {
+				//	{ // TODO: always draw output wire for now
+				//		// center position output
+				//		auto& spart = part.chip->get_output(i);
+				//		float2 dst0 = part2chip * spart.pos.pos;
+				//		float2 dst1 = part2chip * get_out_pos(spart);
+				//	
+				//		uint8_t prev_state = chip_state >= 0 ? prev[chip_state + part.state_idx + i] : 1;
+				//		uint8_t  cur_state = chip_state >= 0 ? cur [chip_state + part.state_idx + i] : 1;
+				//		int state = (prev_state << 1) | cur_state;
+				//	
+				//		build_line(chip2world, dst0, dst1, state, col);
+				//	}
+				//}
 			}
 
 			{ // Wire preview

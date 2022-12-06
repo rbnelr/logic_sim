@@ -8,11 +8,11 @@
 	"game": {
 		"cam": {
 			"pos": [
-				-2.587839126586914,
-				1.2848478555679321,
+				24.628082275390625,
+				-2.2923920154571533,
 				0.0
 			],
-			"zoom": -4.362966537475586,
+			"zoom": -5.362966537475586,
 			"rot": 0.0,
 			"move_speed": 1.0,
 			"zoom_smooth_fac": 16.0,
@@ -45,6 +45,7 @@
 									4.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -102,6 +103,7 @@
 									4.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -147,6 +149,7 @@
 									2.75
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -164,6 +167,7 @@
 									2.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -205,6 +209,7 @@
 									1.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -224,6 +229,7 @@
 									3.75
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -269,6 +275,7 @@
 									2.75
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -316,6 +323,7 @@
 									9.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -337,6 +345,7 @@
 									11.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -354,6 +363,7 @@
 									11.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -375,6 +385,7 @@
 									9.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -396,6 +407,7 @@
 									9.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -417,6 +429,7 @@
 									11.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -438,6 +451,7 @@
 									9.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -459,6 +473,7 @@
 									10.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -480,6 +495,7 @@
 									9.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -501,6 +517,7 @@
 									11.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -522,6 +539,7 @@
 									9.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -543,6 +561,7 @@
 									10.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -570,6 +589,7 @@
 									9.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -597,6 +617,7 @@
 									9.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -618,6 +639,7 @@
 									9.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -634,6 +656,7 @@
 									11.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -650,6 +673,7 @@
 									9.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -667,6 +691,7 @@
 									10.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -683,6 +708,7 @@
 									9.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -700,6 +726,7 @@
 									9.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -716,6 +743,7 @@
 									10.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -732,6 +760,7 @@
 									9.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -748,6 +777,7 @@
 									9.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -765,6 +795,7 @@
 									10.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -781,6 +812,7 @@
 									9.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -797,6 +829,7 @@
 									9.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -814,6 +847,7 @@
 									11.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -831,6 +865,7 @@
 									11.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -847,6 +882,7 @@
 									12.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -863,6 +899,7 @@
 									11.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -880,6 +917,7 @@
 									11.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -896,6 +934,7 @@
 									12.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -912,6 +951,7 @@
 									11.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -929,6 +969,7 @@
 									11.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -945,6 +986,7 @@
 									12.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -961,6 +1003,7 @@
 									11.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -978,6 +1021,7 @@
 									6.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -1015,6 +1059,7 @@
 									6.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -1031,6 +1076,7 @@
 									5.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -1047,6 +1093,7 @@
 									7.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -1063,6 +1110,7 @@
 									6.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -1080,6 +1128,7 @@
 									4.75
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -1111,6 +1160,7 @@
 									5.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -1128,6 +1178,7 @@
 									5.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -1169,6 +1220,7 @@
 									6.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -1206,6 +1258,7 @@
 									5.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -1243,6 +1296,7 @@
 									7.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -1260,6 +1314,7 @@
 									7.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -1277,6 +1332,7 @@
 									6.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -1312,6 +1368,7 @@
 									7.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -1347,6 +1404,7 @@
 									6.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -1384,6 +1442,7 @@
 									5.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -1425,6 +1484,7 @@
 									6.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -1441,6 +1501,7 @@
 									5.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -1457,6 +1518,7 @@
 									5.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -1474,6 +1536,7 @@
 									6.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -1491,6 +1554,7 @@
 									2.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -1514,6 +1578,7 @@
 									1.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -1531,6 +1596,7 @@
 									2.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -1562,6 +1628,7 @@
 									1.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -1593,6 +1660,7 @@
 									0.75
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -1620,6 +1688,7 @@
 									2.75
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -1657,6 +1726,7 @@
 									2.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -1673,6 +1743,7 @@
 									1.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -1689,6 +1760,7 @@
 									0.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -1716,6 +1788,7 @@
 									-1.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -1747,6 +1820,7 @@
 									-1.25
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -1788,6 +1862,7 @@
 									-3.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -1819,6 +1894,7 @@
 									-3.25
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -1860,6 +1936,7 @@
 									-1.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -1877,6 +1954,7 @@
 									-3.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -1894,6 +1972,7 @@
 									-1.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -1925,6 +2004,7 @@
 									-3.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -1956,6 +2036,7 @@
 									-3.25
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -1983,6 +2064,7 @@
 									-1.25
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -2020,6 +2102,7 @@
 									-3.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -2047,6 +2130,7 @@
 									-1.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -2063,6 +2147,7 @@
 									-4.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -2079,6 +2164,7 @@
 									-2.25
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -2106,6 +2192,7 @@
 									7.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -2141,6 +2228,7 @@
 									5.75
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -2158,6 +2246,7 @@
 									5.0
 								],
 								"rot": 2,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -2185,6 +2274,7 @@
 									5.75
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -2202,6 +2292,7 @@
 									5.75
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -2219,6 +2310,7 @@
 									5.75
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -2236,6 +2328,7 @@
 									5.75
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -2263,6 +2356,7 @@
 									5.75
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -2280,6 +2374,7 @@
 									0.25
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -2311,6 +2406,7 @@
 									-0.5
 								],
 								"rot": 1,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -2344,6 +2440,7 @@
 									1.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -2360,6 +2457,7 @@
 									0.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -2376,6 +2474,7 @@
 									0.25
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -2393,6 +2492,7 @@
 									-1.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -2410,6 +2510,7 @@
 									-1.75
 								],
 								"rot": 1,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -2443,6 +2544,7 @@
 									-1.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -2470,6 +2572,7 @@
 									-1.25
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -2486,6 +2589,7 @@
 									-2.25
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -2513,6 +2617,7 @@
 									-3.0
 								],
 								"rot": 1,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -2546,6 +2651,7 @@
 									-2.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -2562,6 +2668,7 @@
 									-2.25
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -2579,6 +2686,7 @@
 									-3.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -2596,6 +2704,7 @@
 									5.0
 								],
 								"rot": 2,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -2613,6 +2722,7 @@
 									5.0
 								],
 								"rot": 2,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -2630,6 +2740,7 @@
 									5.0
 								],
 								"rot": 2,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -2647,6 +2758,7 @@
 									5.0
 								],
 								"rot": 2,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -2664,6 +2776,7 @@
 									6.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -2695,6 +2808,7 @@
 									5.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -2726,6 +2840,7 @@
 									6.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -2743,6 +2858,7 @@
 									5.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -2760,6 +2876,7 @@
 									6.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -2801,6 +2918,7 @@
 									5.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -2832,6 +2950,7 @@
 									4.75
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -2859,6 +2978,7 @@
 									5.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -2875,6 +2995,7 @@
 									6.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -2891,6 +3012,7 @@
 									-0.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -2911,6 +3033,7 @@
 									-1.0
 								],
 								"rot": 2,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -2932,6 +3055,7 @@
 									-1.25
 								],
 								"rot": 2,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -2948,6 +3072,7 @@
 									15.75
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -2964,6 +3089,7 @@
 									13.25
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -2980,6 +3106,7 @@
 									14.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -2997,6 +3124,7 @@
 									15.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -3018,6 +3146,7 @@
 									13.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -3039,6 +3168,7 @@
 									14.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -3060,6 +3190,7 @@
 									18.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -3081,6 +3212,7 @@
 									17.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -3102,6 +3234,7 @@
 									17.75
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -3123,6 +3256,7 @@
 									16.75
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -3139,6 +3273,7 @@
 									18.75
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -3155,6 +3290,7 @@
 									17.75
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -3172,6 +3308,7 @@
 									17.75
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -3193,6 +3330,7 @@
 									18.25
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -3230,6 +3368,7 @@
 									17.25
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -3267,6 +3406,7 @@
 									15.25
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -3304,6 +3444,7 @@
 									13.75
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -3341,6 +3482,7 @@
 									7.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -3361,6 +3503,7 @@
 									8.5
 								],
 								"rot": 3,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -3378,758 +3521,12 @@
 									8.5
 								],
 								"rot": 1,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
 								{
 									"part_idx": -1
-								}
-							]
-						}
-					]
-				},
-				{
-					"name": "Full Adder",
-					"col": [
-						1.0,
-						0.46568626165390015,
-						0.9685697555541992
-					],
-					"inputs": [
-						{
-							"name": ""
-						},
-						{
-							"name": ""
-						},
-						{
-							"name": ""
-						}
-					],
-					"outputs": [
-						{
-							"name": ""
-						},
-						{
-							"name": ""
-						}
-					],
-					"size": [
-						5.0,
-						3.0
-					],
-					"parts": [
-						{
-							"chip": 1,
-							"pos": {
-								"pos": [
-									2.5,
-									0.25
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 6,
-									"pin_idx": 0
-								}
-							]
-						},
-						{
-							"chip": 1,
-							"pos": {
-								"pos": [
-									2.5,
-									-1.0
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 9,
-									"pin_idx": 0
-								}
-							]
-						},
-						{
-							"chip": 0,
-							"pos": {
-								"pos": [
-									-2.5,
-									1.0
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": -1
-								}
-							]
-						},
-						{
-							"chip": 0,
-							"pos": {
-								"pos": [
-									-2.5,
-									0.25
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": -1
-								}
-							]
-						},
-						{
-							"chip": 0,
-							"pos": {
-								"pos": [
-									-2.5,
-									-0.75
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": -1
-								}
-							]
-						},
-						{
-							"chip": 8,
-							"pos": {
-								"pos": [
-									-1.125,
-									0.25
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 3,
-									"pin_idx": 0,
-									"wire_points": [
-										[
-											-2.0,
-											0.25
-										],
-										[
-											-2.0,
-											0.5
-										]
-									]
-								},
-								{
-									"part_idx": 4,
-									"pin_idx": 0,
-									"wire_points": [
-										[
-											-1.75,
-											-0.75
-										],
-										[
-											-1.75,
-											-0.0
-										]
-									]
-								}
-							]
-						},
-						{
-							"chip": 8,
-							"pos": {
-								"pos": [
-									0.5,
-									0.25
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 2,
-									"pin_idx": 0,
-									"wire_points": [
-										[
-											-0.625,
-											1.0
-										],
-										[
-											-0.125,
-											0.5
-										]
-									]
-								},
-								{
-									"part_idx": 5,
-									"pin_idx": 0,
-									"wire_points": [
-										[
-											-0.625,
-											0.25
-										],
-										[
-											-0.375,
-											-0.0
-										]
-									]
-								}
-							]
-						},
-						{
-							"chip": 4,
-							"pos": {
-								"pos": [
-									-1.125,
-									-0.75
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 3,
-									"pin_idx": 0,
-									"wire_points": [
-										[
-											-2.0,
-											0.25
-										],
-										[
-											-2.0,
-											-0.5
-										]
-									]
-								},
-								{
-									"part_idx": 4,
-									"pin_idx": 0,
-									"wire_points": [
-										[
-											-1.75,
-											-0.75
-										],
-										[
-											-1.75,
-											-1.0
-										]
-									]
-								}
-							]
-						},
-						{
-							"chip": 4,
-							"pos": {
-								"pos": [
-									0.5,
-									-0.75
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 2,
-									"pin_idx": 0,
-									"wire_points": [
-										[
-											-0.625,
-											1.0
-										],
-										[
-											-0.125,
-											0.5
-										],
-										[
-											-0.125,
-											-0.5
-										]
-									]
-								},
-								{
-									"part_idx": 5,
-									"pin_idx": 0,
-									"wire_points": [
-										[
-											-0.625,
-											0.25
-										],
-										[
-											-0.375,
-											0.0
-										],
-										[
-											-0.375,
-											-1.0
-										]
-									]
-								}
-							]
-						},
-						{
-							"chip": 6,
-							"pos": {
-								"pos": [
-									1.5,
-									-1.0
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 8,
-									"pin_idx": 0
-								},
-								{
-									"part_idx": 7,
-									"pin_idx": 0,
-									"wire_points": [
-										[
-											-0.625,
-											-0.75
-										],
-										[
-											-0.625,
-											-1.25
-										]
-									]
-								}
-							]
-						}
-					]
-				},
-				{
-					"name": "4-Bit Adder",
-					"col": [
-						1.0,
-						0.36764705181121826,
-						0.7396194338798523
-					],
-					"inputs": [
-						{
-							"name": ""
-						},
-						{
-							"name": ""
-						},
-						{
-							"name": ""
-						},
-						{
-							"name": ""
-						},
-						{
-							"name": ""
-						},
-						{
-							"name": ""
-						},
-						{
-							"name": ""
-						},
-						{
-							"name": ""
-						},
-						{
-							"name": ""
-						}
-					],
-					"outputs": [
-						{
-							"name": ""
-						},
-						{
-							"name": ""
-						},
-						{
-							"name": ""
-						},
-						{
-							"name": ""
-						},
-						{
-							"name": ""
-						}
-					],
-					"size": [
-						10.0,
-						13.0
-					],
-					"parts": [
-						{
-							"chip": 1,
-							"pos": {
-								"pos": [
-									5.0,
-									-5.0
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 17,
-									"pin_idx": 1
-								}
-							]
-						},
-						{
-							"chip": 1,
-							"pos": {
-								"pos": [
-									5.0,
-									1.5
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 14,
-									"pin_idx": 0
-								}
-							]
-						},
-						{
-							"chip": 1,
-							"pos": {
-								"pos": [
-									5.0,
-									0.5
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 15,
-									"pin_idx": 0
-								}
-							]
-						},
-						{
-							"chip": 1,
-							"pos": {
-								"pos": [
-									5.0,
-									-0.5
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 16,
-									"pin_idx": 0
-								}
-							]
-						},
-						{
-							"chip": 1,
-							"pos": {
-								"pos": [
-									5.0,
-									-1.5
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 17,
-									"pin_idx": 0
-								}
-							]
-						},
-						{
-							"chip": 0,
-							"pos": {
-								"pos": [
-									-5.0,
-									0.0
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": -1
-								}
-							]
-						},
-						{
-							"chip": 0,
-							"pos": {
-								"pos": [
-									-5.0,
-									1.0
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": -1
-								}
-							]
-						},
-						{
-							"chip": 0,
-							"pos": {
-								"pos": [
-									-5.0,
-									2.0
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": -1
-								}
-							]
-						},
-						{
-							"chip": 0,
-							"pos": {
-								"pos": [
-									-5.0,
-									3.0
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": -1
-								}
-							]
-						},
-						{
-							"chip": 0,
-							"pos": {
-								"pos": [
-									-5.0,
-									-1.5
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": -1
-								}
-							]
-						},
-						{
-							"chip": 0,
-							"pos": {
-								"pos": [
-									-5.0,
-									-2.5
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": -1
-								}
-							]
-						},
-						{
-							"chip": 0,
-							"pos": {
-								"pos": [
-									-5.0,
-									-3.5
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": -1
-								}
-							]
-						},
-						{
-							"chip": 0,
-							"pos": {
-								"pos": [
-									-5.0,
-									-4.5
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": -1
-								}
-							]
-						},
-						{
-							"chip": 0,
-							"pos": {
-								"pos": [
-									-5.0,
-									5.0
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": -1
-								}
-							]
-						},
-						{
-							"chip": 10,
-							"pos": {
-								"pos": [
-									-0.0,
-									4.5
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 13,
-									"pin_idx": 0,
-									"wire_points": [
-										[
-											-4.25,
-											5.0
-										],
-										[
-											-3.75,
-											5.5
-										]
-									]
-								},
-								{
-									"part_idx": 8,
-									"pin_idx": 0
-								},
-								{
-									"part_idx": 9,
-									"pin_idx": 0
-								}
-							]
-						},
-						{
-							"chip": 10,
-							"pos": {
-								"pos": [
-									0.0,
-									1.5
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 14,
-									"pin_idx": 1,
-									"wire_points": [
-										[
-											2.75,
-											3.0
-										],
-										[
-											-2.75,
-											3.0
-										]
-									]
-								},
-								{
-									"part_idx": 7,
-									"pin_idx": 0
-								},
-								{
-									"part_idx": 10,
-									"pin_idx": 0
-								}
-							]
-						},
-						{
-							"chip": 10,
-							"pos": {
-								"pos": [
-									0.0,
-									-1.5
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 15,
-									"pin_idx": 1,
-									"wire_points": [
-										[
-											2.75,
-											-0.0
-										],
-										[
-											-2.75,
-											-0.0
-										]
-									]
-								},
-								{
-									"part_idx": 6,
-									"pin_idx": 0
-								},
-								{
-									"part_idx": 11,
-									"pin_idx": 0
-								}
-							]
-						},
-						{
-							"chip": 10,
-							"pos": {
-								"pos": [
-									0.0,
-									-4.5
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 16,
-									"pin_idx": 1,
-									"wire_points": [
-										[
-											2.75,
-											-3.0
-										],
-										[
-											-2.75,
-											-3.0
-										]
-									]
-								},
-								{
-									"part_idx": 5,
-									"pin_idx": 0
-								},
-								{
-									"part_idx": 12,
-									"pin_idx": 0
 								}
 							]
 						}
@@ -4157,6 +3554,7 @@
 									1.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -4173,6 +3571,7 @@
 									0.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -4189,6 +3588,7 @@
 									-1.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -4205,6 +3605,7 @@
 									1.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -4246,6 +3647,7 @@
 									1.25
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -4277,6 +3679,7 @@
 									-0.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -4318,6 +3721,7 @@
 									-0.25
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -4349,6 +3753,7 @@
 									-1.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -4370,6 +3775,7 @@
 									-1.75
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -4401,6 +3807,7 @@
 									-1.25
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -4428,6 +3835,7 @@
 									-1.75
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -4455,6 +3863,7 @@
 									1.25
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -4472,6 +3881,7 @@
 									-1.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -4489,6 +3899,7 @@
 									-1.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -4510,6 +3921,7 @@
 									-4.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -4531,6 +3943,7 @@
 									-5.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -4552,6 +3965,7 @@
 									-4.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -4573,6 +3987,7 @@
 									-6.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -4594,6 +4009,7 @@
 									-6.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -4611,6 +4027,7 @@
 									-6.25
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -4638,6 +4055,7 @@
 									-5.75
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -4655,6 +4073,7 @@
 									-4.75
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -4672,6 +4091,7 @@
 									-4.25
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -4689,6 +4109,7 @@
 									-3.75
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -4716,6 +4137,7 @@
 									-5.25
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -4773,6 +4195,7 @@
 									0.375
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -4790,6 +4213,7 @@
 									-1.375
 								],
 								"rot": 1,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -4807,6 +4231,7 @@
 									0.125
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -4823,6 +4248,7 @@
 									0.75
 								],
 								"rot": 1,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -4839,6 +4265,7 @@
 									0.375
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -4874,6 +4301,7 @@
 									-0.5
 								],
 								"rot": 1,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -4890,6 +4318,917 @@
 								{
 									"part_idx": 3,
 									"pin_idx": 0
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "Full Adder",
+					"col": [
+						1.0,
+						0.46568626165390015,
+						0.9685697555541992
+					],
+					"inputs": [
+						{
+							"name": ""
+						},
+						{
+							"name": ""
+						},
+						{
+							"name": ""
+						}
+					],
+					"outputs": [
+						{
+							"name": ""
+						},
+						{
+							"name": ""
+						}
+					],
+					"size": [
+						5.0,
+						3.0
+					],
+					"parts": [
+						{
+							"chip": 1,
+							"pos": {
+								"pos": [
+									2.5,
+									0.25
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 6,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 1,
+							"pos": {
+								"pos": [
+									2.5,
+									-1.0
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 9,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 0,
+							"pos": {
+								"pos": [
+									-2.5,
+									1.0
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 0,
+							"pos": {
+								"pos": [
+									-2.5,
+									0.25
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 0,
+							"pos": {
+								"pos": [
+									-2.5,
+									-0.75
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 8,
+							"pos": {
+								"pos": [
+									-1.125,
+									0.25
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 3,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											-2.0,
+											0.25
+										],
+										[
+											-2.0,
+											0.5
+										]
+									]
+								},
+								{
+									"part_idx": 4,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											-1.75,
+											-0.75
+										],
+										[
+											-1.75,
+											-0.0
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 8,
+							"pos": {
+								"pos": [
+									0.5,
+									0.25
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 2,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											-0.625,
+											1.0
+										],
+										[
+											-0.125,
+											0.5
+										]
+									]
+								},
+								{
+									"part_idx": 5,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											-0.625,
+											0.25
+										],
+										[
+											-0.375,
+											-0.0
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 4,
+							"pos": {
+								"pos": [
+									-1.125,
+									-0.75
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 3,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											-2.0,
+											0.25
+										],
+										[
+											-2.0,
+											-0.5
+										]
+									]
+								},
+								{
+									"part_idx": 4,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											-1.75,
+											-0.75
+										],
+										[
+											-1.75,
+											-1.0
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 4,
+							"pos": {
+								"pos": [
+									0.5,
+									-0.75
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 2,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											-0.625,
+											1.0
+										],
+										[
+											-0.125,
+											0.5
+										],
+										[
+											-0.125,
+											-0.5
+										]
+									]
+								},
+								{
+									"part_idx": 5,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											-0.625,
+											0.25
+										],
+										[
+											-0.375,
+											0.0
+										],
+										[
+											-0.375,
+											-1.0
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 6,
+							"pos": {
+								"pos": [
+									1.5,
+									-1.0
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 8,
+									"pin_idx": 0
+								},
+								{
+									"part_idx": 7,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											-0.625,
+											-0.75
+										],
+										[
+											-0.625,
+											-1.25
+										]
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "4-Bit Adder",
+					"col": [
+						1.0,
+						0.36764705181121826,
+						0.7396194338798523
+					],
+					"inputs": [
+						{
+							"name": "A0"
+						},
+						{
+							"name": "A1"
+						},
+						{
+							"name": "A2"
+						},
+						{
+							"name": "A3"
+						},
+						{
+							"name": "B0"
+						},
+						{
+							"name": "B1"
+						},
+						{
+							"name": "B2"
+						},
+						{
+							"name": "B3"
+						},
+						{
+							"name": "SubB"
+						}
+					],
+					"outputs": [
+						{
+							"name": "S0"
+						},
+						{
+							"name": "S1"
+						},
+						{
+							"name": "S2"
+						},
+						{
+							"name": "S3"
+						},
+						{
+							"name": "CarryOut"
+						}
+					],
+					"size": [
+						10.0,
+						13.0
+					],
+					"parts": [
+						{
+							"chip": 1,
+							"pos": {
+								"pos": [
+									5.0,
+									-5.0
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 17,
+									"pin_idx": 1
+								}
+							]
+						},
+						{
+							"chip": 1,
+							"pos": {
+								"pos": [
+									5.0,
+									1.5
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 14,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 1,
+							"pos": {
+								"pos": [
+									5.0,
+									0.5
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 15,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 1,
+							"pos": {
+								"pos": [
+									5.0,
+									-0.5
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 16,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 1,
+							"pos": {
+								"pos": [
+									5.0,
+									-1.5
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 17,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 0,
+							"pos": {
+								"pos": [
+									-5.0,
+									1.0
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 0,
+							"pos": {
+								"pos": [
+									-5.0,
+									2.0
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 0,
+							"pos": {
+								"pos": [
+									-5.0,
+									3.0
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 0,
+							"pos": {
+								"pos": [
+									-5.0,
+									4.0
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 0,
+							"pos": {
+								"pos": [
+									-5.0,
+									-1.0
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 0,
+							"pos": {
+								"pos": [
+									-5.0,
+									-2.0
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 0,
+							"pos": {
+								"pos": [
+									-5.0,
+									-3.0
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 0,
+							"pos": {
+								"pos": [
+									-5.0,
+									-4.0
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 0,
+							"pos": {
+								"pos": [
+									-5.0,
+									-5.75
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 12,
+							"pos": {
+								"pos": [
+									1.0,
+									4.5
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 13,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											-4.5,
+											-5.75
+										],
+										[
+											-4.5,
+											5.5
+										]
+									]
+								},
+								{
+									"part_idx": 8,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											-3.5,
+											4.0
+										]
+									]
+								},
+								{
+									"part_idx": 21,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 12,
+							"pos": {
+								"pos": [
+									1.0,
+									1.5
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 14,
+									"pin_idx": 1,
+									"wire_points": [
+										[
+											3.75,
+											3.0
+										],
+										[
+											-1.75,
+											3.0
+										]
+									]
+								},
+								{
+									"part_idx": 7,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											-3.5,
+											3.0
+										]
+									]
+								},
+								{
+									"part_idx": 20,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 12,
+							"pos": {
+								"pos": [
+									1.0,
+									-1.5
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 15,
+									"pin_idx": 1,
+									"wire_points": [
+										[
+											3.75,
+											0.0
+										],
+										[
+											-1.75,
+											-0.0
+										]
+									]
+								},
+								{
+									"part_idx": 6,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											-3.5,
+											2.0
+										]
+									]
+								},
+								{
+									"part_idx": 19,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 12,
+							"pos": {
+								"pos": [
+									1.0,
+									-4.5
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 16,
+									"pin_idx": 1,
+									"wire_points": [
+										[
+											3.75,
+											-3.0
+										],
+										[
+											-1.75,
+											-3.0
+										]
+									]
+								},
+								{
+									"part_idx": 5,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											-3.5,
+											1.0
+										]
+									]
+								},
+								{
+									"part_idx": 18,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 8,
+							"pos": {
+								"pos": [
+									-4.0,
+									-4.25
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 12,
+									"pin_idx": 0
+								},
+								{
+									"part_idx": 13,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											-4.5,
+											-5.75
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 8,
+							"pos": {
+								"pos": [
+									-4.0,
+									-3.25
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 11,
+									"pin_idx": 0
+								},
+								{
+									"part_idx": 13,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											-4.5,
+											-5.75
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 8,
+							"pos": {
+								"pos": [
+									-4.0,
+									-2.25
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 10,
+									"pin_idx": 0
+								},
+								{
+									"part_idx": 13,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											-4.5,
+											-5.75
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 8,
+							"pos": {
+								"pos": [
+									-4.0,
+									-1.25
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 9,
+									"pin_idx": 0
+								},
+								{
+									"part_idx": 13,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											-4.5,
+											-5.75
+										]
+									]
 								}
 							]
 						}
@@ -4928,6 +5267,7 @@
 									0.75
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -4945,6 +5285,7 @@
 									0.75
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -4961,6 +5302,7 @@
 									-1.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -4977,6 +5319,7 @@
 									0.75
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -5008,6 +5351,7 @@
 									-0.75
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -5039,6 +5383,7 @@
 									1.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -5076,6 +5421,7 @@
 									-1.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -5109,6 +5455,7 @@
 									0.0
 								],
 								"rot": 1,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -5118,6 +5465,383 @@
 									"wire_points": [
 										[
 											-1.25,
+											0.75
+										]
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "Clk D-FlipFlop",
+					"col": [
+						0.8477509021759033,
+						1.0,
+						0.13725489377975464
+					],
+					"inputs": [
+						{
+							"name": "D"
+						},
+						{
+							"name": "Clk"
+						}
+					],
+					"outputs": [
+						{
+							"name": "Q"
+						}
+					],
+					"size": [
+						7.0,
+						3.5
+					],
+					"parts": [
+						{
+							"chip": 1,
+							"pos": {
+								"pos": [
+									3.5,
+									0.75
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 10,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 0,
+							"pos": {
+								"pos": [
+									-3.5,
+									0.75
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 0,
+							"pos": {
+								"pos": [
+									-3.5,
+									-1.25
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 5,
+							"pos": {
+								"pos": [
+									-2.0,
+									1.0
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 2,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											-3.0,
+											-1.25
+										],
+										[
+											-3.0,
+											1.25
+										]
+									]
+								},
+								{
+									"part_idx": 1,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 5,
+							"pos": {
+								"pos": [
+									-2.0,
+									-1.0
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 12,
+									"pin_idx": 0
+								},
+								{
+									"part_idx": 2,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 5,
+							"pos": {
+								"pos": [
+									-0.625,
+									0.75
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 3,
+									"pin_idx": 0
+								},
+								{
+									"part_idx": 6,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											-0.125,
+											-0.25
+										],
+										[
+											-1.125,
+											0.25
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 5,
+							"pos": {
+								"pos": [
+									-0.625,
+									-0.75
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 5,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											-0.125,
+											0.25
+										],
+										[
+											-1.125,
+											-0.25
+										]
+									]
+								},
+								{
+									"part_idx": 4,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 5,
+							"pos": {
+								"pos": [
+									1.0,
+									1.0
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 11,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											0.375,
+											-1.5
+										],
+										[
+											0.375,
+											1.25
+										]
+									]
+								},
+								{
+									"part_idx": 5,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 5,
+							"pos": {
+								"pos": [
+									1.0,
+									-1.0
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 6,
+									"pin_idx": 0
+								},
+								{
+									"part_idx": 11,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											0.375,
+											-1.5
+										],
+										[
+											0.375,
+											-1.25
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 5,
+							"pos": {
+								"pos": [
+									2.25,
+									-0.75
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 10,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											2.75,
+											0.25
+										],
+										[
+											1.75,
+											-0.25
+										]
+									]
+								},
+								{
+									"part_idx": 8,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 5,
+							"pos": {
+								"pos": [
+									2.25,
+									0.75
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 7,
+									"pin_idx": 0
+								},
+								{
+									"part_idx": 9,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											2.75,
+											-0.25
+										],
+										[
+											1.75,
+											0.25
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 3,
+							"pos": {
+								"pos": [
+									-0.375,
+									-1.5
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 2,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											-3.0,
+											-1.25
+										],
+										[
+											-3.0,
+											-1.5
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 3,
+							"pos": {
+								"pos": [
+									-2.5,
+									0.0
+								],
+								"rot": 1,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 1,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											-2.625,
 											0.75
 										]
 									]
@@ -5177,6 +5901,7 @@
 									1.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -5194,6 +5919,7 @@
 									0.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -5211,6 +5937,7 @@
 									-0.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -5228,6 +5955,7 @@
 									-1.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -5245,6 +5973,7 @@
 									1.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -5261,6 +5990,7 @@
 									0.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -5277,6 +6007,7 @@
 									-0.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -5293,6 +6024,7 @@
 									-1.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -5309,6 +6041,7 @@
 									-5.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -5325,6 +6058,7 @@
 									1.625
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -5358,6 +6092,7 @@
 									-1.625
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -5391,6 +6126,7 @@
 									4.875
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -5424,6 +6160,7 @@
 									-4.875
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -5452,6 +6189,956 @@
 					]
 				},
 				{
+					"name": "4-Bit Register",
+					"col": [
+						1.0,
+						0.9734717607498169,
+						0.09803920984268188
+					],
+					"inputs": [
+						{
+							"name": "D0"
+						},
+						{
+							"name": "D1"
+						},
+						{
+							"name": "D2"
+						},
+						{
+							"name": "D3"
+						},
+						{
+							"name": "Clk"
+						}
+					],
+					"outputs": [
+						{
+							"name": "Q0"
+						},
+						{
+							"name": "Q1"
+						},
+						{
+							"name": "Q2"
+						},
+						{
+							"name": "Q3"
+						}
+					],
+					"size": [
+						11.0,
+						14.5
+					],
+					"parts": [
+						{
+							"chip": 1,
+							"pos": {
+								"pos": [
+									5.5,
+									1.5
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 11,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 1,
+							"pos": {
+								"pos": [
+									5.5,
+									0.5
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 9,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 1,
+							"pos": {
+								"pos": [
+									5.5,
+									-0.5
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 10,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 1,
+							"pos": {
+								"pos": [
+									5.5,
+									-1.5
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 12,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 0,
+							"pos": {
+								"pos": [
+									-5.5,
+									0.5
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 0,
+							"pos": {
+								"pos": [
+									-5.5,
+									-0.5
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 0,
+							"pos": {
+								"pos": [
+									-5.5,
+									1.5
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 0,
+							"pos": {
+								"pos": [
+									-5.5,
+									-1.5
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 0,
+							"pos": {
+								"pos": [
+									-5.5,
+									-6.0
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 15,
+							"pos": {
+								"pos": [
+									0.0,
+									1.75
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 4,
+									"pin_idx": 0
+								},
+								{
+									"part_idx": 8,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											-4.0,
+											-6.0
+										],
+										[
+											-4.0,
+											0.5
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 15,
+							"pos": {
+								"pos": [
+									0.0,
+									-1.75
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 5,
+									"pin_idx": 0
+								},
+								{
+									"part_idx": 8,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											-4.0,
+											-6.0
+										],
+										[
+											-4.0,
+											-3.0
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 15,
+							"pos": {
+								"pos": [
+									0.0,
+									5.25
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 6,
+									"pin_idx": 0
+								},
+								{
+									"part_idx": 8,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											-4.0,
+											-6.0
+										],
+										[
+											-4.0,
+											4.0
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 15,
+							"pos": {
+								"pos": [
+									0.0,
+									-5.25
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 7,
+									"pin_idx": 0
+								},
+								{
+									"part_idx": 8,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											-4.0,
+											-6.0
+										],
+										[
+											-4.0,
+											-6.5
+										]
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "4-Bit Multiplexer",
+					"col": [
+						1.0,
+						1.0,
+						1.0
+					],
+					"inputs": [
+						{
+							"name": ""
+						},
+						{
+							"name": ""
+						},
+						{
+							"name": ""
+						},
+						{
+							"name": ""
+						},
+						{
+							"name": ""
+						},
+						{
+							"name": ""
+						},
+						{
+							"name": ""
+						},
+						{
+							"name": ""
+						},
+						{
+							"name": ""
+						}
+					],
+					"outputs": [
+						{
+							"name": ""
+						},
+						{
+							"name": ""
+						},
+						{
+							"name": ""
+						},
+						{
+							"name": ""
+						}
+					],
+					"size": [
+						4.0,
+						10.0
+					],
+					"parts": [
+						{
+							"chip": 1,
+							"pos": {
+								"pos": [
+									2.0,
+									1.5
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 15,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 1,
+							"pos": {
+								"pos": [
+									2.0,
+									0.5
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 22,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 1,
+							"pos": {
+								"pos": [
+									2.0,
+									-0.5
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 23,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 1,
+							"pos": {
+								"pos": [
+									2.0,
+									-1.5
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 24,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 0,
+							"pos": {
+								"pos": [
+									-2.0,
+									4.0
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 0,
+							"pos": {
+								"pos": [
+									-2.0,
+									3.0
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 0,
+							"pos": {
+								"pos": [
+									-2.0,
+									2.0
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 0,
+							"pos": {
+								"pos": [
+									-2.0,
+									1.0
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 0,
+							"pos": {
+								"pos": [
+									-2.0,
+									-1.0
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 0,
+							"pos": {
+								"pos": [
+									-2.0,
+									-2.0
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 0,
+							"pos": {
+								"pos": [
+									-2.0,
+									-3.0
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 0,
+							"pos": {
+								"pos": [
+									-2.0,
+									-4.0
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 0,
+							"pos": {
+								"pos": [
+									-0.0,
+									5.125
+								],
+								"rot": 1,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 4,
+							"pos": {
+								"pos": [
+									-0.5,
+									0.75
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 7,
+									"pin_idx": 0
+								},
+								{
+									"part_idx": 25,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 4,
+							"pos": {
+								"pos": [
+									-0.5,
+									-0.75
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 12,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											0.0,
+											4.75
+										],
+										[
+											-1.25,
+											4.75
+										],
+										[
+											-1.25,
+											-0.5
+										]
+									]
+								},
+								{
+									"part_idx": 8,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 6,
+							"pos": {
+								"pos": [
+									1.125,
+									1.5
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 18,
+									"pin_idx": 0
+								},
+								{
+									"part_idx": 14,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 4,
+							"pos": {
+								"pos": [
+									-0.5,
+									1.75
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 6,
+									"pin_idx": 0
+								},
+								{
+									"part_idx": 25,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 4,
+							"pos": {
+								"pos": [
+									-0.5,
+									2.75
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 5,
+									"pin_idx": 0
+								},
+								{
+									"part_idx": 25,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 4,
+							"pos": {
+								"pos": [
+									-0.5,
+									3.75
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 4,
+									"pin_idx": 0
+								},
+								{
+									"part_idx": 25,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 4,
+							"pos": {
+								"pos": [
+									-0.5,
+									-1.75
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 12,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											0.0,
+											4.75
+										],
+										[
+											-1.25,
+											4.75
+										],
+										[
+											-1.25,
+											-1.5
+										]
+									]
+								},
+								{
+									"part_idx": 9,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 4,
+							"pos": {
+								"pos": [
+									-0.5,
+									-2.75
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 12,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											-0.0,
+											4.75
+										],
+										[
+											-1.25,
+											4.75
+										],
+										[
+											-1.25,
+											-2.5
+										]
+									]
+								},
+								{
+									"part_idx": 10,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 4,
+							"pos": {
+								"pos": [
+									-0.5,
+									-3.75
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 12,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											0.0,
+											4.75
+										],
+										[
+											-1.25,
+											4.75
+										],
+										[
+											-1.25,
+											-3.5
+										]
+									]
+								},
+								{
+									"part_idx": 11,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 6,
+							"pos": {
+								"pos": [
+									1.125,
+									0.5
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 17,
+									"pin_idx": 0
+								},
+								{
+									"part_idx": 19,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 6,
+							"pos": {
+								"pos": [
+									1.125,
+									-0.5
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 16,
+									"pin_idx": 0
+								},
+								{
+									"part_idx": 20,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 6,
+							"pos": {
+								"pos": [
+									1.125,
+									-1.5
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 13,
+									"pin_idx": 0
+								},
+								{
+									"part_idx": 21,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 3,
+							"pos": {
+								"pos": [
+									-0.5,
+									4.375
+								],
+								"rot": 2,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 12,
+									"pin_idx": 0
+								}
+							]
+						}
+					]
+				},
+				{
 					"name": "ALU test",
 					"col": [
 						1.0,
@@ -5466,13 +7153,14 @@
 					],
 					"parts": [
 						{
-							"chip": 15,
+							"chip": 16,
 							"pos": {
 								"pos": [
 									-9.5,
 									7.25
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 0.5
 							},
 							"inputs": [
@@ -5570,13 +7258,14 @@
 							]
 						},
 						{
-							"chip": 15,
+							"chip": 16,
 							"pos": {
 								"pos": [
 									-9.5,
 									0.25
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 0.5
 							},
 							"inputs": [
@@ -5598,13 +7287,14 @@
 							]
 						},
 						{
-							"chip": 11,
+							"chip": 13,
 							"pos": {
 								"pos": [
 									-2.5,
 									7.25
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 0.5
 							},
 							"inputs": [
@@ -5642,1281 +7332,6 @@
 								},
 								{
 									"part_idx": -1
-								}
-							]
-						}
-					]
-				},
-				{
-					"name": "Clk D-FlipFlop",
-					"col": [
-						0.8477509021759033,
-						1.0,
-						0.13725489377975464
-					],
-					"inputs": [
-						{
-							"name": "D"
-						},
-						{
-							"name": "Clk"
-						}
-					],
-					"outputs": [
-						{
-							"name": "Q"
-						}
-					],
-					"size": [
-						7.0,
-						3.5
-					],
-					"parts": [
-						{
-							"chip": 1,
-							"pos": {
-								"pos": [
-									3.5,
-									0.75
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 10,
-									"pin_idx": 0
-								}
-							]
-						},
-						{
-							"chip": 0,
-							"pos": {
-								"pos": [
-									-3.5,
-									0.75
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": -1
-								}
-							]
-						},
-						{
-							"chip": 0,
-							"pos": {
-								"pos": [
-									-3.5,
-									-1.25
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": -1
-								}
-							]
-						},
-						{
-							"chip": 5,
-							"pos": {
-								"pos": [
-									-2.0,
-									1.0
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 2,
-									"pin_idx": 0,
-									"wire_points": [
-										[
-											-3.0,
-											-1.25
-										],
-										[
-											-3.0,
-											1.25
-										]
-									]
-								},
-								{
-									"part_idx": 1,
-									"pin_idx": 0
-								}
-							]
-						},
-						{
-							"chip": 5,
-							"pos": {
-								"pos": [
-									-2.0,
-									-1.0
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 12,
-									"pin_idx": 0
-								},
-								{
-									"part_idx": 2,
-									"pin_idx": 0
-								}
-							]
-						},
-						{
-							"chip": 5,
-							"pos": {
-								"pos": [
-									-0.625,
-									0.75
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 3,
-									"pin_idx": 0
-								},
-								{
-									"part_idx": 6,
-									"pin_idx": 0,
-									"wire_points": [
-										[
-											-0.125,
-											-0.25
-										],
-										[
-											-1.125,
-											0.25
-										]
-									]
-								}
-							]
-						},
-						{
-							"chip": 5,
-							"pos": {
-								"pos": [
-									-0.625,
-									-0.75
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 5,
-									"pin_idx": 0,
-									"wire_points": [
-										[
-											-0.125,
-											0.25
-										],
-										[
-											-1.125,
-											-0.25
-										]
-									]
-								},
-								{
-									"part_idx": 4,
-									"pin_idx": 0
-								}
-							]
-						},
-						{
-							"chip": 5,
-							"pos": {
-								"pos": [
-									1.0,
-									1.0
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 11,
-									"pin_idx": 0,
-									"wire_points": [
-										[
-											0.375,
-											-1.5
-										],
-										[
-											0.375,
-											1.25
-										]
-									]
-								},
-								{
-									"part_idx": 5,
-									"pin_idx": 0
-								}
-							]
-						},
-						{
-							"chip": 5,
-							"pos": {
-								"pos": [
-									1.0,
-									-1.0
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 6,
-									"pin_idx": 0
-								},
-								{
-									"part_idx": 11,
-									"pin_idx": 0,
-									"wire_points": [
-										[
-											0.375,
-											-1.5
-										],
-										[
-											0.375,
-											-1.25
-										]
-									]
-								}
-							]
-						},
-						{
-							"chip": 5,
-							"pos": {
-								"pos": [
-									2.25,
-									-0.75
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 10,
-									"pin_idx": 0,
-									"wire_points": [
-										[
-											2.75,
-											0.25
-										],
-										[
-											1.75,
-											-0.25
-										]
-									]
-								},
-								{
-									"part_idx": 8,
-									"pin_idx": 0
-								}
-							]
-						},
-						{
-							"chip": 5,
-							"pos": {
-								"pos": [
-									2.25,
-									0.75
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 7,
-									"pin_idx": 0
-								},
-								{
-									"part_idx": 9,
-									"pin_idx": 0,
-									"wire_points": [
-										[
-											2.75,
-											-0.25
-										],
-										[
-											1.75,
-											0.25
-										]
-									]
-								}
-							]
-						},
-						{
-							"chip": 3,
-							"pos": {
-								"pos": [
-									-0.375,
-									-1.5
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 2,
-									"pin_idx": 0,
-									"wire_points": [
-										[
-											-3.0,
-											-1.25
-										],
-										[
-											-3.0,
-											-1.5
-										]
-									]
-								}
-							]
-						},
-						{
-							"chip": 3,
-							"pos": {
-								"pos": [
-									-2.5,
-									0.0
-								],
-								"rot": 1,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 1,
-									"pin_idx": 0,
-									"wire_points": [
-										[
-											-2.625,
-											0.75
-										]
-									]
-								}
-							]
-						}
-					]
-				},
-				{
-					"name": "4-Bit Register",
-					"col": [
-						1.0,
-						0.9734717607498169,
-						0.09803920984268188
-					],
-					"inputs": [
-						{
-							"name": ""
-						},
-						{
-							"name": ""
-						},
-						{
-							"name": ""
-						},
-						{
-							"name": ""
-						},
-						{
-							"name": ""
-						}
-					],
-					"outputs": [
-						{
-							"name": ""
-						},
-						{
-							"name": ""
-						},
-						{
-							"name": ""
-						},
-						{
-							"name": ""
-						}
-					],
-					"size": [
-						11.0,
-						14.5
-					],
-					"parts": [
-						{
-							"chip": 1,
-							"pos": {
-								"pos": [
-									5.5,
-									1.5
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 11,
-									"pin_idx": 0
-								}
-							]
-						},
-						{
-							"chip": 1,
-							"pos": {
-								"pos": [
-									5.5,
-									0.5
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 9,
-									"pin_idx": 0
-								}
-							]
-						},
-						{
-							"chip": 1,
-							"pos": {
-								"pos": [
-									5.5,
-									-0.5
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 10,
-									"pin_idx": 0
-								}
-							]
-						},
-						{
-							"chip": 1,
-							"pos": {
-								"pos": [
-									5.5,
-									-1.5
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 12,
-									"pin_idx": 0
-								}
-							]
-						},
-						{
-							"chip": 0,
-							"pos": {
-								"pos": [
-									-5.5,
-									0.5
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": -1
-								}
-							]
-						},
-						{
-							"chip": 0,
-							"pos": {
-								"pos": [
-									-5.5,
-									-0.5
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": -1
-								}
-							]
-						},
-						{
-							"chip": 0,
-							"pos": {
-								"pos": [
-									-5.5,
-									1.5
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": -1
-								}
-							]
-						},
-						{
-							"chip": 0,
-							"pos": {
-								"pos": [
-									-5.5,
-									-1.5
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": -1
-								}
-							]
-						},
-						{
-							"chip": 0,
-							"pos": {
-								"pos": [
-									-5.5,
-									-6.0
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": -1
-								}
-							]
-						},
-						{
-							"chip": 17,
-							"pos": {
-								"pos": [
-									0.0,
-									1.75
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 4,
-									"pin_idx": 0
-								},
-								{
-									"part_idx": 8,
-									"pin_idx": 0,
-									"wire_points": [
-										[
-											-4.0,
-											-6.0
-										],
-										[
-											-4.0,
-											0.5
-										]
-									]
-								}
-							]
-						},
-						{
-							"chip": 17,
-							"pos": {
-								"pos": [
-									0.0,
-									-1.75
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 5,
-									"pin_idx": 0
-								},
-								{
-									"part_idx": 8,
-									"pin_idx": 0,
-									"wire_points": [
-										[
-											-4.0,
-											-6.0
-										],
-										[
-											-4.0,
-											-3.0
-										]
-									]
-								}
-							]
-						},
-						{
-							"chip": 17,
-							"pos": {
-								"pos": [
-									0.0,
-									5.25
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 6,
-									"pin_idx": 0
-								},
-								{
-									"part_idx": 8,
-									"pin_idx": 0,
-									"wire_points": [
-										[
-											-4.0,
-											-6.0
-										],
-										[
-											-4.0,
-											4.0
-										]
-									]
-								}
-							]
-						},
-						{
-							"chip": 17,
-							"pos": {
-								"pos": [
-									0.0,
-									-5.25
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 7,
-									"pin_idx": 0
-								},
-								{
-									"part_idx": 8,
-									"pin_idx": 0,
-									"wire_points": [
-										[
-											-4.0,
-											-6.0
-										],
-										[
-											-4.0,
-											-6.5
-										]
-									]
-								}
-							]
-						}
-					]
-				},
-				{
-					"name": "4-Bit Multiplexer",
-					"col": [
-						1.0,
-						1.0,
-						1.0
-					],
-					"inputs": [
-						{
-							"name": ""
-						},
-						{
-							"name": ""
-						},
-						{
-							"name": ""
-						},
-						{
-							"name": ""
-						},
-						{
-							"name": ""
-						},
-						{
-							"name": ""
-						},
-						{
-							"name": ""
-						},
-						{
-							"name": ""
-						},
-						{
-							"name": ""
-						}
-					],
-					"outputs": [
-						{
-							"name": ""
-						},
-						{
-							"name": ""
-						},
-						{
-							"name": ""
-						},
-						{
-							"name": ""
-						}
-					],
-					"size": [
-						4.0,
-						10.0
-					],
-					"parts": [
-						{
-							"chip": 1,
-							"pos": {
-								"pos": [
-									2.0,
-									1.5
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 15,
-									"pin_idx": 0
-								}
-							]
-						},
-						{
-							"chip": 1,
-							"pos": {
-								"pos": [
-									2.0,
-									0.5
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 22,
-									"pin_idx": 0
-								}
-							]
-						},
-						{
-							"chip": 1,
-							"pos": {
-								"pos": [
-									2.0,
-									-0.5
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 23,
-									"pin_idx": 0
-								}
-							]
-						},
-						{
-							"chip": 1,
-							"pos": {
-								"pos": [
-									2.0,
-									-1.5
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 24,
-									"pin_idx": 0
-								}
-							]
-						},
-						{
-							"chip": 0,
-							"pos": {
-								"pos": [
-									-2.0,
-									4.0
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": -1
-								}
-							]
-						},
-						{
-							"chip": 0,
-							"pos": {
-								"pos": [
-									-2.0,
-									3.0
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": -1
-								}
-							]
-						},
-						{
-							"chip": 0,
-							"pos": {
-								"pos": [
-									-2.0,
-									2.0
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": -1
-								}
-							]
-						},
-						{
-							"chip": 0,
-							"pos": {
-								"pos": [
-									-2.0,
-									1.0
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": -1
-								}
-							]
-						},
-						{
-							"chip": 0,
-							"pos": {
-								"pos": [
-									-2.0,
-									-1.0
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": -1
-								}
-							]
-						},
-						{
-							"chip": 0,
-							"pos": {
-								"pos": [
-									-2.0,
-									-2.0
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": -1
-								}
-							]
-						},
-						{
-							"chip": 0,
-							"pos": {
-								"pos": [
-									-2.0,
-									-3.0
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": -1
-								}
-							]
-						},
-						{
-							"chip": 0,
-							"pos": {
-								"pos": [
-									-2.0,
-									-4.0
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": -1
-								}
-							]
-						},
-						{
-							"chip": 0,
-							"pos": {
-								"pos": [
-									-0.0,
-									5.125
-								],
-								"rot": 1,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": -1
-								}
-							]
-						},
-						{
-							"chip": 4,
-							"pos": {
-								"pos": [
-									-0.5,
-									0.75
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 7,
-									"pin_idx": 0
-								},
-								{
-									"part_idx": 25,
-									"pin_idx": 0
-								}
-							]
-						},
-						{
-							"chip": 4,
-							"pos": {
-								"pos": [
-									-0.5,
-									-0.75
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 12,
-									"pin_idx": 0,
-									"wire_points": [
-										[
-											0.0,
-											4.75
-										],
-										[
-											-1.25,
-											4.75
-										],
-										[
-											-1.25,
-											-0.5
-										]
-									]
-								},
-								{
-									"part_idx": 8,
-									"pin_idx": 0
-								}
-							]
-						},
-						{
-							"chip": 6,
-							"pos": {
-								"pos": [
-									1.125,
-									1.5
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 18,
-									"pin_idx": 0
-								},
-								{
-									"part_idx": 14,
-									"pin_idx": 0
-								}
-							]
-						},
-						{
-							"chip": 4,
-							"pos": {
-								"pos": [
-									-0.5,
-									1.75
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 6,
-									"pin_idx": 0
-								},
-								{
-									"part_idx": 25,
-									"pin_idx": 0
-								}
-							]
-						},
-						{
-							"chip": 4,
-							"pos": {
-								"pos": [
-									-0.5,
-									2.75
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 5,
-									"pin_idx": 0
-								},
-								{
-									"part_idx": 25,
-									"pin_idx": 0
-								}
-							]
-						},
-						{
-							"chip": 4,
-							"pos": {
-								"pos": [
-									-0.5,
-									3.75
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 4,
-									"pin_idx": 0
-								},
-								{
-									"part_idx": 25,
-									"pin_idx": 0
-								}
-							]
-						},
-						{
-							"chip": 4,
-							"pos": {
-								"pos": [
-									-0.5,
-									-1.75
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 12,
-									"pin_idx": 0,
-									"wire_points": [
-										[
-											0.0,
-											4.75
-										],
-										[
-											-1.25,
-											4.75
-										],
-										[
-											-1.25,
-											-1.5
-										]
-									]
-								},
-								{
-									"part_idx": 9,
-									"pin_idx": 0
-								}
-							]
-						},
-						{
-							"chip": 4,
-							"pos": {
-								"pos": [
-									-0.5,
-									-2.75
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 12,
-									"pin_idx": 0,
-									"wire_points": [
-										[
-											-0.0,
-											4.75
-										],
-										[
-											-1.25,
-											4.75
-										],
-										[
-											-1.25,
-											-2.5
-										]
-									]
-								},
-								{
-									"part_idx": 10,
-									"pin_idx": 0
-								}
-							]
-						},
-						{
-							"chip": 4,
-							"pos": {
-								"pos": [
-									-0.5,
-									-3.75
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 12,
-									"pin_idx": 0,
-									"wire_points": [
-										[
-											0.0,
-											4.75
-										],
-										[
-											-1.25,
-											4.75
-										],
-										[
-											-1.25,
-											-3.5
-										]
-									]
-								},
-								{
-									"part_idx": 11,
-									"pin_idx": 0
-								}
-							]
-						},
-						{
-							"chip": 6,
-							"pos": {
-								"pos": [
-									1.125,
-									0.5
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 17,
-									"pin_idx": 0
-								},
-								{
-									"part_idx": 19,
-									"pin_idx": 0
-								}
-							]
-						},
-						{
-							"chip": 6,
-							"pos": {
-								"pos": [
-									1.125,
-									-0.5
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 16,
-									"pin_idx": 0
-								},
-								{
-									"part_idx": 20,
-									"pin_idx": 0
-								}
-							]
-						},
-						{
-							"chip": 6,
-							"pos": {
-								"pos": [
-									1.125,
-									-1.5
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 13,
-									"pin_idx": 0
-								},
-								{
-									"part_idx": 21,
-									"pin_idx": 0
-								}
-							]
-						},
-						{
-							"chip": 3,
-							"pos": {
-								"pos": [
-									-0.5,
-									4.375
-								],
-								"rot": 2,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 12,
-									"pin_idx": 0
 								}
 							]
 						}
@@ -6930,46 +7345,26 @@
 						1.0
 					],
 					"inputs": [],
-					"outputs": [
-						{
-							"name": ""
-						}
-					],
+					"outputs": [],
 					"size": [
 						27.0,
 						21.0
 					],
 					"parts": [
 						{
-							"chip": 1,
-							"pos": {
-								"pos": [
-									1.5,
-									6.25
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 13,
-									"pin_idx": 0
-								}
-							]
-						},
-						{
-							"chip": 18,
+							"chip": 17,
 							"pos": {
 								"pos": [
 									-5.25,
 									3.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 0.5
 							},
 							"inputs": [
 								{
-									"part_idx": 4,
+									"part_idx": 3,
 									"pin_idx": 1,
 									"wire_points": [
 										[
@@ -6991,7 +7386,7 @@
 									]
 								},
 								{
-									"part_idx": 4,
+									"part_idx": 3,
 									"pin_idx": 2,
 									"wire_points": [
 										[
@@ -7013,7 +7408,7 @@
 									]
 								},
 								{
-									"part_idx": 4,
+									"part_idx": 3,
 									"pin_idx": 0,
 									"wire_points": [
 										[
@@ -7035,7 +7430,7 @@
 									]
 								},
 								{
-									"part_idx": 4,
+									"part_idx": 3,
 									"pin_idx": 3,
 									"wire_points": [
 										[
@@ -7062,13 +7457,14 @@
 							]
 						},
 						{
-							"chip": 18,
+							"chip": 17,
 							"pos": {
 								"pos": [
 									-5.25,
 									-4.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 0.5
 							},
 							"inputs": [
@@ -7090,118 +7486,127 @@
 							]
 						},
 						{
-							"chip": 11,
+							"chip": 13,
 							"pos": {
 								"pos": [
 									5.25,
 									3.75
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 0.5
 							},
 							"inputs": [
 								{
-									"part_idx": 1,
+									"part_idx": 0,
 									"pin_idx": 3
 								},
 								{
-									"part_idx": 1,
+									"part_idx": 0,
 									"pin_idx": 2
 								},
 								{
-									"part_idx": 1,
+									"part_idx": 0,
 									"pin_idx": 1
 								},
 								{
-									"part_idx": 1,
+									"part_idx": 0,
 									"pin_idx": 0
 								},
 								{
-									"part_idx": 2,
+									"part_idx": 1,
 									"pin_idx": 0,
 									"wire_points": [
 										[
-											-2.125,
+											-1.5,
 											-3.25
 										],
 										[
 											1.5,
-											3.0
+											3.25
 										]
 									]
 								},
 								{
-									"part_idx": 2,
+									"part_idx": 1,
 									"pin_idx": 1,
 									"wire_points": [
 										[
-											-2.0,
+											-1.25,
 											-3.75
 										],
 										[
-											1.625,
-											2.5
+											1.75,
+											2.75
 										]
 									]
 								},
 								{
-									"part_idx": 2,
+									"part_idx": 1,
 									"pin_idx": 2,
 									"wire_points": [
 										[
-											-1.875,
+											-1.0,
 											-4.25
 										],
 										[
-											1.75,
-											2.0
+											2.0,
+											2.25
 										]
 									]
 								},
 								{
-									"part_idx": 2,
+									"part_idx": 1,
 									"pin_idx": 3,
 									"wire_points": [
 										[
-											-1.75,
+											-0.75,
 											-4.75
 										],
 										[
-											1.875,
-											1.5
+											2.25,
+											1.75
 										]
 									]
 								},
 								{
-									"part_idx": -1
+									"part_idx": 4,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											2.5,
+											0.875
+										]
+									]
 								}
 							]
 						},
 						{
-							"chip": 19,
+							"chip": 18,
 							"pos": {
 								"pos": [
 									10.25,
 									2.5
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 0.5
 							},
 							"inputs": [
 								{
-									"part_idx": 3,
+									"part_idx": 2,
 									"pin_idx": 1
 								},
 								{
-									"part_idx": 3,
+									"part_idx": 2,
 									"pin_idx": 2
 								},
 								{
-									"part_idx": 3,
+									"part_idx": 2,
 									"pin_idx": 3
 								},
 								{
-									"part_idx": 3,
+									"part_idx": 2,
 									"pin_idx": 4
 								},
 								{
@@ -7222,18 +7627,182 @@
 							]
 						},
 						{
-							"chip": 3,
+							"chip": 2,
 							"pos": {
 								"pos": [
-									-1.625,
-									6.875
+									2.5,
+									-0.125
 								],
-								"rot": 0,
+								"rot": 3,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
 								{
 									"part_idx": -1
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "RW Flip-Flop",
+					"col": [
+						1.0,
+						1.0,
+						1.0
+					],
+					"inputs": [
+						{
+							"name": "D"
+						},
+						{
+							"name": "W"
+						},
+						{
+							"name": "R"
+						}
+					],
+					"outputs": [
+						{
+							"name": "Q"
+						}
+					],
+					"size": [
+						4.5,
+						3.0
+					],
+					"parts": [
+						{
+							"chip": 1,
+							"pos": {
+								"pos": [
+									2.25,
+									-0.5
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 6,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 0,
+							"pos": {
+								"pos": [
+									-2.25,
+									0.75
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 0,
+							"pos": {
+								"pos": [
+									-2.25,
+									1.25
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 0,
+							"pos": {
+								"pos": [
+									2.25,
+									0.75
+								],
+								"rot": 2,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 5,
+							"pos": {
+								"pos": [
+									0.5,
+									0.75
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 7,
+									"pin_idx": 0
+								},
+								{
+									"part_idx": 5,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											1.0,
+											-0.25
+										],
+										[
+											0.0,
+											0.25
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 5,
+							"pos": {
+								"pos": [
+									0.5,
+									-0.75
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 4,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											1.0,
+											0.25
+										],
+										[
+											0.0,
+											-0.25
+										]
+									]
+								},
+								{
+									"part_idx": 8,
+									"pin_idx": 0
 								}
 							]
 						},
@@ -7241,75 +7810,54 @@
 							"chip": 4,
 							"pos": {
 								"pos": [
-									-1.5,
-									6.0
+									1.625,
+									0.0
 								],
-								"rot": 0,
+								"rot": 1,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
 								{
-									"part_idx": -1
+									"part_idx": 3,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											1.875,
+											0.75
+										]
+									]
 								},
 								{
-									"part_idx": -1
+									"part_idx": 4,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											1.375,
+											0.75
+										]
+									]
 								}
 							]
 						},
 						{
-							"chip": 8,
+							"chip": 5,
 							"pos": {
 								"pos": [
-									-0.5,
-									5.75
+									-0.75,
+									1.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
 								{
-									"part_idx": 6,
+									"part_idx": 2,
 									"pin_idx": 0
 								},
 								{
-									"part_idx": 10,
-									"pin_idx": 0
-								}
-							]
-						},
-						{
-							"chip": 6,
-							"pos": {
-								"pos": [
-									-0.5,
-									6.75
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 5,
-									"pin_idx": 0
-								},
-								{
-									"part_idx": -1
-								}
-							]
-						},
-						{
-							"chip": 3,
-							"pos": {
-								"pos": [
-									0.5,
-									6.875
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": 8,
+									"part_idx": 1,
 									"pin_idx": 0
 								}
 							]
@@ -7318,37 +7866,37 @@
 							"chip": 5,
 							"pos": {
 								"pos": [
-									-1.5,
-									5.0
+									-0.75,
+									-1.0
 								],
 								"rot": 0,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
 								{
-									"part_idx": -1
+									"part_idx": 9,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											-1.375,
+											-0.75
+										]
+									]
 								},
 								{
-									"part_idx": -1
-								}
-							]
-						},
-						{
-							"chip": 7,
-							"pos": {
-								"pos": [
-									-0.5,
-									7.75
-								],
-								"rot": 0,
-								"scale": 1.0
-							},
-							"inputs": [
-								{
-									"part_idx": -1
-								},
-								{
-									"part_idx": -1
+									"part_idx": 2,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											-1.75,
+											1.25
+										],
+										[
+											-1.75,
+											-1.25
+										]
+									]
 								}
 							]
 						},
@@ -7356,10 +7904,51 @@
 							"chip": 3,
 							"pos": {
 								"pos": [
-									-0.5,
-									8.125
+									-1.375,
+									0.0
 								],
-								"rot": 0,
+								"rot": 1,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 1,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											-1.375,
+											0.75
+										]
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "4-Bit Line Select",
+					"col": [
+						1.0,
+						1.0,
+						1.0
+					],
+					"inputs": [],
+					"outputs": [],
+					"size": [
+						2.0,
+						6.0
+					],
+					"parts": [
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									27.0,
+									-18.0
+								],
+								"rot": 3,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
@@ -7372,16 +7961,2444 @@
 							"chip": 2,
 							"pos": {
 								"pos": [
-									0.5,
-									6.25
+									26.5,
+									-18.0
 								],
-								"rot": 0,
+								"rot": 3,
+								"mirror": false,
 								"scale": 1.0
 							},
 							"inputs": [
 								{
-									"part_idx": 7,
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									28.0,
+									-18.0
+								],
+								"rot": 3,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									27.5,
+									-18.0
+								],
+								"rot": 3,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									27.5,
+									15.5
+								],
+								"rot": 3,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 3,
 									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									28.0,
+									15.5
+								],
+								"rot": 3,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 2,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									26.5,
+									15.5
+								],
+								"rot": 3,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 1,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									27.0,
+									15.5
+								],
+								"rot": 3,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 0,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 4,
+							"pos": {
+								"pos": [
+									23.75,
+									-4.0
+								],
+								"rot": 1,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 23,
+									"pin_idx": 0
+								},
+								{
+									"part_idx": 26,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											23.25,
+											-3.5
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 4,
+							"pos": {
+								"pos": [
+									23.75,
+									1.25
+								],
+								"rot": 3,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 13,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											22.75,
+											0.75
+										]
+									]
+								},
+								{
+									"part_idx": 23,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 4,
+							"pos": {
+								"pos": [
+									19.25,
+									-4.0
+								],
+								"rot": 1,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 26,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											23.25,
+											-3.5
+										]
+									]
+								},
+								{
+									"part_idx": 24,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 4,
+							"pos": {
+								"pos": [
+									19.25,
+									1.25
+								],
+								"rot": 3,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 24,
+									"pin_idx": 0
+								},
+								{
+									"part_idx": 13,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											22.75,
+											0.75
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									21.25,
+									-18.0
+								],
+								"rot": 3,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									22.75,
+									-18.0
+								],
+								"rot": 3,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									22.25,
+									-18.0
+								],
+								"rot": 3,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									21.75,
+									-18.0
+								],
+								"rot": 3,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									21.25,
+									15.5
+								],
+								"rot": 3,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 12,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									22.75,
+									15.5
+								],
+								"rot": 3,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 13,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									22.25,
+									15.5
+								],
+								"rot": 3,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 14,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									21.75,
+									15.5
+								],
+								"rot": 3,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 15,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 4,
+							"pos": {
+								"pos": [
+									20.5,
+									-1.0
+								],
+								"rot": 3,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 22,
+									"pin_idx": 0
+								},
+								{
+									"part_idx": 21,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 3,
+							"pos": {
+								"pos": [
+									20.25,
+									-2.0
+								],
+								"rot": 3,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 15,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											21.75,
+											-3.0
+										],
+										[
+											20.25,
+											-3.0
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 3,
+							"pos": {
+								"pos": [
+									20.75,
+									-2.0
+								],
+								"rot": 3,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 12,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											21.25,
+											-2.5
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 4,
+							"pos": {
+								"pos": [
+									23.5,
+									0.0
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 14,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											22.25,
+											0.25
+										]
+									]
+								},
+								{
+									"part_idx": 20,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											20.5,
+											-0.25
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 4,
+							"pos": {
+								"pos": [
+									19.5,
+									-0.0
+								],
+								"rot": 2,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 20,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											20.5,
+											-0.25
+										]
+									]
+								},
+								{
+									"part_idx": 25,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 3,
+							"pos": {
+								"pos": [
+									20.5,
+									0.25
+								],
+								"rot": 2,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 14,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											22.25,
+											0.25
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 3,
+							"pos": {
+								"pos": [
+									23.25,
+									-2.5
+								],
+								"rot": 1,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 13,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											22.75,
+											-2.0
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 4,
+							"pos": {
+								"pos": [
+									20.0,
+									7.5
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 34,
+									"pin_idx": 0
+								},
+								{
+									"part_idx": 11,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											19.25,
+											7.25
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 4,
+							"pos": {
+								"pos": [
+									20.0,
+									8.5
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 33,
+									"pin_idx": 0
+								},
+								{
+									"part_idx": 11,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											19.25,
+											8.25
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 4,
+							"pos": {
+								"pos": [
+									20.0,
+									9.5
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 32,
+									"pin_idx": 0
+								},
+								{
+									"part_idx": 11,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											19.25,
+											9.25
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 4,
+							"pos": {
+								"pos": [
+									20.0,
+									10.5
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 31,
+									"pin_idx": 0
+								},
+								{
+									"part_idx": 11,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											19.25,
+											10.25
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									17.0,
+									10.75
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									17.0,
+									9.75
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									17.0,
+									8.75
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									17.0,
+									7.75
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 4,
+							"pos": {
+								"pos": [
+									20.0,
+									-10.0
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 10,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											19.25,
+											-9.75
+										]
+									]
+								},
+								{
+									"part_idx": 39,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 4,
+							"pos": {
+								"pos": [
+									20.0,
+									-11.0
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 10,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											19.25,
+											-10.75
+										]
+									]
+								},
+								{
+									"part_idx": 40,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 4,
+							"pos": {
+								"pos": [
+									20.0,
+									-12.0
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 10,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											19.25,
+											-11.75
+										]
+									]
+								},
+								{
+									"part_idx": 41,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 4,
+							"pos": {
+								"pos": [
+									20.0,
+									-13.0
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 10,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											19.25,
+											-12.75
+										]
+									]
+								},
+								{
+									"part_idx": 42,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									17.0,
+									-10.25
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									17.0,
+									-11.25
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									17.0,
+									-12.25
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									17.0,
+									-13.25
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									25.25,
+									-18.0
+								],
+								"rot": 3,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 3,
+							"pos": {
+								"pos": [
+									24.75,
+									-17.0
+								],
+								"rot": 3,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 43,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 4,
+							"pos": {
+								"pos": [
+									25.875,
+									-5.5
+								],
+								"rot": 1,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 8,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											26.125,
+											-4.5
+										]
+									]
+								},
+								{
+									"part_idx": 43,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											25.25,
+											-5.0
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 4,
+							"pos": {
+								"pos": [
+									25.875,
+									-3.5
+								],
+								"rot": 3,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 44,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											24.75,
+											-4.0
+										]
+									]
+								},
+								{
+									"part_idx": 8,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											26.125,
+											-4.5
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									24.75,
+									15.5
+								],
+								"rot": 3,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 44,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									25.25,
+									15.5
+								],
+								"rot": 3,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 43,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 21,
+							"pos": {
+								"pos": [
+									31.25,
+									-4.75
+								],
+								"rot": 2,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 1,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											26.5,
+											-5.5
+										]
+									]
+								},
+								{
+									"part_idx": 45,
+									"pin_idx": 0
+								},
+								{
+									"part_idx": 46,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											33.875,
+											-3.0
+										],
+										[
+											33.875,
+											-5.5
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 21,
+							"pos": {
+								"pos": [
+									31.25,
+									-7.75
+								],
+								"rot": 2,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 0,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											27.0,
+											-8.5
+										]
+									]
+								},
+								{
+									"part_idx": 45,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											28.625,
+											-6.0
+										],
+										[
+											28.625,
+											-9.0
+										]
+									]
+								},
+								{
+									"part_idx": 46,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											33.875,
+											-3.0
+										],
+										[
+											33.875,
+											-8.5
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 21,
+							"pos": {
+								"pos": [
+									31.25,
+									-10.75
+								],
+								"rot": 2,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 3,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											27.5,
+											-11.5
+										]
+									]
+								},
+								{
+									"part_idx": 45,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											28.625,
+											-6.0
+										],
+										[
+											28.625,
+											-12.0
+										]
+									]
+								},
+								{
+									"part_idx": 46,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											33.875,
+											-3.0
+										],
+										[
+											33.875,
+											-11.5
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 21,
+							"pos": {
+								"pos": [
+									31.25,
+									-13.75
+								],
+								"rot": 2,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 2,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											28.0,
+											-14.5
+										]
+									]
+								},
+								{
+									"part_idx": 45,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											28.625,
+											-6.0
+										],
+										[
+											28.625,
+											-15.0
+										]
+									]
+								},
+								{
+									"part_idx": 46,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											33.875,
+											-3.0
+										],
+										[
+											33.875,
+											-14.5
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									34.5,
+									-18.0
+								],
+								"rot": 3,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 72,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									35.0,
+									-18.0
+								],
+								"rot": 3,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 71,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									35.5,
+									-18.0
+								],
+								"rot": 3,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 70,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									36.0,
+									-18.0
+								],
+								"rot": 3,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 69,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 6,
+							"pos": {
+								"pos": [
+									36.0,
+									-13.75
+								],
+								"rot": 3,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 52,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											34.25,
+											-13.25
+										]
+									]
+								},
+								{
+									"part_idx": 93,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											36.0,
+											-13.0
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									34.5,
+									15.5
+								],
+								"rot": 3,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									35.0,
+									15.5
+								],
+								"rot": 3,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									35.5,
+									15.5
+								],
+								"rot": 3,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									36.0,
+									15.5
+								],
+								"rot": 3,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 6,
+							"pos": {
+								"pos": [
+									35.5,
+									-10.75
+								],
+								"rot": 3,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 51,
+									"pin_idx": 0
+								},
+								{
+									"part_idx": 97,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											35.5,
+											-10.0
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 6,
+							"pos": {
+								"pos": [
+									35.0,
+									-7.75
+								],
+								"rot": 3,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 50,
+									"pin_idx": 0
+								},
+								{
+									"part_idx": 98,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											35.0,
+											-7.0
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 6,
+							"pos": {
+								"pos": [
+									34.5,
+									-4.75
+								],
+								"rot": 3,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 49,
+									"pin_idx": 0
+								},
+								{
+									"part_idx": 99,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											34.5,
+											-4.0
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									37.0,
+									-14.5
+								],
+								"rot": 0,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									37.0,
+									-11.5
+								],
+								"rot": 0,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									37.0,
+									-8.5
+								],
+								"rot": 0,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									37.0,
+									-5.5
+								],
+								"rot": 0,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 6,
+							"pos": {
+								"pos": [
+									36.0,
+									-15.0
+								],
+								"rot": 3,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 57,
+									"pin_idx": 0
+								},
+								{
+									"part_idx": 65,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 6,
+							"pos": {
+								"pos": [
+									35.5,
+									-12.0
+								],
+								"rot": 3,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 62,
+									"pin_idx": 0
+								},
+								{
+									"part_idx": 66,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 6,
+							"pos": {
+								"pos": [
+									35.0,
+									-9.0
+								],
+								"rot": 3,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 63,
+									"pin_idx": 0
+								},
+								{
+									"part_idx": 67,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 6,
+							"pos": {
+								"pos": [
+									34.5,
+									-6.0
+								],
+								"rot": 3,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 64,
+									"pin_idx": 0
+								},
+								{
+									"part_idx": 68,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 4,
+							"pos": {
+								"pos": [
+									25.875,
+									0.5
+								],
+								"rot": 3,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 44,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											24.75,
+											1.0
+										]
+									]
+								},
+								{
+									"part_idx": 9,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											26.125,
+											1.75
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 4,
+							"pos": {
+								"pos": [
+									25.875,
+									3.0
+								],
+								"rot": 1,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 9,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											26.125,
+											1.75
+										]
+									]
+								},
+								{
+									"part_idx": 43,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											25.25,
+											2.5
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 21,
+							"pos": {
+								"pos": [
+									31.25,
+									-0.75
+								],
+								"rot": 2,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 2,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											28.0,
+											-1.5
+										]
+									]
+								},
+								{
+									"part_idx": 74,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											28.625,
+											3.5
+										],
+										[
+											28.625,
+											-2.0
+										]
+									]
+								},
+								{
+									"part_idx": 73,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											25.875,
+											-2.5
+										],
+										[
+											33.875,
+											-2.5
+										],
+										[
+											33.875,
+											-1.5
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 21,
+							"pos": {
+								"pos": [
+									31.25,
+									2.25
+								],
+								"rot": 2,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 3,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											27.5,
+											1.5
+										]
+									]
+								},
+								{
+									"part_idx": 74,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											28.625,
+											3.5
+										],
+										[
+											28.625,
+											1.0
+										]
+									]
+								},
+								{
+									"part_idx": 73,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											25.875,
+											-2.5
+										],
+										[
+											33.875,
+											-2.5
+										],
+										[
+											33.875,
+											1.5
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 21,
+							"pos": {
+								"pos": [
+									31.25,
+									5.25
+								],
+								"rot": 2,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 0,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											27.0,
+											4.5
+										]
+									]
+								},
+								{
+									"part_idx": 74,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											28.625,
+											3.5
+										],
+										[
+											28.625,
+											4.0
+										]
+									]
+								},
+								{
+									"part_idx": 73,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											25.875,
+											-2.5
+										],
+										[
+											33.875,
+											-2.5
+										],
+										[
+											33.875,
+											4.5
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 21,
+							"pos": {
+								"pos": [
+									31.25,
+									8.25
+								],
+								"rot": 2,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 1,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											26.5,
+											7.5
+										]
+									]
+								},
+								{
+									"part_idx": 74,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											28.625,
+											3.5
+										],
+										[
+											28.625,
+											7.0
+										]
+									]
+								},
+								{
+									"part_idx": 73,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											25.875,
+											-2.5
+										],
+										[
+											33.875,
+											-2.5
+										],
+										[
+											33.875,
+											7.5
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									6.0,
+									-1.0
+								],
+								"rot": 2,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									7.125,
+									-2.0
+								],
+								"rot": 1,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 88,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									7.5,
+									-2.0
+								],
+								"rot": 3,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 80,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									7.875,
+									-2.0
+								],
+								"rot": 1,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 81,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									8.25,
+									-2.0
+								],
+								"rot": 3,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 82,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									8.625,
+									-2.0
+								],
+								"rot": 1,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 83,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 8,
+							"pos": {
+								"pos": [
+									9.25,
+									-1.25
+								],
+								"rot": 2,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 84,
+									"pin_idx": 0
+								},
+								{
+									"part_idx": 79,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									8.0,
+									2.5
+								],
+								"rot": 1,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 91,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									7.0,
+									2.5
+								],
+								"rot": 1,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 90,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									6.75,
+									-2.0
+								],
+								"rot": 3,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 79,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											6.75,
+											-1.0
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 3,
+							"pos": {
+								"pos": [
+									7.75,
+									-0.5
+								],
+								"rot": 2,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 80,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											7.125,
+											-0.5
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 7,
+							"pos": {
+								"pos": [
+									7.0,
+									0.5
+								],
+								"rot": 1,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 85,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											9.75,
+											-0.125
+										],
+										[
+											7.25,
+											-0.125
+										]
+									]
+								},
+								{
+									"part_idx": 80,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											7.125,
+											-0.5
+										],
+										[
+											6.75,
+											-0.5
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 7,
+							"pos": {
+								"pos": [
+									8.0,
+									0.5
+								],
+								"rot": 1,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 89,
+									"pin_idx": 0
+								},
+								{
+									"part_idx": 85,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											9.75,
+											-0.125
+										],
+										[
+											7.75,
+											-0.125
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 6,
+							"pos": {
+								"pos": [
+									36.0,
+									-0.75
+								],
+								"rot": 3,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 75,
+									"pin_idx": 0
+								},
+								{
+									"part_idx": 61,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											36.0,
+											-0.0
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 6,
+							"pos": {
+								"pos": [
+									36.0,
+									-2.0
+								],
+								"rot": 3,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 92,
+									"pin_idx": 0
+								},
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 6,
+							"pos": {
+								"pos": [
+									35.5,
+									2.25
+								],
+								"rot": 3,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 76,
+									"pin_idx": 0
+								},
+								{
+									"part_idx": 60,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											35.5,
+											3.0
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 6,
+							"pos": {
+								"pos": [
+									35.0,
+									5.25
+								],
+								"rot": 3,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 77,
+									"pin_idx": 0
+								},
+								{
+									"part_idx": 59,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											35.0,
+											6.0
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 6,
+							"pos": {
+								"pos": [
+									34.5,
+									8.25
+								],
+								"rot": 3,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 78,
+									"pin_idx": 0
+								},
+								{
+									"part_idx": 58,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											34.5,
+											9.0
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 6,
+							"pos": {
+								"pos": [
+									35.5,
+									1.0
+								],
+								"rot": 3,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 94,
+									"pin_idx": 0
+								},
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 6,
+							"pos": {
+								"pos": [
+									35.0,
+									4.0
+								],
+								"rot": 3,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 95,
+									"pin_idx": 0
+								},
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 6,
+							"pos": {
+								"pos": [
+									34.5,
+									7.0
+								],
+								"rot": 3,
+								"mirror": true,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 96,
+									"pin_idx": 0
+								},
+								{
+									"part_idx": -1
 								}
 							]
 						}

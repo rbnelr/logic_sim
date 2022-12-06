@@ -63,19 +63,25 @@ namespace logic_sim {
 		float2x2( -1, 0,  0,-1 ),
 		float2x2(  0, 1, -1, 0 ),
 	};
-
+	
+	constexpr float2x2 MIRROR[] = {
+		float2x2(  1, 0,  0, 1 ),
+		float2x2( -1, 0,  0, 1 ),
+	};
+	
 	struct Placement {
-		SERIALIZE(Placement, pos, rot, scale)
+		SERIALIZE(Placement, pos, rot, mirror, scale)
 
 		float2 pos = 0;
-		int    rot = 0;
+		short  rot = 0;
+		bool   mirror = false;
 		float  scale = 1.0f;
 
 		float2x3 calc_matrix () {
-			return translate(pos) * ::scale(float2(scale)) * ROT[rot];
+			return translate(pos) * ::scale(float2(scale)) * ROT[rot] * MIRROR[mirror];
 		}
 		float2x3 calc_inv_matrix () {
-			return INV_ROT[rot] * ::scale(float2(1.0f/scale)) * translate(-pos);
+			return MIRROR[mirror] * INV_ROT[rot] * ::scale(float2(1.0f/scale)) * translate(-pos);
 		}
 	};
 	
@@ -108,6 +114,8 @@ namespace logic_sim {
 		// first all outputs, than all inputs, then all other direct children of this chip
 		std::vector<Part> parts = {};
 		
+		int _recurs = 0;
+
 		Part& get_input (int i) {
 			int outs = (int)outputs.size();
 			assert(i >= 0 && i < (int)inputs.size());
@@ -146,7 +154,8 @@ namespace logic_sim {
 		};
 		schmart_array<InputWire> inputs;
 		
-		Part (Chip* chip, Placement pos={}): chip{chip}, pos{pos}, inputs{chip ? (int)chip->inputs.size() : 0} {}
+		Part (Chip* chip, Placement pos={}): chip{chip}, pos{pos},
+			inputs{chip ? (int)chip->inputs.size() : 0} {}
 	};
 
 
@@ -426,7 +435,7 @@ namespace logic_sim {
 		
 	////
 		void select_preview_gate_imgui (LogicSim& sim, const char* name, Chip* type);
-		void select_preview_chip_imgui (LogicSim& sim, const char* name, std::shared_ptr<Chip>& chip, bool can_place, bool is_viewed);
+		void select_preview_chip_imgui (LogicSim& sim, std::shared_ptr<Chip>& chip, bool can_place, bool is_viewed);
 
 		void saved_chips_imgui (LogicSim& sim);
 		void viewed_chip_imgui (LogicSim& sim);
