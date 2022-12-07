@@ -168,22 +168,19 @@ struct Renderer : public RendererBackend {
 	float text_scale = 1.0f;
 	
 	virtual void imgui (Input& I) {
-		if (ImGui::Begin("Misc")) {
-			if (imgui_Header("Renderer", true)) {
+		if (imgui_Header("Renderer", false)) {
 
-				ImGui::SliderFloat("text_scale", &text_scale, 0.1f, 20);
-				text.imgui();
+			ImGui::SliderFloat("text_scale", &text_scale, 0.1f, 20);
+			text.imgui();
 
-			#if OGL_USE_REVERSE_DEPTH
-				ImGui::Checkbox("reverse_depth", &ogl::reverse_depth);
-			#endif
+		#if OGL_USE_REVERSE_DEPTH
+			ImGui::Checkbox("reverse_depth", &ogl::reverse_depth);
+		#endif
 
-				debug_draw.imgui();
+			debug_draw.imgui();
 
-				ImGui::PopID();
-			}
+			ImGui::PopID();
 		}
-		ImGui::End();
 	}
 
 	void draw_background () {
@@ -279,44 +276,48 @@ struct Renderer : public RendererBackend {
 		ogl::push_quad(pi, idx+0, idx+1, idx+2, idx+3);
 	}
 	
-	void draw_highlight (Game& g, std::string_view name, float2 size, float2x3 const& mat, lrgba col) {
+	void draw_highlight (Game& g, std::string_view name, float2 size, float2x3 const& mat, lrgba col, bool draw_text) {
 		size  = abs((float2x2)mat * size);
 		float2 center = mat * float2(0);
 		
 		g.dbgdraw.wire_quad(float3(center - size*0.5f, 5.0f), size, col);
-				
-		text.draw_text(name, 20*text_scale, 1,
-			TextRenderer::map_text(center + size*float2(-0.5f, 0.5f), g.view), float2(0,1));
-	}
-
-	void highlight (Game& g, Editor::Selection& sel, float2x3 const& chip2world, lrgba col) {
-		auto mat = chip2world * sel.part->pos.calc_matrix();
 		
-		auto& chip = *sel.part->chip;
+		if (draw_text)
+			text.draw_text(name, 20*text_scale, 1,
+				TextRenderer::map_text(center + size*float2(-0.5f, 0.5f), g.view), float2(0,1));
+	}
+	
+	void highlight (Game& g, Part* part, Chip* chip, float2x3 const& chip2world, lrgba col, bool draw_text=true) {
+		std::string_view name = part->chip->name;
+		if (part->chip == &gates[INP_PIN])
+			name = chip->inputs[indexof_part(chip->parts, part) - (int)chip->outputs.size()].name;
+		if (part->chip == &gates[OUT_PIN])
+			name = chip->outputs[indexof_part(chip->parts, part)].name;
 
-		if (sel.type == Editor::Selection::PART) {
-			
-			std::string_view name = chip.name;
-			if (sel.part->chip == &gates[INP_PIN])
-				name = sel.chip->inputs[indexof_part(sel.chip->parts, sel.part) - (int)sel.chip->outputs.size()].name;
-			if (sel.part->chip == &gates[OUT_PIN])
-				name = sel.chip->outputs[indexof_part(sel.chip->parts, sel.part)].name;
-
-			draw_highlight(g, name, chip.size, mat, col);
+		auto mat = chip2world * part->pos.calc_matrix();
+		
+		draw_highlight(g, name, part->chip->size, mat, col, draw_text);
+	}
+	void highlight (Game& g, Editor::Hover& h, float2x3 const& chip2world, lrgba col, bool draw_text=true) {
+		if (h.type == Editor::Hover::PART) {
+			highlight(g, h.part, h.chip, chip2world, col, draw_text);
 		}
 		else {
 			
-			bool inp = sel.type == Editor::Selection::PIN_INP;
-			auto& io = inp ? chip.inputs[sel.pin] : chip.outputs[sel.pin];
+			bool inp = h.type == Editor::Hover::PIN_INP;
+			auto& io = inp ? h.part->chip->inputs [h.pin] :
+			                 h.part->chip->outputs[h.pin];
 			
 			std::string_view name = "<unnamed io>"; // NOTE: ternary operator and implicit casting is bug prone -_-
 			if (!io.name.empty()) name = io.name;
 
 			auto pos = inp ?
-				get_inp_pos(sel.part->chip->get_input(sel.pin)) :
-				get_out_pos(sel.part->chip->get_output(sel.pin));
+				get_inp_pos(h.part->chip->get_input(h.pin)) :
+				get_out_pos(h.part->chip->get_output(h.pin));
 			
-			draw_highlight(g, name, PIN_SIZE, mat * translate(pos), col * lrgba(1,1, 0.6f, 1));
+			auto mat = chip2world * h.part->pos.calc_matrix();
+			
+			draw_highlight(g, name, PIN_SIZE, mat * translate(pos), col * lrgba(1,1, 0.6f, 1), draw_text);
 		}
 	}
 
@@ -344,10 +345,16 @@ struct Renderer : public RendererBackend {
 				auto part2chip = part.pos.calc_matrix();
 				auto part2world = chip2world * part2chip;
 
-				if (g.editor.hover && &part == g.editor.hover.part)
+				if (g.editor.hover.is_part(&part)) {
 					highlight(g, g.editor.hover, chip2world, lrgba(0.25f,0.25f,0.25f,1));
-				if (g.editor.sel && &part == g.editor.sel.part)
-					highlight(g, g.editor.sel, chip2world, lrgba(1,1,1,1));
+				}
+				if (g.editor.in_mode<Editor::EditMode>()) {
+					auto& e = std::get<Editor::EditMode>(g.editor.mode);
+					
+					if (e.sel.has_part(&part))
+						highlight(g, &part, chip, chip2world, lrgba(1,1,1,1),
+							(int)e.sel.parts.size() == 1); // only show text for single-part selections as to not spam too much text
+				}
 
 				draw_chip(g, part.chip, part2world, chip_state >= 0 ? chip_state + part.state_idx : -1, col);
 
@@ -405,31 +412,32 @@ struct Renderer : public RendererBackend {
 				//}
 			}
 
-			{ // Wire preview
-				auto& wire = g.editor.preview_wire;
-		
-				if ((wire.dst.part || wire.src.part) && wire.chip == chip) {
+			if (g.editor.in_mode<Editor::WireMode>()) { // Wire preview
+				auto& w = std::get<Editor::WireMode>(g.editor.mode);
+			
+				if ((w.dst.part || w.src.part) && w.chip == chip) {
 					ZoneScopedN("push wire_preview");
-				
-					float2 src0 = wire.unconn_pos;
-					float2 src1 = wire.unconn_pos;
-					float2 dst0 = wire.unconn_pos;
-					float2 dst1 = wire.unconn_pos;
+					
+					auto& out = w.dir ? w.dst : w.src;
+					auto& inp = w.dir ? w.src : w.dst;
 
-					if (wire.src.part) {
-						auto mat = wire.src.part->pos.calc_matrix();
-						auto& part = wire.src.part->chip->get_output(wire.src.pin);
-						src0 = mat * part.pos.pos;
-						src1 = mat * get_out_pos(part);
+					float2 out0 = w.unconn_pos, out1 = w.unconn_pos;
+					float2 inp0 = w.unconn_pos, inp1 = w.unconn_pos;
+			
+					if (out.part) {
+						auto  mat  = out.part->pos.calc_matrix();
+						auto& part = out.part->chip->get_output(out.pin);
+						out0 = mat * part.pos.pos;
+						out1 = mat * get_out_pos(part);
 					}
-					if (wire.dst.part) {
-						auto mat = wire.dst.part->pos.calc_matrix();
-						auto& part = wire.dst.part->chip->get_input(wire.dst.pin);
-						dst0 = mat * get_inp_pos(part);
-						dst1 = mat * part.pos.pos;
+					if (inp.part) {
+						auto  mat  = inp.part->pos.calc_matrix();
+						auto& part = inp.part->chip->get_input(inp.pin);
+						inp0 = mat * get_inp_pos(part);
+						inp1 = mat * part.pos.pos;
 					}
-
-					build_line(chip2world, src0, src1, wire.points, dst0, dst1, 3, lrgba(0.8f, 0.01f, 0.025f, 0.75f));
+			
+					build_line(chip2world, out0, out1, w.points, inp0, inp1, 3, lrgba(0.8f, 0.01f, 0.025f, 0.75f));
 				}
 			}
 		}
@@ -484,10 +492,10 @@ struct Renderer : public RendererBackend {
 		}
 		
 		{ // Gate preview
-			auto& preview = g.editor.preview_part;
-		
-			if (preview.chip && !ImGui::GetIO().WantCaptureMouse) {
-				draw_chip(g, preview.chip, preview.pos.calc_matrix(), -1, lrgba(1,1,1,0.5f));
+			if (g.editor.in_mode<Editor::PlaceMode>()) {
+				auto& preview = std::get<Editor::PlaceMode>(g.editor.mode).preview_part;
+				if (preview.chip && g.editor._cursor_valid)
+					draw_chip(g, preview.chip, preview.pos.calc_matrix(), -1, lrgba(1,1,1,0.5f));
 			}
 		}
 		

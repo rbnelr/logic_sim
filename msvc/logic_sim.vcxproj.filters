@@ -130,6 +130,18 @@
     </ClInclude>
     <ClInclude Include="..\src\engine_config.hpp" />
     <ClInclude Include="..\src\logic_sim.hpp" />
+    <ClInclude Include="..\src\engine\dear_imgui_custom\dear_imgui.hpp">
+      <Filter>engine</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\engine\dear_imgui_custom\imconfig.hpp">
+      <Filter>engine</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\engine\dear_imgui_custom\imgui_impl_glfw.h">
+      <Filter>engine</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\engine\dear_imgui_custom\imgui_impl_opengl3.h">
+      <Filter>engine</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\shaders\common.glsl">

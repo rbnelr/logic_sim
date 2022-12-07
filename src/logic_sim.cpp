@@ -1,5 +1,6 @@
 #include "common.hpp"
 #include "logic_sim.hpp"
+#include "game.hpp"
 
 namespace logic_sim {
 
@@ -196,7 +197,7 @@ void to_json (json& j, const LogicSim& sim) {
 		to_json(jchip, *chip, sim);
 	}
 }
-void from_json (const json& j, LogicSim& sim) {
+void from_json (const json& j, LogicSim& sim, Camera2D& cam) {
 	// create chips without parts
 	for (auto& jchip : j["chips"]) {
 		auto& chip = sim.saved_chips.emplace_back(std::make_unique<Chip>());
@@ -213,7 +214,7 @@ void from_json (const json& j, LogicSim& sim) {
 		from_json(jchip, *(*cur++), sim);
 	}
 
-	sim.reset_chip_view();
+	sim.reset_chip_view(cam);
 }
 
 ////
@@ -236,115 +237,161 @@ bool check_recursion (Chip* to_place, Chip* place_inside) {
 	return false;
 }
 
-void Editor::select_preview_gate_imgui (LogicSim& sim, const char* name, Chip* type) {
+void toggle_edit_mode (Editor& e) {
+	if (e.in_mode<Editor::ViewMode>())
+		e.mode = Editor::EditMode();
+	else 
+		e.mode = Editor::ViewMode();
+}
 
-	bool selected = preview_part.chip && preview_part.chip == type;
+void Editor::select_gate_imgui (LogicSim& sim, const char* name, Chip* type) {
 
+	bool selected = in_mode<PlaceMode>() && std::get<PlaceMode>(mode).preview_part.chip == type;
+	
 	if (ImGui::Selectable(name, &selected)) {
 		if (selected) {
-			mode = PLACE_MODE;
-			preview_part.chip = type;
+			mode = PlaceMode{ PartPreview{ type, {} } };
 		}
 		else {
-			preview_part.chip = nullptr;
-			mode = EDIT_MODE;
+			mode = EditMode();
 		}
 	}
 }
-void Editor::select_preview_chip_imgui (LogicSim& sim, std::shared_ptr<Chip>& chip, bool can_place, bool is_viewed) {
-			
-	bool selected = preview_part.chip && preview_part.chip == chip.get();
-			
-	if (is_viewed)
-		ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg, ImGui::ColorConvertFloat4ToU32({0.4f, 0.4f, 0.1f, 1}));
-	else if (!can_place)
-		ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg, ImGui::ColorConvertFloat4ToU32({0.6f, 0.2f, 0.2f, 1}));
 
-	if (ImGui::Selectable(chip->name.c_str(), &selected, ImGuiSelectableFlags_AllowDoubleClick)) {
-		// Open chip as main chip on double click (Previous chips is saved
-		if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-			sim.switch_to_chip_view(chip);
-			reset(); // reset editor
-		}
-		else if (can_place) {
-			if (selected) {
-				preview_part.chip = chip.get();
-				mode = PLACE_MODE;
-			}
-			else {
-				preview_part.chip = nullptr;
-				mode = EDIT_MODE;
-			}
-		}
-	}
-	if (!can_place && ImGui::IsItemHovered()) {
-		ImGui::SetTooltip("Cannot place chip \"%s\" because it uses itself directly or inside a subchip.\n"
-		                  "Doing so would create infinite recursion!", chip->name.c_str());
-	}
-}
-
-void Editor::saved_chips_imgui (LogicSim& sim) {
-			
+void Editor::saved_chips_imgui (LogicSim& sim, Camera2D& cam) {
+	
 	if (ImGui::Button("Clear View")) {
 		// discard main_chip contents by resetting main_chip to empty
-		sim.reset_chip_view();
-		reset(); // reset editor
+		sim.reset_chip_view(cam);
+		reset();
 	}
 	ImGui::SameLine();
 	if (ImGui::Button("Save as New")) {
 		// save main_chip in saved_chips and reset main_chip to empty
 		sim.saved_chips.emplace_back(sim.viewed_chip);
 
-		sim.reset_chip_view();
-		reset(); // reset editor
+		sim.reset_chip_view(cam);
+		reset();
 	}
+	
+	//int delete_item = -1;
 
 	if (ImGui::BeginTable("ChipsList", 1, ImGuiTableFlags_Borders)) {
 		
+		bool was_already_dragging = chips_reorder_src >= 0;
+		int chips_reorder_targ = -1;
+		
+		const float TEXT_BASE_HEIGHT = ImGui::GetTextLineHeightWithSpacing();
+		bool reorder_was_drawn = false;
+
 		for (int i=0; i<(int)sim.saved_chips.size(); ++i) {
 			auto& chip = sim.saved_chips[i];
 			
+			bool selected = in_mode<PlaceMode>() && std::get<PlaceMode>(mode).preview_part.chip == chip.get();
 			bool can_place = !check_recursion(chip.get(), sim.viewed_chip.get());
 			bool is_viewed = chip.get() == sim.viewed_chip.get();
 
-			ImGui::TableNextColumn();
-			select_preview_chip_imgui(sim, chip, can_place, is_viewed);
-
-			if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None)) {
-				// Set payload to carry the index of our item (could be anything)
-				ImGui::SetDragDropPayload("DND_ChipReorder", &i, sizeof(int));
-
-				ImGui::Text(chip->name.c_str());
-				ImGui::EndDragDropSource();
+			if (i == chips_reorder_src) {
+				// skip item when reodering it
 			}
-			if (ImGui::BeginDragDropTarget()) {
-
-				auto* payload = ImGui::GetDragDropPayload();
-				assert(payload && payload->DataSize == sizeof(int));
-				int payload_i = *(const int*)payload->Data;
+			else {
+				ImGui::TableNextColumn();
 				
-				ImGui::Selectable(sim.saved_chips[payload_i]->name.c_str(), false, ImGuiSelectableFlags_Disabled);
+				float y = ImGui::TableGetCellBgRect(GImGui->CurrentTable, 0).Min.y;
+				float my = ImGui::GetMousePos().y;
+				if (was_already_dragging && !reorder_was_drawn && my < y + TEXT_BASE_HEIGHT) {
+					chips_reorder_targ = i;
+				
+					// we are dragging a entry and are hovering an entry
+					// insert dragged item before the hovered one
+					ImGui::Selectable(sim.saved_chips[chips_reorder_src]->name.c_str(),
+						false, ImGuiSelectableFlags_Disabled);
 
-				if (ImGui::AcceptDragDropPayload("DND_ChipReorder")) {
-					
-					auto c = std::move(sim.saved_chips[payload_i]);
-					sim.saved_chips.erase(sim.saved_chips.begin() + payload_i);
-					sim.saved_chips.insert(sim.saved_chips.begin() + i + (i < payload_i ? 1 : 0)
-						, std::move(c));
+					ImGui::TableNextColumn();
+
+					reorder_was_drawn = true;
 				}
-				ImGui::EndDragDropTarget();
+
+				if (is_viewed)
+					ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg, ImGui::ColorConvertFloat4ToU32({0.8f, 0.8f, 0.4f, 0.3f}));
+				else if (!can_place)
+					ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg, ImGui::ColorConvertFloat4ToU32({1.0f, 0.2f, 0.2f, 0.05f}));
+	
+				if (ImGui::Selectable(chip->name.c_str(), &selected, ImGuiSelectableFlags_AllowDoubleClick)) {
+					// Open chip as main chip on double click (Previous chips is saved
+					if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+						sim.switch_to_chip_view(chip, cam);
+						reset(); // reset editor
+					}
+					else if (can_place) {
+						if (selected) {
+							mode = PlaceMode{ { chip.get(), {} } };
+						}
+						else {
+							mode = EditMode();
+						}
+					}
+				}
+
+				//if (!was_already_dragging && ImGui::BeginPopupContextItem()) {
+				//	if (ImGui::Button("Delete Chip")) {
+				//		ImGui::OpenPopup("POPUP_delete_confirmation");
+				//	}
+				//	if (imgui_delete_confirmation(prints("Chip '%s'", chip->name.c_str()).c_str()) == _IM_CONF_DELETE) {
+				//		ImGui::CloseCurrentPopup();
+				//		delete_item = i;
+				//	}
+				//	ImGui::EndPopup();
+				//}
+
+				if (!can_place && ImGui::IsItemHovered()) {
+					ImGui::SetTooltip("Cannot place chip \"%s\" because it uses itself directly or inside a subchip.\n"
+										"Doing so would create infinite recursion!", chip->name.c_str());
+				}
+				if (ImGui::IsMouseClicked(ImGuiMouseButton_Left, false) && ImGui::IsItemHovered()) {
+					chips_reorder_src = i;
+				}
 			}
+		}
+		
+		// add at end if out of range
+		if (was_already_dragging && !reorder_was_drawn) {
+			chips_reorder_targ = (int)sim.saved_chips.size();
+			
+			ImGui::TableNextColumn();
+			// we are dragging a entry and are hovering an entry
+			// insert dragged item before the hovered one
+			ImGui::Selectable(sim.saved_chips[chips_reorder_src]->name.c_str(),
+				false, ImGuiSelectableFlags_Disabled);
+		}
+
+		if (ImGui::IsMouseReleased(ImGuiMouseButton_Left) && chips_reorder_src >= 0) {
+			// stopped dragging
+			if (chips_reorder_targ >= 0) {
+				// apply change
+				auto c = std::move(sim.saved_chips[chips_reorder_src]);
+				sim.saved_chips.erase(sim.saved_chips.begin() + chips_reorder_src);
+				sim.saved_chips.insert(sim.saved_chips.begin()
+					+ (chips_reorder_targ - (chips_reorder_targ > chips_reorder_src ? 1 : 0))
+					, std::move(c));
+			}
+			chips_reorder_src = -1;
 		}
 
 		ImGui::EndTable();
 	}
+
+	// TODO: can't delete chips that are used in other chips without first removing those with more code
+	//if (delete_item >= 0) {
+	//	sim.saved_chips.erase(sim.saved_chips.begin() + delete_item);
+	//}
 }
 void Editor::viewed_chip_imgui (LogicSim& sim) {
 	ImGui::InputText("name",  &sim.viewed_chip->name);
 	ImGui::ColorEdit3("col",  &sim.viewed_chip->col.x);
 	ImGui::DragFloat2("size", &sim.viewed_chip->size.x);
 
-	if (ImGui::TreeNodeEx("Inputs", ImGuiTreeNodeFlags_DefaultOpen)) {
+	if (ImGui::TreeNodeEx("Inputs")) {
 		for (int i=0; i<(int)sim.viewed_chip->inputs.size(); ++i) {
 			ImGui::PushID(i);
 			ImGui::SetNextItemWidth(ImGui::CalcItemWidth() * 0.5f);
@@ -353,7 +400,7 @@ void Editor::viewed_chip_imgui (LogicSim& sim) {
 		}
 		ImGui::TreePop();
 	}
-	if (ImGui::TreeNodeEx("Outputs", ImGuiTreeNodeFlags_DefaultOpen)) {
+	if (ImGui::TreeNodeEx("Outputs")) {
 		for (int i=0; i<(int)sim.viewed_chip->outputs.size(); ++i) {
 			ImGui::PushID(i);
 			ImGui::SetNextItemWidth(ImGui::CalcItemWidth() * 0.5f);
@@ -363,173 +410,118 @@ void Editor::viewed_chip_imgui (LogicSim& sim) {
 		ImGui::TreePop();
 	}
 }
-void Editor::selection_imgui (Selection& sel) {
-	if (!sel) {
-		ImGui::Text("No Selection");
-		return;
-	}
-	else if (sel.type == Selection::PIN_INP) {
-		ImGui::Text("Input Pin#%d of %s", sel.pin, sel.part->chip->name.c_str());
-		return;
-	}
-	else if (sel.type == Selection::PIN_OUT) {
-		ImGui::Text("Output Pin#%d of %s", sel.pin, sel.part->chip->name.c_str());
-		return;
-	}
 
-	ImGui::Text("%s Instance", sel.part->chip->name.c_str());
-			
+void Editor::selection_imgui (PartSelection& sel) {
+	ImGui::Text("%d Item selected", (int)sel.parts.size());
+
+	auto& part = *sel.parts[0];
+	
 	ImGui::Separator();
 	ImGui::Spacing();
 
-	ImGui::Text("Placement in containing chip:");
+	ImGui::Text("First Selected: %s Instance", part.chip->name.c_str());
+	ImGui::Text("Placement in parent chip:");
 
-	int rot = (int)sel.part->pos.rot;
-	ImGui::DragFloat2("pos",          &sel.part->pos.pos.x, 0.1f);
+	int rot = (int)part.pos.rot;
+	ImGui::DragFloat2("pos",          &part.pos.pos.x, 0.1f);
 	ImGui::SliderInt("rot [R]",       &rot, 0, 3);
-	ImGui::Checkbox("mirror (X) [M]", &sel.part->pos.mirror);
-	ImGui::DragFloat("scale",         &sel.part->pos.scale, 0.1f, 0.001f, 100.0f);
-	sel.part->pos.rot = (short)rot;
-			
-	//ImGui::Spacing();
-	//
-	//ImGui::Text("Input Wires:");
-	//
-	//for (int i=0; i<(int)sel.part->chip->inputs.size(); ++i) {
-	//	ImGui::Text("Input Pin#%d [%s]", i, sel.part->chip->inputs[i].name.c_str());
-	//}
+	ImGui::Checkbox("mirror (X) [M]", &part.pos.mirror);
+	ImGui::DragFloat("scale",         &part.pos.scale, 0.1f, 0.001f, 100.0f);
+	part.pos.rot = (short)rot;
 }
 
-void Editor::parts_hierarchy_imgui (LogicSim& sim, Chip& chip) {
-	if (ImGui::BeginTable("PartsList", 1, ImGuiTableFlags_Borders | ImGuiTableFlags_ScrollY)) {
-				
-		for (auto& part : chip.parts) {
-			ImGui::TableNextColumn();
-			ImGui::PushID(&part);
-					
-			bool selected = sel.type == Selection::PART && sel.part == &part;
-			if (selected && just_selected)
-				ImGui::SetScrollHereY();
-
-			if (ImGui::Selectable(part.chip->name.c_str(), selected)) {
-				if (!selected) {
-					sel = { Selection::PART, &part };
-					mode = EDIT_MODE;
-				}
-				else
-					sel = {};
-			}
-			if (ImGui::IsItemHovered()) {
-				hover = { Selection::PART, &part };
-				imgui_hovered = true;
-			}
-
-			ImGui::PopID();
-		}
-
-		ImGui::EndTable();
-	}
-}
-
-void Editor::imgui (LogicSim& sim) {
-			
+void Editor::imgui (LogicSim& sim, Camera2D& cam) {
+	
+	const float TEXT_BASE_HEIGHT = ImGui::GetTextLineHeightWithSpacing();
+	
 	if (imgui_Header("Editor", true)) {
-		ImGui::Indent(10);
-
+		
 		{
-			bool m = mode != VIEW_MODE;
+			bool m = !in_mode<Editor::ViewMode>();
 			if (ImGui::Checkbox("Edit Mode [E]", &m))
-				mode = m ? EDIT_MODE : VIEW_MODE;
+				toggle_edit_mode(*this);
 		}
 
 		ImGui::Checkbox("snapping", &snapping);
 		ImGui::SameLine();
 		ImGui::InputFloat("###snapping_size", &snapping_size);
+		
+		if (imgui_Header("Selection", true)) {
+			ImGui::Indent(10);
+			
+			// Child region so that window contents don't shift around when selection changes
+			if (ImGui::BeginChild("SelectionRegion", ImVec2(0, TEXT_BASE_HEIGHT * 9))) {
+				if (!in_mode<EditMode>()) {
+					ImGui::Text("Not in Edit Mode");
+				}
+				else {
+					auto& e = std::get<EditMode>(mode);
+					
+					if (!e.sel) {
+						ImGui::Text("Nothing selected");
+					}
+					else {
+						selection_imgui(e.sel);
+					}
+				}
+			}
+			ImGui::EndChild();
+			
+			ImGui::Unindent(10);
+			ImGui::PopID();
+		}
 
-		ImGui::Spacing();
-		if (imgui_Header("Gates", true)) {
+		if (imgui_Header("Viewed Chip", true)) {
+			ImGui::Indent(10);
+					
+			viewed_chip_imgui(sim);
+			
+			ImGui::Unindent(10);
+			ImGui::PopID();
+		}
+
+		if (imgui_Header("Parts", true)) {
 			ImGui::Indent(10);
 
 			if (ImGui::BeginTable("TableGates", 2, ImGuiTableFlags_Borders)) {
 				
 				ImGui::TableNextColumn();
-				select_preview_gate_imgui(sim, "INP" , &gates[INP_PIN  ] );
+				select_gate_imgui(sim, "INP" , &gates[INP_PIN  ] );
 				ImGui::TableNextColumn();
-				select_preview_gate_imgui(sim, "OUT" , &gates[OUT_PIN  ] );
+				select_gate_imgui(sim, "OUT" , &gates[OUT_PIN  ] );
 
 				ImGui::TableNextColumn();
-				select_preview_gate_imgui(sim, "BUF" , &gates[BUF_GATE ] );
+				select_gate_imgui(sim, "BUF" , &gates[BUF_GATE ] );
 				ImGui::TableNextColumn();
-				select_preview_gate_imgui(sim, "NOT" , &gates[NOT_GATE ] );
+				select_gate_imgui(sim, "NOT" , &gates[NOT_GATE ] );
 				
 				ImGui::TableNextColumn();
-				select_preview_gate_imgui(sim, "AND" , &gates[AND_GATE ] );
+				select_gate_imgui(sim, "AND" , &gates[AND_GATE ] );
 				ImGui::TableNextColumn();
-				select_preview_gate_imgui(sim, "NAND", &gates[NAND_GATE] );
+				select_gate_imgui(sim, "NAND", &gates[NAND_GATE] );
 				
 				ImGui::TableNextColumn();
-				select_preview_gate_imgui(sim, "OR"  , &gates[OR_GATE  ] );
+				select_gate_imgui(sim, "OR"  , &gates[OR_GATE  ] );
 				ImGui::TableNextColumn();
-				select_preview_gate_imgui(sim, "NOR" , &gates[NOR_GATE ] );
+				select_gate_imgui(sim, "NOR" , &gates[NOR_GATE ] );
 				
 				ImGui::TableNextColumn();
-				select_preview_gate_imgui(sim, "XOR" , &gates[XOR_GATE ] );
+				select_gate_imgui(sim, "XOR" , &gates[XOR_GATE ] );
 				ImGui::TableNextColumn();
 
 				ImGui::EndTable();
 			}
 
-			ImGui::PopID();
-			ImGui::Unindent(10);
-		}
+			ImGui::Separator();
+
+			saved_chips_imgui(sim, cam);
 			
-		ImGui::Spacing();
-		if (imgui_Header("User-defined Chips", true)) {
-			ImGui::Indent(10);
-
-			saved_chips_imgui(sim);
-
-			ImGui::PopID();
 			ImGui::Unindent(10);
-		}
-
-		ImGui::Spacing();
-		ImGui::Separator();
-		ImGui::Spacing();
-		if (imgui_Header("Viewed Chip", true)) {
-			ImGui::Indent(10);
-					
-			viewed_chip_imgui(sim);
-					
 			ImGui::PopID();
-			ImGui::Unindent(10);
 		}
-				
-		ImGui::Spacing();
-		if (imgui_Header("Selected Part", true)) {
-			ImGui::Indent(10);
-					
-			selection_imgui(sel);
-					
-			ImGui::PopID();
-			ImGui::Unindent(10);
-		}
-
-		//ImGui::Spacing();
-		//if (imgui_Header("Parts Hierarchy", true)) {
-		//	ImGui::Indent(10);
-		//
-		//	parts_hierarchy_imgui(sim, sim.main_chip);
-		//
-		//	ImGui::PopID();
-		//	ImGui::Unindent(10);
-		//}
-				
-		ImGui::Unindent(10);
+		
 		ImGui::PopID();
 	}
-			
-	just_selected = false;
 }
 
 void Editor::add_part (LogicSim& sim, Chip& chip, PartPreview& part) {
@@ -592,82 +584,86 @@ void Editor::add_part (LogicSim& sim, Chip& chip, PartPreview& part) {
 	// update state indices
 	sim.update_all_chip_state_indices();
 }
-void Editor::remove_part (LogicSim& sim, Selection& sel) {
-	assert(sel.chip == sim.viewed_chip.get());
-
-	int idx = indexof_part(sel.chip->parts, sel.part);
-			
-	if (sel.part->chip == &gates[OUT_PIN]) {
-		assert(idx < (int)sel.chip->outputs.size());
-		
-		int old_outputs = (int)sel.chip->outputs.size();
-
-		// erase output at out_idx
-		sel.chip->outputs.erase(sel.chip->outputs.begin() + idx);
-		
-		// remove wires to this output with horribly nested code
-		for (auto& schip : sim.saved_chips) {
-			for (auto& part : schip->parts) {
-				for (int i=0; i<(int)part.chip->inputs.size(); ++i) {
-					if (part.inputs[i].part_idx >= 0) {
-						auto& inpart = schip->parts[part.inputs[i].part_idx];
-						if (inpart.chip == sel.chip && part.inputs[i].pin_idx == idx) {
-							part.inputs[i] = {};
-						}
-					}
-				}
-			}
-		}
-	}
-	else if (sel.part->chip == &gates[INP_PIN]) {
-		int inp_idx = idx - (int)sel.chip->outputs.size();
-		assert(inp_idx >= 0 && inp_idx < (int)sel.chip->inputs.size());
-
-		int old_inputs = (int)sel.chip->inputs.size();
-
-		// erase input at idx
-		sel.chip->inputs.erase(sel.chip->inputs.begin() + inp_idx);
-		
-		// resize input array of every part of this chip type
-		for (auto& schip : sim.saved_chips) {
-			for (auto& part : schip->parts) {
-				if (part.chip == sel.chip) {
-					part.inputs.erase(old_inputs, inp_idx);
-				}
-			}
-		}
-	}
-	
-	// erase part state  TODO: this is wrong if anything but the viewed chip (top level state) is edited (which I currently can't do)
-	int first = sel.part->state_idx;
-	int end   = sel.part->state_idx + sel.part->chip->state_count;
-
-	for (int i=0; i<2; ++i)
-		sim.state[i].erase(sim.state[i].begin() + first, sim.state[i].begin() + end);
-
-	// erase part from chip parts
-	sel.chip->parts.erase(sel.chip->parts.begin() + idx);
-
-	// update input wire part indices
-	for (auto& cpart : sel.chip->parts) {
-		for (int i=0; i<(int)cpart.chip->inputs.size(); ++i) {
-			if (cpart.inputs[i].part_idx == idx)
-				cpart.inputs[i].part_idx = -1;
-			else if (cpart.inputs[i].part_idx > idx)
-				cpart.inputs[i].part_idx -= 1;
-		}
-	}
-
-	sim.update_all_chip_state_indices();
+void Editor::remove_part (LogicSim& sim, PartSelection& sel) {
+	//assert(sel.chip == sim.viewed_chip.get());
+	//
+	//int idx = indexof_part(sel.chip->parts, sel.part);
+	//		
+	//if (sel.part->chip == &gates[OUT_PIN]) {
+	//	assert(idx < (int)sel.chip->outputs.size());
+	//	
+	//	int old_outputs = (int)sel.chip->outputs.size();
+	//
+	//	// erase output at out_idx
+	//	sel.chip->outputs.erase(sel.chip->outputs.begin() + idx);
+	//	
+	//	// remove wires to this output with horribly nested code
+	//	for (auto& schip : sim.saved_chips) {
+	//		for (auto& part : schip->parts) {
+	//			for (int i=0; i<(int)part.chip->inputs.size(); ++i) {
+	//				if (part.inputs[i].part_idx >= 0) {
+	//					auto& inpart = schip->parts[part.inputs[i].part_idx];
+	//					if (inpart.chip == sel.chip && part.inputs[i].pin_idx == idx) {
+	//						part.inputs[i] = {};
+	//					}
+	//				}
+	//			}
+	//		}
+	//	}
+	//}
+	//else if (sel.part->chip == &gates[INP_PIN]) {
+	//	int inp_idx = idx - (int)sel.chip->outputs.size();
+	//	assert(inp_idx >= 0 && inp_idx < (int)sel.chip->inputs.size());
+	//
+	//	int old_inputs = (int)sel.chip->inputs.size();
+	//
+	//	// erase input at idx
+	//	sel.chip->inputs.erase(sel.chip->inputs.begin() + inp_idx);
+	//	
+	//	// resize input array of every part of this chip type
+	//	for (auto& schip : sim.saved_chips) {
+	//		for (auto& part : schip->parts) {
+	//			if (part.chip == sel.chip) {
+	//				part.inputs.erase(old_inputs, inp_idx);
+	//			}
+	//		}
+	//	}
+	//}
+	//
+	//// erase part state  TODO: this is wrong if anything but the viewed chip (top level state) is edited (which I currently can't do)
+	//int first = sel.part->state_idx;
+	//int end   = sel.part->state_idx + sel.part->chip->state_count;
+	//
+	//for (int i=0; i<2; ++i)
+	//	sim.state[i].erase(sim.state[i].begin() + first, sim.state[i].begin() + end);
+	//
+	//// erase part from chip parts
+	//sel.chip->parts.erase(sel.chip->parts.begin() + idx);
+	//
+	//// update input wire part indices
+	//for (auto& cpart : sel.chip->parts) {
+	//	for (int i=0; i<(int)cpart.chip->inputs.size(); ++i) {
+	//		if (cpart.inputs[i].part_idx == idx)
+	//			cpart.inputs[i].part_idx = -1;
+	//		else if (cpart.inputs[i].part_idx > idx)
+	//			cpart.inputs[i].part_idx -= 1;
+	//	}
+	//}
+	//
+	//sim.update_all_chip_state_indices();
 }
 
-void Editor::add_wire (WirePreview& wire) {
-	assert(wire.dst.part);
-	assert(wire.dst.pin < (int)wire.dst.part->chip->inputs.size());
-	if (wire.dst.part) assert(wire.src.pin < (int)wire.src.part->chip->outputs.size());
-	int part_idx = indexof_part(wire.chip->parts, wire.src.part);
+void Editor::add_wire (WireMode& w) {
+	auto& out = w.dir ? w.dst : w.src;
+	auto& inp = w.dir ? w.src : w.dst;
 
-	wire.dst.part->inputs[wire.dst.pin] = { part_idx, wire.src.pin, std::move(wire.points) };
+	assert(out.part && inp.part);
+	assert(inp.pin < (int)inp.part->chip->inputs.size());
+	assert(out.pin < (int)out.part->chip->outputs.size());
+
+	int part_idx = indexof_part(w.chip->parts, out.part);
+
+	inp.part->inputs[inp.pin] = { part_idx, out.pin, std::move(w.points) };
 }
 
 void edit_placement (Input& I, Placement& p) {
@@ -693,20 +689,20 @@ void Editor::edit_chip (Input& I, LogicSim& sim, Chip& chip, float2x3 const& wor
 		//	printf("");
 		//}
 
-		if (mode != PLACE_MODE && hitbox(part.chip->size, world2part))
-			hover = { Selection::PART, &part, 0, &chip, world2chip, part_state_idx };
+		if (!in_mode<PlaceMode>() && hitbox(part.chip->size, world2part))
+			hover = { Hover::PART, &part, &chip, -1, part_state_idx, world2chip };
 
-		if (mode == EDIT_MODE) {
+		if (in_mode<EditMode>() || in_mode<WireMode>()) {
 			if (part.chip != &gates[OUT_PIN]) {
 				for (int i=0; i<(int)part.chip->outputs.size(); ++i) {
 					if (hitbox(PIN_SIZE, get_out_pos_invmat(part.chip->get_output(i)) * world2part))
-						hover = { Selection::PIN_OUT, &part, i, &chip, world2chip };
+						hover = { Hover::PIN_OUT, &part, &chip, i, -1, world2chip };
 				}
 			}
 			if (part.chip != &gates[INP_PIN]) {
 				for (int i=0; i<(int)part.chip->inputs.size(); ++i) {
 					if (hitbox(PIN_SIZE, get_inp_pos_invmat(part.chip->get_input(i)) * world2part))
-						hover = { Selection::PIN_INP, &part, i, &chip, world2chip };
+						hover = { Hover::PIN_INP, &part, &chip, i, -1, world2chip };
 				}
 			}
 		}
@@ -717,11 +713,11 @@ void Editor::edit_chip (Input& I, LogicSim& sim, Chip& chip, float2x3 const& wor
 
 			for (int i=0; i<(int)part.chip->outputs.size(); ++i) {
 				if (hitbox(PIN_SIZE, get_out_pos_invmat(part.chip->get_output(i)) * world2part))
-					hover = { Selection::PIN_OUT, &part, i, &chip, world2chip };
+					hover = { Hover::PIN_OUT, &part, &chip, i, -1, world2chip };
 			}
 			for (int i=0; i<(int)part.chip->inputs.size(); ++i) {
 				if (hitbox(PIN_SIZE, get_inp_pos_invmat(part.chip->get_input(i)) * world2part))
-					hover = { Selection::PIN_INP, &part, i, &chip, world2chip };
+					hover = { Hover::PIN_INP, &part, &chip, i, -1, world2chip };
 			}
 		}
 
@@ -729,38 +725,27 @@ void Editor::edit_chip (Input& I, LogicSim& sim, Chip& chip, float2x3 const& wor
 	}
 }
 
-void Editor::update (Input& I, LogicSim& sim, View3D& view) {
-	{
+void Editor::update (Input& I, Game& g) {
+	LogicSim& sim = g.sim;
+
+	{ // Get cursor position
 		float3 cur_pos = 0;
-		_cursor_valid = !ImGui::GetIO().WantCaptureMouse && view.cursor_ray(I, &cur_pos);
+		_cursor_valid = !ImGui::GetIO().WantCaptureMouse && g.view.cursor_ray(I, &cur_pos);
 		_cursor_pos = (float2)cur_pos;
 	}
 
-	if (mode != PLACE_MODE && I.buttons['E'].went_down) {
-		mode = mode == VIEW_MODE ? EDIT_MODE : VIEW_MODE;
+	// E toggles between edit and view mode (other modes are always exited)
+	if (I.buttons['E'].went_down) {
+		mode = in_mode<ViewMode>() ? (decltype(mode))EditMode() : ViewMode();
 	}
 
-	// reset hover but keep imgui hover
-	if (!imgui_hovered)
-		hover = {};
-	imgui_hovered = false;
-
+	// compute hover
+	hover = {};
 	edit_chip(I, sim, *sim.viewed_chip, float2x3::identity(), 0);
-			
-	// unselect when needed
-	if (mode != EDIT_MODE) {
-		sel = {};
-	}
-	if (!_cursor_valid) {
-		preview_wire = {};
-		dragging = false;
-	}
-	if (!PLACE_MODE) {
-		preview_part.chip = nullptr;
-	}
-
-	if (mode == PLACE_MODE) {
-
+	
+	if (in_mode<PlaceMode>()) {
+		auto& preview_part = std::get<PlaceMode>(mode).preview_part;
+		
 		edit_placement(I, preview_part.pos);
 				
 		if (_cursor_valid) {
@@ -770,154 +755,181 @@ void Editor::update (Input& I, LogicSim& sim, View3D& view) {
 			// place gate on left click
 			if (I.buttons[MOUSE_BUTTON_LEFT].went_down) {
 				add_part(sim, *sim.viewed_chip, preview_part); // preview becomes real gate, TODO: add a way to add parts to chips other than the viewed chip (keep selected chip during part placement?)
-				// preview of gate still exists
+				// preview of gate still exists with same pos
 			}
 		}
-
+	
 		// exit edit mode with RMB
 		if (I.buttons[MOUSE_BUTTON_RIGHT].went_down) {
-			preview_part.chip = nullptr;
-			mode = EDIT_MODE;
+			preview_part = {}; // reset preview chip
+			mode = EditMode();
 		}
 	}
-	else if (mode == EDIT_MODE) {
-
-		// rewire pin when pin is selected
-		if (sel.type == Selection::PIN_INP || sel.type == Selection::PIN_OUT) {
-				
-			bool from_dst = sel.type == Selection::PIN_INP;
-
-			// start wire at selected pin
-			preview_wire.src = {};
-			preview_wire.dst = {};
-
-			if (from_dst) preview_wire.dst = { sel.part, sel.pin };
-			else          preview_wire.src = { sel.part, sel.pin  };
-			preview_wire.chip = sel.chip;
-
-			// unconnect previous connection on input pin when rewiring
-			if (from_dst)
-				sel.part->inputs[sel.pin] = {};
-				
-			// remember temprary end point for wire if not hovered over pin
-			// convert cursor position to chip space and _then_ snap
-			// this makes it so that we always snap in the space of the chip
-			preview_wire.unconn_pos = snap(sel.world2chip * _cursor_pos);
-				 
-			// connect other end of wire to appropriate pin when hovered
-			if (  (hover.type == Selection::PIN_INP || hover.type == Selection::PIN_OUT)
-					&& hover.chip == preview_wire.chip) {
-				if (from_dst) {
-					if (hover.type == Selection::PIN_OUT) preview_wire.src = { hover.part, hover.pin };
-				} else {
-					if (hover.type == Selection::PIN_INP) preview_wire.dst = { hover.part, hover.pin };
-				}
-			}
-
-			// establish wire connection or add wire point
-			if (I.buttons[MOUSE_BUTTON_LEFT].went_down) {
-				if (preview_wire.src.part && preview_wire.dst.part) {
-					// clicked correct pin, connect wire
-					add_wire(preview_wire);
-
-					sel = {};
-					preview_wire = {};
-				}
-				else {
-					// add cur cursor position to list of wire points
-					if (from_dst) preview_wire.points.insert(preview_wire.points.begin(), preview_wire.unconn_pos);
-					else          preview_wire.points.push_back(preview_wire.unconn_pos);
-				}
-			}
-			// remove wire point or cancel rewiring
-			else if (I.buttons[MOUSE_BUTTON_RIGHT].went_down) {
-				// undo one wire point or cancel wire
-				if (preview_wire.points.empty()) {
-					// cancel whole wire edit
-					sel = {};
-					preview_wire = {};
-				}
-				else {
-					// just remove last added point
-					if (from_dst) preview_wire.points.erase(preview_wire.points.begin());
-					else          preview_wire.points.pop_back();
-				}
-			}
+	else if (in_mode<EditMode>()) {
+		auto& e = std::get<EditMode>(mode);
+		
+		if (!_cursor_valid) {
+			e.dragging = false;
 		}
-		// select thing when hovered and clicked
-		else {
-			// only select hovered things when not in wire placement mode
-			if (I.buttons[MOUSE_BUTTON_LEFT].went_down) {
-				just_selected = true;
-				sel = hover;
+		
+		if (I.buttons[MOUSE_BUTTON_LEFT].went_down) {
+			// normal click
+			// select part, unselect everything or select pin (go into wire mode)
+			if (!I.buttons[KEY_LEFT_SHIFT].is_down) {
+				if (hover.type == Hover::NONE) {
+					e.sel = {};
+				}
+				else if (hover.type == Hover::PIN_INP || hover.type == Hover::PIN_OUT) {
+					// begin wiring with hovered pin as start
+					mode = WireMode{ hover.chip, hover.world2chip,
+						hover.type == Hover::PIN_INP, { hover.part, hover.pin } };
+
+					// unconnect previous connection on input pin when rewiring
+					if (hover.type == Hover::PIN_INP)
+						hover.part->inputs[hover.pin] = {};
+
+					I.buttons[MOUSE_BUTTON_LEFT].went_down = false; // consume click to avoid wire mode also getting click?
+				}
+				else {
+					assert(hover.type == Hover::PART);
+					if (e.sel.has_part(hover.part)) {
+						// keep multiselect if clicked on already selected item
+					}
+					else {
+						e.sel = { hover.chip, { hover.part } };
+					}
+				}
 			}
-
-			// edit parts
-			if (sel.type == Selection::PART) {
-						
-				// convert cursor position to chip space and _then_ snap that later
-				// this makes it so that we always snap in the space of the chip
-				float2 pos = sel.world2chip * _cursor_pos;
-
-				edit_placement(I, sel.part->pos);
-
-				if (!dragging) {
-					// begin dragging gate
-					if (I.buttons[MOUSE_BUTTON_LEFT].went_down) {
-						drag_offs = pos - sel.part->pos.pos;
-						dragging = true;
-					}
+			// shift click add/remove from selection
+			else {
+				if (hover.type == Hover::PART) {
+					e.sel.toggle_part(hover.part);
 				}
-				if (dragging) {
-					// drag gate
-					if (I.buttons[MOUSE_BUTTON_LEFT].is_down) {
-						sel.part->pos.pos = snap(pos - drag_offs);
-					}
-					// stop dragging gate
-					if (I.buttons[MOUSE_BUTTON_LEFT].went_up) {
-						dragging = false;
-					}
-				}
-
-				// Duplicate selected part with CTRL+C
-				// TODO: CTRL+D moves the camera to the right, change that?
-				if (I.buttons[KEY_LEFT_CONTROL].is_down && I.buttons['C'].went_down) {
-					preview_part.chip = sel.part->chip;
-					mode = PLACE_MODE;
-				}
-
-				// remove gates via DELETE key
-				if (sel.chip == sim.viewed_chip.get() && I.buttons[KEY_DELETE].went_down) {
-					remove_part(sim, sel);
-
-					if (hover == sel) hover = {};
-					sel = {};
-					// just be to sure no stale pointers exist
-					preview_wire = {};
-					toggle_gate = {};
+				else {
+					// ignore click
 				}
 			}
 		}
 
+		// edit parts
+		if (e.sel) {
+
+			if (e.sel.changed)
+				e.sel.compute_bounds();
+
+			//// convert cursor position to chip space and _then_ snap that later
+			//// this makes it so that we always snap in the space of the chip
+			//float2 pos = sel.world2chip * _cursor_pos;
+			//
+			//edit_placement(I, sel.part->pos);
+			//
+			//if (!dragging) {
+			//	// begin dragging gate
+			//	if (I.buttons[MOUSE_BUTTON_LEFT].went_down) {
+			//		drag_offs = pos - sel.part->pos.pos;
+			//		dragging = true;
+			//	}
+			//}
+			//if (dragging) {
+			//	// drag gate
+			//	if (I.buttons[MOUSE_BUTTON_LEFT].is_down) {
+			//		sel.part->pos.pos = snap(pos - drag_offs);
+			//	}
+			//	// stop dragging gate
+			//	if (I.buttons[MOUSE_BUTTON_LEFT].went_up) {
+			//		dragging = false;
+			//	}
+			//}
+			//
+			//// Duplicate selected part with CTRL+C
+			//// TODO: CTRL+D moves the camera to the right, change that?
+			//if (I.buttons[KEY_LEFT_CONTROL].is_down && I.buttons['C'].went_down) {
+			//	preview_part.chip = sel.part->chip;
+			//	mode = PLACE_MODE;
+			//}
+			//
+			//// remove gates via DELETE key
+			//if (sel.chip == sim.viewed_chip.get() && I.buttons[KEY_DELETE].went_down) {
+			//	remove_part(sim, sel);
+			//
+			//	if (hover == sel) hover = {};
+			//	sel = {};
+			//	// just be to sure no stale pointers exist
+			//	preview_wire = {};
+			//	toggle_gate = {};
+			//}
+			
+			if (e.sel.parts.size() > 1)
+				g.dbgdraw.wire_quad(float3(e.sel.bounds.lo, 5.0f), e.sel.bounds.hi - e.sel.bounds.lo,
+					lrgba(0.6f, 0.6f, 1.0f, 0.3f));
+		}
 	}
 	
+	if (in_mode<WireMode>()) {
+		auto& w = std::get<WireMode>(mode);
+		
+		w.dst = {};
+
+		// connect other end of wire to appropriate pin when hovered
+		if (hover.chip == w.chip && (hover.type == Hover::PIN_INP || hover.type == Hover::PIN_OUT))
+			if (w.dir == (hover.type == Hover::PIN_OUT))
+				w.dst = { hover.part, hover.pin };
+		
+		// remember temprary end point for wire if not hovered over pin
+		// convert cursor position to chip space and _then_ snap
+		// this makes it so that we always snap in the space of the chip
+		w.unconn_pos = snap(w.world2chip * _cursor_pos);
+		
+		// establish wire connection or add wire point
+		if (I.buttons[MOUSE_BUTTON_LEFT].went_down) {
+			if (w.src.part && w.dst.part) {
+				// clicked correct pin, connect wire
+				add_wire(w);
+				
+				mode = EditMode();
+			}
+			else {
+				// add cur cursor position to list of wire points
+				if (w.dir) w.points.insert(w.points.begin(), w.unconn_pos);
+				else       w.points.push_back(w.unconn_pos);
+			}
+		}
+		// remove wire point or cancel rewiring
+		else if (I.buttons[MOUSE_BUTTON_RIGHT].went_down) {
+			// undo one wire point or cancel wire
+			if (w.points.empty()) {
+				// cancel whole wire edit
+				mode = EditMode();
+			}
+			else {
+				// just remove last added point
+				if (w.dir) w.points.erase(w.points.begin());
+				else       w.points.pop_back();
+			}
+		}
+	}
 }
 
 void Editor::update_toggle_gate (Input& I, LogicSim& sim, Window& window) {
 	
-	bool can_toggle = mode == VIEW_MODE && hover.type == Selection::PART && is_gate(hover.part->chip);
+	bool can_toggle = in_mode<ViewMode>() &&
+		hover.type == Hover::PART && is_gate(hover.part->chip);
+
+	if (in_mode<ViewMode>()) {
+		auto& v = std::get<ViewMode>(mode);
+		
+		if (!v.toggle_gate && can_toggle && I.buttons[MOUSE_BUTTON_LEFT].went_down) {
+			v.toggle_gate = hover;
+			v.state_toggle_value = !sim.state[sim.cur_state][v.toggle_gate.part_state_idx];
+		}
+		if (v.toggle_gate) {
+			sim.state[sim.cur_state][v.toggle_gate.part_state_idx] = v.state_toggle_value;
 	
-	if (!toggle_gate && can_toggle && I.buttons[MOUSE_BUTTON_LEFT].went_down) {
-		toggle_gate = hover;
-		state_toggle_value = !sim.state[sim.cur_state][toggle_gate.part_state_idx];
+			if (I.buttons[MOUSE_BUTTON_LEFT].went_up)
+				v.toggle_gate = {};
+		}
 	}
-	if (toggle_gate) {
-		sim.state[sim.cur_state][toggle_gate.part_state_idx] = state_toggle_value;
-
-		if (I.buttons[MOUSE_BUTTON_LEFT].went_up)
-			toggle_gate = {};
-	}
-
+	
 	window.set_cursor(can_toggle ? Window::CURSOR_FINGER : Window::CURSOR_NORMAL);
 }
 	

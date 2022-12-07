@@ -1,6 +1,7 @@
 #pragma once
 #include "common.hpp"
 #include "camera.hpp"
+#include <variant>
 
 // smart ptr array that can be inserted into and erased from like a vector
 // preferred because it's footprint is 1 ptr rather than 3
@@ -69,6 +70,32 @@ namespace logic_sim {
 		float2x2( -1, 0,  0, 1 ),
 	};
 	
+	struct AABB {
+		float2 lo; // min
+		float2 hi; // max
+
+		static AABB inf () {
+			return { INF, -INF };
+		}
+
+		void add (float2 p) {
+			lo.x = min(lo.x, p.x);
+			lo.y = min(lo.y, p.y);
+
+			hi.x = max(hi.x, p.x);
+			hi.y = max(hi.y, p.y);
+		}
+
+		// make AABB include another AABB
+		void add (float2 center, float2 size) {
+			lo.x = min(lo.x, center.x - size.x);
+			lo.y = min(lo.y, center.y - size.y);
+
+			hi.x = max(hi.x, center.x + size.x);
+			hi.y = max(hi.y, center.y + size.y);
+		}
+	};
+
 	struct Placement {
 		SERIALIZE(Placement, pos, rot, mirror, scale)
 
@@ -276,7 +303,7 @@ namespace logic_sim {
 		// simulation state is never (de)serialized
 		// editor state is never (de)serialized
 		friend void to_json (json& j, const LogicSim& sim);
-		friend void from_json (const json& j, LogicSim& sim);
+		friend void from_json (const json& j, LogicSim& sim, Camera2D& cam);
 
 
 		std::vector<std::shared_ptr<Chip>> saved_chips;
@@ -287,7 +314,7 @@ namespace logic_sim {
 
 		int cur_state = 0;
 
-		void switch_to_chip_view (std::shared_ptr<Chip> chip) {
+		void switch_to_chip_view (std::shared_ptr<Chip> chip, Camera2D& cam) {
 			// TODO: delete chip warning if main_chip will be deleted by this?
 			viewed_chip = std::move(chip); // move copy of shared ptr (ie original still exists)
 
@@ -299,9 +326,17 @@ namespace logic_sim {
 				state[i].shrink_to_fit();
 			}
 			cur_state = 0;
+
+			float sz = max(viewed_chip->size.x, viewed_chip->size.y);
+			sz = clamp(sz, 8.0f, 256.0f);
+
+			cam.pos = 0;
+			cam.zoom_to(sz * 1.25f);
 		}
-		void reset_chip_view () {
-			switch_to_chip_view(std::make_shared<Chip>("", lrgb(1), float2(10, 6)));
+		void reset_chip_view (Camera2D& cam) {
+			switch_to_chip_view(
+				std::make_shared<Chip>("", lrgb(1), float2(10, 6)),
+				cam);
 		}
 
 		// TODO: Is this needed?
@@ -330,7 +365,7 @@ namespace logic_sim {
 	
 	struct Editor {
 
-		struct Selection {
+		struct Hover {
 			enum Type {
 				NONE = 0,
 				PART,
@@ -339,18 +374,55 @@ namespace logic_sim {
 			};
 			Type type = NONE;
 
-			// part in chip
 			Part* part = nullptr;
-			int pin = 0;
-
 			Chip* chip = nullptr;
-			
-			float2x3 world2chip = float2x3(0); // world2chip during hitbox test
+			int   pin = -1;
 			
 			int part_state_idx = -1; // needed to toggle gates even when they are part of a chip placed in the viewed chip
+			
+			float2x3 world2chip = float2x3(0); // world2chip during hitbox test
 
 			operator bool () {
 				return type != NONE;
+			}
+
+			bool is_part (Part* part) {
+				return this->part == part;
+			}
+		};
+		
+		struct PartSelection {
+			Chip* chip = nullptr;
+			std::vector<Part*> parts;
+			
+			bool changed = false;
+
+			AABB bounds;
+			
+			operator bool () {
+				return !parts.empty();
+			}
+
+			bool has_part (Part* part) {
+				return contains(parts, part);
+			}
+			bool toggle_part (Part* part) {
+				int idx = indexof(parts, part);
+				if (idx < 0)
+					parts.push_back(part);
+				else
+					parts.erase(parts.begin() + idx);
+
+				changed = true;
+				return idx < 0; // if was added
+			}
+
+			void compute_bounds () {
+				bounds = AABB::inf();
+
+				for (auto& part : parts) {
+					bounds.add(part->pos.pos);
+				}
 			}
 		};
 		
@@ -358,29 +430,57 @@ namespace logic_sim {
 			Chip* chip = nullptr;
 			Placement pos = {};
 		};
-		struct WirePreview {
+
+		struct ViewMode {
+
+			Hover toggle_gate = {};
+			bool state_toggle_value; // new state value while toggle is 'held'
+		};
+		struct EditMode {
+
+			PartSelection sel = {};
+
+			bool dragging = false; // dragging selection
+			float2 drag_offs;
+		};
+		struct PlaceMode {
+			
+			PartPreview preview_part = {};
+		};
+		struct WireMode {
+			
+			Chip* chip = nullptr;
+
+			float2x3 world2chip = float2x3(0); // world2chip during hitbox test
+
+			// wiring direction false: out->inp  true: inp->out
+			bool dir;
+
 			struct Connection {
 				Part* part = nullptr;
 				int   pin = 0;
 			};
-			Connection src = {};
-			Connection dst = {};
-
-			Chip* chip = nullptr;
+			Connection src = {}; // where wiring started
+			Connection dst = {}; // where wiring ended
 
 			float2 unconn_pos;
 
 			std::vector<float2> points;
 		};
 
-		enum Mode {
-			VIEW_MODE=0,
-			EDIT_MODE,
-			PLACE_MODE,
-		};
-		
-	////
-		Mode mode = VIEW_MODE;
+		std::variant<ViewMode, EditMode, PlaceMode, WireMode>
+			mode = ViewMode();
+
+		template <typename T> bool in_mode () {
+			return std::holds_alternative<T>(mode);
+		}
+
+		Hover hover = {};
+
+		void reset () {
+			mode = ViewMode();
+			hover = {};
+		}
 
 		float snapping_size = 0.125f;
 		bool snapping = true;
@@ -391,6 +491,8 @@ namespace logic_sim {
 
 		bool _cursor_valid;
 		float2 _cursor_pos;
+
+		int chips_reorder_src = -1;
 		
 		// check mouse cursor against chip hitbox
 		bool hitbox (float2 box_size, float2x3 const& world2chip) {
@@ -401,58 +503,28 @@ namespace logic_sim {
 			p /= box_size;
 			// chip is a [-0.5, 0.5] box in this space
 			return p.x >= -0.5f && p.x < 0.5f &&
-					p.y >= -0.5f && p.y < 0.5f;
-		}
-		
-		bool imgui_hovered = false;
-		bool just_selected = false;
-
-		Selection sel   = {};
-		Selection hover = {};
-		
-		bool dragging = false; // dragging gate
-		float2 drag_offs;
-		
-		PartPreview preview_part = {};
-		WirePreview preview_wire = {};
-
-		Selection toggle_gate = {};
-		bool state_toggle_value; // new state value while toggle is 'held'
-
-		void reset () {
-			mode = EDIT_MODE;
-
-			hover = {};
-			sel = {};
-
-			dragging = false;
-
-			preview_wire = {};
-			preview_part.chip = nullptr;
-
-			toggle_gate = {};
+			       p.y >= -0.5f && p.y < 0.5f;
 		}
 		
 	////
-		void select_preview_gate_imgui (LogicSim& sim, const char* name, Chip* type);
-		void select_preview_chip_imgui (LogicSim& sim, std::shared_ptr<Chip>& chip, bool can_place, bool is_viewed);
-
-		void saved_chips_imgui (LogicSim& sim);
+		void select_gate_imgui (LogicSim& sim, const char* name, Chip* type);
+		
+		void saved_chip_imgui (LogicSim& sim, std::shared_ptr<Chip>& chip, bool can_place, bool is_viewed);
+		void saved_chips_imgui (LogicSim& sim, Camera2D& cam);
+		
 		void viewed_chip_imgui (LogicSim& sim);
-		void selection_imgui (Selection& sel);
+		void selection_imgui (PartSelection& sel);
 
-		void parts_hierarchy_imgui (LogicSim& sim, Chip& chip);
-
-		void imgui (LogicSim& sim);
+		void imgui (LogicSim& sim, Camera2D& cam);
 		
 	////
 		void add_part (LogicSim& sim, Chip& chip, PartPreview& part);
-		void remove_part (LogicSim& sim, Selection& sel);
-		void add_wire (WirePreview& wire);
+		void remove_part (LogicSim& sim, PartSelection& sel);
+		void add_wire (WireMode& wire);
 
 		void edit_chip (Input& I, LogicSim& sim, Chip& chip, float2x3 const& world2chip, int state_base);
 
-		void update (Input& I, LogicSim& sim, View3D& view);
+		void update (Input& I, Game& g);
 		
 		void update_toggle_gate (Input& I, LogicSim& sim, Window& window);
 	};

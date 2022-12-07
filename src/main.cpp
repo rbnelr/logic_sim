@@ -27,12 +27,11 @@ struct App : IApp {
 	Game game;
 	std::unique_ptr<RendererBackend> renderer = make_ogl_renderer();
 
-	virtual void frame (Window& window) {
-		ZoneScoped;
-		
-		game.imgui(window.input);
+	virtual void imgui (Window& window) {
 		renderer->imgui(window.input);
-
+		game.imgui(window.input);
+	}
+	virtual void frame (Window& window) {
 		game.update(window);
 		renderer->render(window, game, window.input.window_size);
 	}
