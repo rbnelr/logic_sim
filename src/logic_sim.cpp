@@ -735,9 +735,8 @@ void Editor::update (Input& I, Game& g) {
 	}
 
 	// E toggles between edit and view mode (other modes are always exited)
-	if (I.buttons['E'].went_down) {
-		mode = in_mode<ViewMode>() ? (decltype(mode))EditMode() : ViewMode();
-	}
+	if (I.buttons['E'].went_down)
+		toggle_edit_mode(*this);
 
 	// compute hover
 	hover = {};
@@ -775,7 +774,7 @@ void Editor::update (Input& I, Game& g) {
 		if (I.buttons[MOUSE_BUTTON_LEFT].went_down) {
 			// normal click
 			// select part, unselect everything or select pin (go into wire mode)
-			if (!I.buttons[KEY_LEFT_SHIFT].is_down) {
+			if (!I.buttons[KEY_LEFT_SHIFT].is_down || !e.sel) {
 				if (hover.type == Hover::NONE) {
 					e.sel = {};
 				}
@@ -792,17 +791,18 @@ void Editor::update (Input& I, Game& g) {
 				}
 				else {
 					assert(hover.type == Hover::PART);
-					if (e.sel.has_part(hover.part)) {
+					if (e.sel.has_part(hover.chip, hover.part)) {
 						// keep multiselect if clicked on already selected item
 					}
 					else {
-						e.sel = { hover.chip, { hover.part } };
+						e.sel = { hover.chip, { hover.part }, hover.world2chip };
 					}
 				}
 			}
 			// shift click add/remove from selection
 			else {
-				if (hover.type == Hover::PART) {
+				assert(e.sel && !e.sel.parts.empty());
+				if (hover.type == Hover::PART && hover.chip == e.sel.chip) {
 					e.sel.toggle_part(hover.part);
 				}
 				else {
@@ -812,15 +812,28 @@ void Editor::update (Input& I, Game& g) {
 		}
 
 		// edit parts
-		if (e.sel) {
+		if (in_mode<EditMode>() && e.sel) { // still in edit mode? else e becomes invalid
 
-			if (e.sel.changed)
+			if (e.sel.changed) {
 				e.sel.compute_bounds();
+				e.sel.changed = false;
+			}
+			
+			// convert cursor position to chip space and _then_ snap that later
+			// this makes it so that we always snap in the space of the chip
+			float2 pos = e.sel.world2chip * _cursor_pos;
 
-			//// convert cursor position to chip space and _then_ snap that later
-			//// this makes it so that we always snap in the space of the chip
-			//float2 pos = sel.world2chip * _cursor_pos;
-			//
+			if (!e.dragging) {
+				// begin dragging gate
+				if (I.buttons[MOUSE_BUTTON_LEFT].went_down) {
+					e.drag_start = pos;
+					e.dragging = true;
+				}
+			}
+
+			float2 drag_offs = pos - e.drag_start;
+
+			
 			//edit_placement(I, sel.part->pos);
 			//
 			//if (!dragging) {
@@ -865,6 +878,7 @@ void Editor::update (Input& I, Game& g) {
 		}
 	}
 	
+	// still execute wiremode after edit mode switched to it, so that wire shows instantly with correct unconn_pos
 	if (in_mode<WireMode>()) {
 		auto& w = std::get<WireMode>(mode);
 		

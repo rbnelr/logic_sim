@@ -257,6 +257,9 @@ struct Renderer : public RendererBackend {
 	}
 
 	void draw_gate (float2x3 const& mat, float2 size, int type, int state, lrgba col) {
+		if (type < 2)
+			return; // TEST: don't draw INP/OUT_PINs
+
 		uint16_t idx = (uint16_t)tri_renderer.verticies.size();
 		
 		constexpr float2 verts[] = {
@@ -351,7 +354,7 @@ struct Renderer : public RendererBackend {
 				if (g.editor.in_mode<Editor::EditMode>()) {
 					auto& e = std::get<Editor::EditMode>(g.editor.mode);
 					
-					if (e.sel.has_part(&part))
+					if (e.sel.has_part(chip, &part))
 						highlight(g, &part, chip, chip2world, lrgba(1,1,1,1),
 							(int)e.sel.parts.size() == 1); // only show text for single-part selections as to not spam too much text
 				}
@@ -494,8 +497,21 @@ struct Renderer : public RendererBackend {
 		{ // Gate preview
 			if (g.editor.in_mode<Editor::PlaceMode>()) {
 				auto& preview = std::get<Editor::PlaceMode>(g.editor.mode).preview_part;
-				if (preview.chip && g.editor._cursor_valid)
-					draw_chip(g, preview.chip, preview.pos.calc_matrix(), -1, lrgba(1,1,1,0.5f));
+				if (preview.chip && g.editor._cursor_valid) {
+					auto part2chip = preview.pos.calc_matrix();
+
+					draw_chip(g, preview.chip, part2chip, -1, lrgba(1,1,1,0.5f));
+					
+					constexpr lrgba col = lrgba(0.8f, 0.01f, 0.025f, 0.5f);
+					
+					for (int i=0; i<(int)preview.chip->inputs.size(); ++i) {
+						auto& dpart = preview.chip->get_input(i);
+						float2 dst0 = part2chip * get_inp_pos(dpart);
+						float2 dst1 = part2chip * dpart.pos.pos;
+
+						build_line(float2x3::identity(), dst0, dst1, 0, col);
+					}
+				}
 			}
 		}
 		

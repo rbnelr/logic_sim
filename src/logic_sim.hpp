@@ -395,16 +395,18 @@ namespace logic_sim {
 			Chip* chip = nullptr;
 			std::vector<Part*> parts;
 			
+			float2x3 world2chip = float2x3(0);
+			
 			bool changed = false;
-
+			
 			AABB bounds;
 			
 			operator bool () {
 				return !parts.empty();
 			}
 
-			bool has_part (Part* part) {
-				return contains(parts, part);
+			bool has_part (Chip* chip, Part* part) {
+				return this->chip == chip && contains(parts, part);
 			}
 			bool toggle_part (Part* part) {
 				int idx = indexof(parts, part);
@@ -441,7 +443,7 @@ namespace logic_sim {
 			PartSelection sel = {};
 
 			bool dragging = false; // dragging selection
-			float2 drag_offs;
+			float2 drag_start;
 		};
 		struct PlaceMode {
 			
