@@ -50,8 +50,8 @@ flat VS2FS vec4 col_b;
 		
 		v.t = uv.x == -1.0 ? t.x : t.y;
 		
-		col_a = vec4(col.rgb * vec3((states & 1) != 0 ? 1.0 : 0.008), col.a);
-		col_b = vec4(col.rgb * vec3((states & 2) != 0 ? 1.0 : 0.008), col.a);
+		col_a = vec4(col.rgb * vec3((states & 1) != 0 ? 1.0 : 0.03), col.a);
+		col_b = vec4(col.rgb * vec3((states & 2) != 0 ? 1.0 : 0.03), col.a);
 		
 		// line vertices
 		vec2 pos = uv.x == -1.0 ? pos0 : pos1;

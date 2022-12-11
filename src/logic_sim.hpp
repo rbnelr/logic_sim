@@ -78,21 +78,12 @@ namespace logic_sim {
 			return { INF, -INF };
 		}
 
-		void add (float2 p) {
-			lo.x = min(lo.x, p.x);
-			lo.y = min(lo.y, p.y);
+		void add (AABB const& a) {
+			lo.x = min(lo.x, a.lo.x);
+			lo.y = min(lo.y, a.lo.y);
 
-			hi.x = max(hi.x, p.x);
-			hi.y = max(hi.y, p.y);
-		}
-
-		// make AABB include another AABB
-		void add (float2 center, float2 size) {
-			lo.x = min(lo.x, center.x - size.x);
-			lo.y = min(lo.y, center.y - size.y);
-
-			hi.x = max(hi.x, center.x + size.x);
-			hi.y = max(hi.y, center.y + size.y);
+			hi.x = max(hi.x, a.hi.x);
+			hi.y = max(hi.y, a.hi.y);
 		}
 	};
 
@@ -183,6 +174,16 @@ namespace logic_sim {
 		
 		Part (Chip* chip, Placement pos={}): chip{chip}, pos{pos},
 			inputs{chip ? (int)chip->inputs.size() : 0} {}
+		
+		AABB get_aabb () const {
+			// mirror does not matter
+			float2 size = chip->size * pos.scale;
+
+			// Does not handle non-90 deg rotations
+			size = abs(ROT[pos.rot] * size);
+
+			return AABB{ pos.pos - size*0.5f, pos.pos + size*0.5f };
+		}
 	};
 
 
@@ -202,6 +203,12 @@ namespace logic_sim {
 		OR_GATE   ,
 		NOR_GATE  ,
 		XOR_GATE  ,
+
+		AND3_GATE  ,
+		NAND3_GATE ,
+		OR3_GATE   ,
+		NOR3_GATE  ,
+
 		GATE_COUNT,
 	};
 
@@ -240,6 +247,11 @@ namespace logic_sim {
 		_GATE("OR Gate",     lrgb(   1, 0.5f,    0), float2(1,   1), {{"A", float2(-0.25f, +0.25f)}, {"B", float2(-0.25f, -0.25f)}}, {{"Out", float2(0.25f, 0)}}),
 		_GATE("NOR Gate",    lrgb(   0,    1, 0.5f), float2(1,   1), {{"A", float2(-0.25f, +0.25f)}, {"B", float2(-0.25f, -0.25f)}}, {{"Out", float2(0.25f, 0)}}),
 		_GATE("XOR Gate",    lrgb(   0,    1,    0), float2(1,   1), {{"A", float2(-0.25f, +0.25f)}, {"B", float2(-0.25f, -0.25f)}}, {{"Out", float2(0.25f, 0)}}),
+
+		_GATE("AND-3 Gate",  lrgb(   1,    0,    0), float2(1,   1), {{"A", float2(-0.25f, +0.25f)}, {"B", float2(-0.25f, 0)}, {"C", float2(-0.25f, -0.25f)}}, {{"Out", float2(0.25f, 0)}}),
+		_GATE("NAND-3 Gate", lrgb(0.5f,    1,    0), float2(1,   1), {{"A", float2(-0.25f, +0.25f)}, {"B", float2(-0.25f, 0)}, {"C", float2(-0.25f, -0.25f)}}, {{"Out", float2(0.25f, 0)}}),
+		_GATE("OR-3 Gate",   lrgb(   1, 0.5f,    0), float2(1,   1), {{"A", float2(-0.25f, +0.25f)}, {"B", float2(-0.25f, 0)}, {"C", float2(-0.25f, -0.25f)}}, {{"Out", float2(0.25f, 0)}}),
+		_GATE("NOR-3 Gate",  lrgb(   0,    1, 0.5f), float2(1,   1), {{"A", float2(-0.25f, +0.25f)}, {"B", float2(-0.25f, 0)}, {"C", float2(-0.25f, -0.25f)}}, {{"Out", float2(0.25f, 0)}}),
 	};
 	
 	inline bool is_gate (Chip* chip) {
@@ -284,12 +296,16 @@ namespace logic_sim {
 
 	inline int indexof_part (std::vector<Part> const& vec, Part* part) {
 		//return indexof(parts, part, [] (Part const& l, Part* r) { return &l == r; });
+
+		assert(part >= vec.data() && part < vec.data()+vec.size());
 		size_t idx = part - vec.data();
 		assert(idx >= 0 && idx < vec.size());
 		return (int)idx;
 	}
 	inline int indexof_chip (std::vector<std::shared_ptr<Chip>> const& vec, Chip* chip) {
-		return indexof(vec, chip, [] (std::shared_ptr<Chip> const& l, Chip* r) { return l.get() == r; });
+		int idx = indexof(vec, chip, [] (std::shared_ptr<Chip> const& l, Chip* r) { return l.get() == r; });
+		assert(idx >= 0);
+		return idx;
 	}
 	
 ////
@@ -393,38 +409,34 @@ namespace logic_sim {
 		
 		struct PartSelection {
 			Chip* chip = nullptr;
-			std::vector<Part*> parts;
+
+			struct Item {
+				Part*  part;
+				float2 bounds_offs;
+			};
+			std::vector<Item> items;
 			
 			float2x3 world2chip = float2x3(0);
-			
-			bool changed = false;
 			
 			AABB bounds;
 			
 			operator bool () {
-				return !parts.empty();
+				return !items.empty();
 			}
 
+			static bool _cmp (Item const& i, Part const* p) { return i.part == p; }
+			
 			bool has_part (Chip* chip, Part* part) {
-				return this->chip == chip && contains(parts, part);
+				return this->chip == chip && contains(items, part, _cmp);
 			}
 			bool toggle_part (Part* part) {
-				int idx = indexof(parts, part);
+				int idx = indexof(items, part, _cmp);
 				if (idx < 0)
-					parts.push_back(part);
+					items.push_back({ part, 0 });
 				else
-					parts.erase(parts.begin() + idx);
+					items.erase(items.begin() + idx);
 
-				changed = true;
 				return idx < 0; // if was added
-			}
-
-			void compute_bounds () {
-				bounds = AABB::inf();
-
-				for (auto& part : parts) {
-					bounds.add(part->pos.pos);
-				}
 			}
 		};
 		
@@ -443,7 +455,7 @@ namespace logic_sim {
 			PartSelection sel = {};
 
 			bool dragging = false; // dragging selection
-			float2 drag_start;
+			float2 drag_offset;
 		};
 		struct PlaceMode {
 			
@@ -521,7 +533,7 @@ namespace logic_sim {
 		
 	////
 		void add_part (LogicSim& sim, Chip& chip, PartPreview& part);
-		void remove_part (LogicSim& sim, PartSelection& sel);
+		void remove_part (LogicSim& sim, Chip* chip, Part* part);
 		void add_wire (WireMode& wire);
 
 		void edit_chip (Input& I, LogicSim& sim, Chip& chip, float2x3 const& world2chip, int state_base);

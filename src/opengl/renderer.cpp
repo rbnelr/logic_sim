@@ -260,6 +260,9 @@ struct Renderer : public RendererBackend {
 		if (type < 2)
 			return; // TEST: don't draw INP/OUT_PINs
 
+		if (type >= AND3_GATE)
+			type = type - AND3_GATE + AND_GATE;
+
 		uint16_t idx = (uint16_t)tri_renderer.verticies.size();
 		
 		constexpr float2 verts[] = {
@@ -356,7 +359,7 @@ struct Renderer : public RendererBackend {
 					
 					if (e.sel.has_part(chip, &part))
 						highlight(g, &part, chip, chip2world, lrgba(1,1,1,1),
-							(int)e.sel.parts.size() == 1); // only show text for single-part selections as to not spam too much text
+							(int)e.sel.items.size() == 1); // only show text for single-part selections as to not spam too much text
 				}
 
 				draw_chip(g, part.chip, part2world, chip_state >= 0 ? chip_state + part.state_idx : -1, col);

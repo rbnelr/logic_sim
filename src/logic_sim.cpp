@@ -46,6 +46,7 @@ void simulate_chip (Chip& chip, int state_base, uint8_t* cur, uint8_t* next) {
 			// TODO: cache part_idx in input as well to avoid indirection
 			Part* src_a = input_count >= 1 && part.inputs[0].part_idx >= 0 ? &chip.parts[part.inputs[0].part_idx] : nullptr;
 			Part* src_b = input_count >= 2 && part.inputs[1].part_idx >= 0 ? &chip.parts[part.inputs[1].part_idx] : nullptr;
+			Part* src_c = input_count >= 3 && part.inputs[2].part_idx >= 0 ? &chip.parts[part.inputs[2].part_idx] : nullptr;
 
 			if (type == INP_PIN) {
 				// input pins already updated outside of chip, inside of chip these do not have any inputs
@@ -57,6 +58,7 @@ void simulate_chip (Chip& chip, int state_base, uint8_t* cur, uint8_t* next) {
 			else {
 				bool a = src_a && cur[state_base + src_a->state_idx + part.inputs[0].pin_idx] != 0;
 				bool b = src_b && cur[state_base + src_b->state_idx + part.inputs[1].pin_idx] != 0;
+				bool c = src_c && cur[state_base + src_c->state_idx + part.inputs[2].pin_idx] != 0;
 					
 				uint8_t new_state;
 				switch (type) {
@@ -65,13 +67,19 @@ void simulate_chip (Chip& chip, int state_base, uint8_t* cur, uint8_t* next) {
 					case BUF_GATE : new_state =  a;     break;
 					case NOT_GATE : new_state = !a;     break;
 					
-					case AND_GATE : new_state =   a && b;	 break;
-					case NAND_GATE: new_state = !(a && b);	 break;
+					case AND_GATE : new_state =   a && b;    break;
+					case NAND_GATE: new_state = !(a && b);   break;
 					
-					case OR_GATE  : new_state =   a || b;	 break;
-					case NOR_GATE : new_state = !(a || b);	 break;
+					case OR_GATE  : new_state =   a || b;    break;
+					case NOR_GATE : new_state = !(a || b);   break;
 					
-					case XOR_GATE : new_state =   a != b;	 break;
+					case XOR_GATE : new_state =   a != b;    break;
+
+					case AND3_GATE : new_state =   a && b && c;    break;
+					case NAND3_GATE: new_state = !(a && b && c);   break;
+					
+					case OR3_GATE  : new_state =   a || b || c;    break;
+					case NOR3_GATE : new_state = !(a || b || c);   break;
 
 					default: assert(false);
 				}
@@ -412,9 +420,9 @@ void Editor::viewed_chip_imgui (LogicSim& sim) {
 }
 
 void Editor::selection_imgui (PartSelection& sel) {
-	ImGui::Text("%d Item selected", (int)sel.parts.size());
+	ImGui::Text("%d Item selected", (int)sel.items.size());
 
-	auto& part = *sel.parts[0];
+	auto& part = *sel.items[0].part;
 	
 	ImGui::Separator();
 	ImGui::Spacing();
@@ -482,32 +490,45 @@ void Editor::imgui (LogicSim& sim, Camera2D& cam) {
 
 		if (imgui_Header("Parts", true)) {
 			ImGui::Indent(10);
+			
+			struct Entry {
+				const char* name = nullptr;
+				Chip*       gate;
+			};
+			constexpr Entry entries[] = {
+				{ "INP"    , &gates[INP_PIN   ] },
+				{},
+				{ "OUT"    , &gates[OUT_PIN   ] },
+				{},
+						     
+				{ "BUF"    , &gates[BUF_GATE  ] },
+				{},
+				{ "NOT"    , &gates[NOT_GATE  ] },
+				{},
 
-			if (ImGui::BeginTable("TableGates", 2, ImGuiTableFlags_Borders)) {
-				
-				ImGui::TableNextColumn();
-				select_gate_imgui(sim, "INP" , &gates[INP_PIN  ] );
-				ImGui::TableNextColumn();
-				select_gate_imgui(sim, "OUT" , &gates[OUT_PIN  ] );
+				{ "AND"    , &gates[AND_GATE  ] },
+				{ "AND-3"  , &gates[AND3_GATE ] },
+				{ "NAND"   , &gates[NAND_GATE ] },
+				{ "NAND-3" , &gates[NAND3_GATE] },
 
-				ImGui::TableNextColumn();
-				select_gate_imgui(sim, "BUF" , &gates[BUF_GATE ] );
-				ImGui::TableNextColumn();
-				select_gate_imgui(sim, "NOT" , &gates[NOT_GATE ] );
+				{ "OR"     , &gates[OR_GATE   ] },
+				{ "OR-3"   , &gates[OR3_GATE  ] },
+				{ "NOR"    , &gates[NOR_GATE  ] },
+				{ "NOR-3"  , &gates[NOR3_GATE ] },
+					
+				{ "XOR"    , &gates[XOR_GATE  ] },
+				{},
+				{},
+				{},
+			};
+
+			if (ImGui::BeginTable("TableGates", 4, ImGuiTableFlags_Borders)) {
 				
-				ImGui::TableNextColumn();
-				select_gate_imgui(sim, "AND" , &gates[AND_GATE ] );
-				ImGui::TableNextColumn();
-				select_gate_imgui(sim, "NAND", &gates[NAND_GATE] );
-				
-				ImGui::TableNextColumn();
-				select_gate_imgui(sim, "OR"  , &gates[OR_GATE  ] );
-				ImGui::TableNextColumn();
-				select_gate_imgui(sim, "NOR" , &gates[NOR_GATE ] );
-				
-				ImGui::TableNextColumn();
-				select_gate_imgui(sim, "XOR" , &gates[XOR_GATE ] );
-				ImGui::TableNextColumn();
+				for (auto& entry : entries) {
+					ImGui::TableNextColumn();
+					if (entry.name)
+						select_gate_imgui(sim, entry.name, entry.gate);
+				}
 
 				ImGui::EndTable();
 			}
@@ -584,73 +605,73 @@ void Editor::add_part (LogicSim& sim, Chip& chip, PartPreview& part) {
 	// update state indices
 	sim.update_all_chip_state_indices();
 }
-void Editor::remove_part (LogicSim& sim, PartSelection& sel) {
-	//assert(sel.chip == sim.viewed_chip.get());
-	//
-	//int idx = indexof_part(sel.chip->parts, sel.part);
-	//		
-	//if (sel.part->chip == &gates[OUT_PIN]) {
-	//	assert(idx < (int)sel.chip->outputs.size());
-	//	
-	//	int old_outputs = (int)sel.chip->outputs.size();
-	//
-	//	// erase output at out_idx
-	//	sel.chip->outputs.erase(sel.chip->outputs.begin() + idx);
-	//	
-	//	// remove wires to this output with horribly nested code
-	//	for (auto& schip : sim.saved_chips) {
-	//		for (auto& part : schip->parts) {
-	//			for (int i=0; i<(int)part.chip->inputs.size(); ++i) {
-	//				if (part.inputs[i].part_idx >= 0) {
-	//					auto& inpart = schip->parts[part.inputs[i].part_idx];
-	//					if (inpart.chip == sel.chip && part.inputs[i].pin_idx == idx) {
-	//						part.inputs[i] = {};
-	//					}
-	//				}
-	//			}
-	//		}
-	//	}
-	//}
-	//else if (sel.part->chip == &gates[INP_PIN]) {
-	//	int inp_idx = idx - (int)sel.chip->outputs.size();
-	//	assert(inp_idx >= 0 && inp_idx < (int)sel.chip->inputs.size());
-	//
-	//	int old_inputs = (int)sel.chip->inputs.size();
-	//
-	//	// erase input at idx
-	//	sel.chip->inputs.erase(sel.chip->inputs.begin() + inp_idx);
-	//	
-	//	// resize input array of every part of this chip type
-	//	for (auto& schip : sim.saved_chips) {
-	//		for (auto& part : schip->parts) {
-	//			if (part.chip == sel.chip) {
-	//				part.inputs.erase(old_inputs, inp_idx);
-	//			}
-	//		}
-	//	}
-	//}
-	//
-	//// erase part state  TODO: this is wrong if anything but the viewed chip (top level state) is edited (which I currently can't do)
-	//int first = sel.part->state_idx;
-	//int end   = sel.part->state_idx + sel.part->chip->state_count;
-	//
-	//for (int i=0; i<2; ++i)
-	//	sim.state[i].erase(sim.state[i].begin() + first, sim.state[i].begin() + end);
-	//
-	//// erase part from chip parts
-	//sel.chip->parts.erase(sel.chip->parts.begin() + idx);
-	//
-	//// update input wire part indices
-	//for (auto& cpart : sel.chip->parts) {
-	//	for (int i=0; i<(int)cpart.chip->inputs.size(); ++i) {
-	//		if (cpart.inputs[i].part_idx == idx)
-	//			cpart.inputs[i].part_idx = -1;
-	//		else if (cpart.inputs[i].part_idx > idx)
-	//			cpart.inputs[i].part_idx -= 1;
-	//	}
-	//}
-	//
-	//sim.update_all_chip_state_indices();
+void Editor::remove_part (LogicSim& sim, Chip* chip, Part* part) {
+	assert(chip == sim.viewed_chip.get());
+	
+	int idx = indexof_part(chip->parts, part);
+			
+	if (part->chip == &gates[OUT_PIN]) {
+		assert(idx < (int)chip->outputs.size());
+		
+		int old_outputs = (int)chip->outputs.size();
+	
+		// erase output at out_idx
+		chip->outputs.erase(chip->outputs.begin() + idx);
+		
+		// remove wires to this output with horribly nested code
+		for (auto& schip : sim.saved_chips) {
+			for (auto& part : schip->parts) {
+				for (int i=0; i<(int)part.chip->inputs.size(); ++i) {
+					if (part.inputs[i].part_idx >= 0) {
+						auto& inpart = schip->parts[part.inputs[i].part_idx];
+						if (inpart.chip == chip && part.inputs[i].pin_idx == idx) {
+							part.inputs[i] = {};
+						}
+					}
+				}
+			}
+		}
+	}
+	else if (part->chip == &gates[INP_PIN]) {
+		int inp_idx = idx - (int)chip->outputs.size();
+		assert(inp_idx >= 0 && inp_idx < (int)chip->inputs.size());
+	
+		int old_inputs = (int)chip->inputs.size();
+	
+		// erase input at idx
+		chip->inputs.erase(chip->inputs.begin() + inp_idx);
+		
+		// resize input array of every part of this chip type
+		for (auto& schip : sim.saved_chips) {
+			for (auto& part : schip->parts) {
+				if (part.chip == chip) {
+					part.inputs.erase(old_inputs, inp_idx);
+				}
+			}
+		}
+	}
+	
+	// erase part state  TODO: this is wrong if anything but the viewed chip (top level state) is edited (which I currently can't do)
+	int first = part->state_idx;
+	int end   = part->state_idx + part->chip->state_count;
+	
+	for (int i=0; i<2; ++i)
+		sim.state[i].erase(sim.state[i].begin() + first, sim.state[i].begin() + end);
+	
+	// erase part from chip parts
+	chip->parts.erase(chip->parts.begin() + idx);
+	
+	// update input wire part indices
+	for (auto& cpart : chip->parts) {
+		for (int i=0; i<(int)cpart.chip->inputs.size(); ++i) {
+			if (cpart.inputs[i].part_idx == idx)
+				cpart.inputs[i].part_idx = -1;
+			else if (cpart.inputs[i].part_idx > idx)
+				cpart.inputs[i].part_idx -= 1;
+		}
+	}
+	
+	sim.update_all_chip_state_indices();
 }
 
 void Editor::add_wire (WireMode& w) {
@@ -771,10 +792,12 @@ void Editor::update (Input& I, Game& g) {
 			e.dragging = false;
 		}
 		
+		bool shift = I.buttons[KEY_LEFT_SHIFT].is_down;
+
 		if (I.buttons[MOUSE_BUTTON_LEFT].went_down) {
 			// normal click
 			// select part, unselect everything or select pin (go into wire mode)
-			if (!I.buttons[KEY_LEFT_SHIFT].is_down || !e.sel) {
+			if (!shift || !e.sel) {
 				if (hover.type == Hover::NONE) {
 					e.sel = {};
 				}
@@ -795,13 +818,13 @@ void Editor::update (Input& I, Game& g) {
 						// keep multiselect if clicked on already selected item
 					}
 					else {
-						e.sel = { hover.chip, { hover.part }, hover.world2chip };
+						e.sel = { hover.chip, {{ hover.part }}, hover.world2chip };
 					}
 				}
 			}
 			// shift click add/remove from selection
 			else {
-				assert(e.sel && !e.sel.parts.empty());
+				assert(e.sel && !e.sel.items.empty());
 				if (hover.type == Hover::PART && hover.chip == e.sel.chip) {
 					e.sel.toggle_part(hover.part);
 				}
@@ -814,67 +837,82 @@ void Editor::update (Input& I, Game& g) {
 		// edit parts
 		if (in_mode<EditMode>() && e.sel) { // still in edit mode? else e becomes invalid
 
-			if (e.sel.changed) {
-				e.sel.compute_bounds();
-				e.sel.changed = false;
+			float2 bounds_center;
+			{
+				e.sel.bounds = AABB::inf();
+
+				for (auto& item : e.sel.items) {
+					e.sel.bounds.add(item.part->get_aabb());
+				}
+
+				bounds_center = (e.sel.bounds.lo + e.sel.bounds.hi) * 0.5f;
+					
+				for (auto& item : e.sel.items) {
+					item.bounds_offs = item.part->pos.pos - bounds_center;
+				}
 			}
 			
-			// convert cursor position to chip space and _then_ snap that later
-			// this makes it so that we always snap in the space of the chip
-			float2 pos = e.sel.world2chip * _cursor_pos;
+			if (shift) {
+				e.dragging = false;
+			}
+			else {
 
-			if (!e.dragging) {
-				// begin dragging gate
-				if (I.buttons[MOUSE_BUTTON_LEFT].went_down) {
-					e.drag_start = pos;
-					e.dragging = true;
+				// convert cursor position to chip space and _then_ snap that later
+				// this makes it so that we always snap in the space of the chip
+				float2 pos = snap(e.sel.world2chip * _cursor_pos);
+			
+				// Cursor is snapped, which is then used to move items as a group, thus unaligned items stay unaligned
+				// snapping items individually is also possible
+
+				if (!e.dragging && !shift) {
+						// begin dragging gate
+					if (I.buttons[MOUSE_BUTTON_LEFT].went_down) {
+						e.drag_offset = pos - bounds_center;
+						e.dragging = true;
+					}
+				}
+				if (e.dragging) {
+					// move selection to cursor
+					bounds_center = pos - e.drag_offset;
+
+					// drag gate
+					if (I.buttons[MOUSE_BUTTON_LEFT].is_down) {
+						for (auto& item : e.sel.items)
+							item.part->pos.pos = item.bounds_offs + bounds_center;
+					}
+					// stop dragging gate
+					if (I.buttons[MOUSE_BUTTON_LEFT].went_up) {
+						e.dragging = false;
+					}
 				}
 			}
 
-			float2 drag_offs = pos - e.drag_start;
-
-			
 			//edit_placement(I, sel.part->pos);
-			//
-			//if (!dragging) {
-			//	// begin dragging gate
-			//	if (I.buttons[MOUSE_BUTTON_LEFT].went_down) {
-			//		drag_offs = pos - sel.part->pos.pos;
-			//		dragging = true;
-			//	}
-			//}
-			//if (dragging) {
-			//	// drag gate
-			//	if (I.buttons[MOUSE_BUTTON_LEFT].is_down) {
-			//		sel.part->pos.pos = snap(pos - drag_offs);
-			//	}
-			//	// stop dragging gate
-			//	if (I.buttons[MOUSE_BUTTON_LEFT].went_up) {
-			//		dragging = false;
-			//	}
-			//}
-			//
+			
+			
 			//// Duplicate selected part with CTRL+C
 			//// TODO: CTRL+D moves the camera to the right, change that?
 			//if (I.buttons[KEY_LEFT_CONTROL].is_down && I.buttons['C'].went_down) {
 			//	preview_part.chip = sel.part->chip;
 			//	mode = PLACE_MODE;
 			//}
-			//
-			//// remove gates via DELETE key
-			//if (sel.chip == sim.viewed_chip.get() && I.buttons[KEY_DELETE].went_down) {
-			//	remove_part(sim, sel);
-			//
-			//	if (hover == sel) hover = {};
-			//	sel = {};
-			//	// just be to sure no stale pointers exist
-			//	preview_wire = {};
-			//	toggle_gate = {};
-			//}
 			
-			if (e.sel.parts.size() > 1)
+			// remove gates via DELETE key
+			if (e.sel.chip == sim.viewed_chip.get() && I.buttons[KEY_DELETE].went_down) {
+
+				// Does not work
+				for (auto& i : e.sel.items)
+					remove_part(sim, e.sel.chip, i.part);
+
+				// avoid stale pointer in hover
+				if (e.sel.has_part(e.sel.chip, hover.part))
+					hover = {};
+				e.sel = {};
+			}
+			
+			if (e.sel.items.size() > 1)
 				g.dbgdraw.wire_quad(float3(e.sel.bounds.lo, 5.0f), e.sel.bounds.hi - e.sel.bounds.lo,
-					lrgba(0.6f, 0.6f, 1.0f, 0.3f));
+					lrgba(0.8f, 0.8f, 1.0f, 0.5f));
 		}
 	}
 	
