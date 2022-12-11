@@ -12,6 +12,7 @@ struct Game {
 		
 		t.editor = {}; // reset editor
 		t.sim = {}; // reset entire sim
+		t.sim.reset_chip_view(t.cam);
 
 		if (j.contains("sim")) from_json(j["sim"], t.sim, t.cam);
 	}

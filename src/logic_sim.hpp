@@ -3,52 +3,116 @@
 #include "camera.hpp"
 #include <variant>
 
-// smart ptr array that can be inserted into and erased from like a vector
-// preferred because it's footprint is 1 ptr rather than 3
-// insertions happen rarely (only on edits of chip instances) but reads happen very often (every sim tick)
 template<typename T>
-struct schmart_array {
-	std::unique_ptr<T[]> ptr;
+void insert (std::unique_ptr<T[]>& old, int old_size, int idx, T&& val) {
+	assert(idx >= 0 && idx <= old_size);
 
-	schmart_array (): ptr{nullptr} {}
-	schmart_array (int size): ptr{size > 0 ? std::make_unique<T[]>(size) : nullptr} {}
+	auto ptr = std::make_unique<T[]>(old_size + 1);
 
-	T& operator[] (int i) {
-		return ptr[i];
-	}
-	T const& operator[] (int i) const {
-		return ptr[i];
-	}
+	for (int i=0; i<idx; ++i)
+		ptr[i] = std::move(old[i]);
 
-	void insert (int old_size, int idx, T&& val) {
-		assert(idx >= 0 && idx <= old_size);
+	ptr[idx] = std::move(val);
 
-		auto old = std::move(ptr);
-		ptr = std::make_unique<T[]>(old_size + 1);
+	for (int i=idx; i<old_size; ++i)
+		ptr[i+1] = std::move(old[i]);
 
-		for (int i=0; i<idx; ++i)
-			ptr[i] = std::move(old[i]);
-
-		ptr[idx] = std::move(val);
-
-		for (int i=idx; i<old_size; ++i)
-			ptr[i+1] = std::move(old[i]);
-	}
-	void erase (int old_size, int idx) {
-		assert(old_size > 0 && idx < old_size);
+	return ptr;
+}
+template<typename T>
+void erase (std::unique_ptr<T[]>& old, int old_size, int idx) {
+	assert(old_size > 0 && idx < old_size);
 		
-		auto old = std::move(ptr);
-		ptr = old_size-1 > 0 ?
-			std::make_unique<T[]>(old_size - 1)
-			: nullptr;
+	auto ptr = std::make_unique<T[]>(old_size - 1);
 
-		for (int i=0; i<idx; ++i)
-			ptr[i] = std::move(old[i]);
+	for (int i=0; i<idx; ++i)
+		ptr[i] = std::move(old[i]);
 
-		for (int i=idx+1; i<old_size; ++i)
-			ptr[i-1] = std::move(old[i]);
+	for (int i=idx+1; i<old_size; ++i)
+		ptr[i-1] = std::move(old[i]);
+
+	return ptr;
+}
+
+template <typename T>
+struct _DefaultKeySel {
+	T const& get_key (T const& t) const {
+		return t;
 	}
 };
+
+#include <unordered_set>
+
+/*
+template<typename T, typename KSel=_DefaultKeySel<T>>
+struct hashset {
+
+	typedef key_t = decltype(KSel::get_key(t));
+
+	struct _Hash {
+		static size_t operator() (T const& t) {
+			return std::hash<key_t>()
+				(KSel::get_key(t));
+		}
+	};
+	struct _KeyEqual {
+		static bool operator() (T const& l, T const& r) {
+			return KSel::get_key(l) == KSel::get_key(r);
+		}
+	};
+
+	typedef set_t std::unordered_set<T, _Hash, _KeyEqual>;
+
+	set_t set;
+
+	hashset () {}
+
+	hashset (hashset&& r): set{ std::move(r) };
+	hashset& operator= (hashset&& r) {
+		this->set = std::move(r);
+		return *this
+	};
+
+	hashset (hashset const& r): set{ r };
+	hashset& operator= (hashset const& r) {
+		this->set = r;
+		return *this
+	};
+
+	bool empty () const {
+		return set.empty();
+	}
+
+	set_t::iterator begin () {
+		return set.begin();
+	}
+	set_t::iterator end () {
+		return set.end();
+	}
+
+	set_t::const_iterator begin () {
+		return set.begin();
+	}
+	set_t::const_iterator end () {
+		return set.end();
+	}
+
+	bool contains (key_t const& key) {
+		return set.find(key) != set.end();
+	}
+
+	bool add (T&& val) {
+		return set.emplace(val);
+	}
+
+	bool remove (key_t const& key) {
+		return set.erase(key);
+	}
+
+	set_t::iterator find (key_t const& key) {
+		return set.find(key);
+	}
+};*/
 
 namespace logic_sim {
 	
@@ -120,37 +184,21 @@ namespace logic_sim {
 		// when this chip is placed in the simulation
 		int state_count = -1; // -1 if stale
 
-		struct IO_Pin {
-			SERIALIZE(IO_Pin, name)
-
-			std::string name = "";
-		};
-
-		std::vector<IO_Pin> outputs = {};
-		std::vector<IO_Pin> inputs = {};
+		std::vector< std::unique_ptr<Part> > outputs = {};
+		std::vector< std::unique_ptr<Part> > inputs = {};
 		
-		// first all outputs, than all inputs, then all other direct children of this chip
-		std::vector<Part> parts = {};
+		std::unordered_set< std::unique_ptr<Part> > parts = {};
 		
 		int _recurs = 0;
-
-		Part& get_input (int i) {
-			int outs = (int)outputs.size();
-			assert(i >= 0 && i < (int)inputs.size());
-			assert(parts.size() >= outs + (int)inputs.size());
-			return parts[outs + i];
-		}
-		Part& get_output (int i) {
-			assert(i >= 0 && i < (int)outputs.size());
-			assert(parts.size() >= (int)outputs.size());
-			return parts[i];
-		}
 	};
 
 	// An instance of a chip placed down in a chip
 	// (Primitive gates are also implemented as chips)
 	struct Part {
 		Chip* chip = nullptr;
+
+		// optional part name
+		std::string name;
 
 		Placement pos = {};
 
@@ -159,10 +207,7 @@ namespace logic_sim {
 		int state_idx = -1; // check parent chip for state state_count, then this is also stale
 
 		struct InputWire {
-			// pointing to output of other part that is direct child of chip
-			// can be normal part or chip input pin
-			// or -1 if unconnected
-			int part_idx = -1;
+			Part* part = nullptr;
 			// which output pin of the part is connected to
 			int pin_idx = 0;
 			
@@ -170,10 +215,20 @@ namespace logic_sim {
 
 			std::vector<float2> wire_points;
 		};
-		schmart_array<InputWire> inputs;
+		std::unique_ptr<InputWire[]> inputs;
 		
-		Part (Chip* chip, Placement pos={}): chip{chip}, pos{pos},
-			inputs{chip ? (int)chip->inputs.size() : 0} {}
+		struct OutputWire {
+			Part* part = nullptr;
+			// which input pin of the part is connected to
+			int pin_idx = 0;
+
+			// no wire 
+		};
+		std::unique_ptr<OutputWire[]> outputs;
+
+		Part (Chip* chip, std::string&& name="", Placement pos={}): chip{chip}, pos{pos}, name{name},
+			inputs {std::make_unique<InputWire []>(chip ? chip->inputs .size() : 0)},
+			outputs{std::make_unique<OutputWire[]>(chip ? chip->outputs.size() : 0)} {}
 		
 		AABB get_aabb () const {
 			// mirror does not matter
@@ -222,15 +277,14 @@ namespace logic_sim {
 		c.col = col;
 		c.size = size;
 		c.state_count = 1;
-
-		for (auto& o : outputs) {
-			c.outputs.emplace_back(o.name);
-			c.parts.emplace_back(nullptr, Placement{o.pos});
-		}
+		
 		for (auto& i : inputs) {
-			c.inputs.emplace_back(i.name);
-			c.parts.emplace_back(nullptr, Placement{i.pos});
+			c.inputs.emplace_back(std::make_unique<Part>( nullptr, i.name, Placement{ i.pos } ));
 		}
+		for (auto& o : outputs) {
+			c.outputs.emplace_back(std::make_unique<Part>( nullptr, o.name, Placement{ o.pos } ));
+		}
+
 		return c;
 	}
 	
@@ -283,28 +337,25 @@ namespace logic_sim {
 			return chip.state_count;
 			
 		// state count stale, recompute
+		// states are placed flattened in order of depth first traversal of part (chip instance) tree
 		chip.state_count = 0;
+		
+		for (auto& part : chip.outputs)
+			part->state_idx = chip.state_count++;
+		for (auto& part : chip.inputs)
+			part->state_idx = chip.state_count++;
+
 		for (auto& part : chip.parts) {
-			// states are placed flattened in order of depth first traversal of part (chip instance) tree
-			part.state_idx = chip.state_count;
+			part->state_idx = chip.state_count;
 			// allocate as many states as are needed recursively for this part
-			chip.state_count += update_state_indices(*part.chip);
+			chip.state_count += update_state_indices(*part->chip);
 		}
 
 		return chip.state_count;
 	}
 
-	inline int indexof_part (std::vector<Part> const& vec, Part* part) {
-		//return indexof(parts, part, [] (Part const& l, Part* r) { return &l == r; });
-
-		assert(part >= vec.data() && part < vec.data()+vec.size());
-		size_t idx = part - vec.data();
-		assert(idx >= 0 && idx < vec.size());
-		return (int)idx;
-	}
 	inline int indexof_chip (std::vector<std::shared_ptr<Chip>> const& vec, Chip* chip) {
 		int idx = indexof(vec, chip, [] (std::shared_ptr<Chip> const& l, Chip* r) { return l.get() == r; });
-		assert(idx >= 0);
 		return idx;
 	}
 	
@@ -414,7 +465,10 @@ namespace logic_sim {
 				Part*  part;
 				float2 bounds_offs;
 			};
-			std::vector<Item> items;
+			struct _cmp {
+				bool operator() (Item const& l, Item const& r) { return l.part == r.part; }
+			};
+			std::vector<Item> items; // TODO: use custom hashset here
 			
 			float2x3 world2chip = float2x3(0);
 			
@@ -536,6 +590,7 @@ namespace logic_sim {
 		void remove_part (LogicSim& sim, Chip* chip, Part* part);
 		void add_wire (WireMode& wire);
 
+		void edit_part (Input& I, LogicSim& sim, Chip& chip, Part& part, float2x3 const& world2chip, int state_base);
 		void edit_chip (Input& I, LogicSim& sim, Chip& chip, float2x3 const& world2chip, int state_base);
 
 		void update (Input& I, Game& g);

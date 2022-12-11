@@ -156,8 +156,8 @@ flat VS2FS int v_gate_state;
 		{ // draw base gate symbol
 			float d;
 			
-			//if      (ty == INP_PIN /2) d =   io_gate(v.uv);
-			if      (ty == BUF_GATE/2) d =  buf_gate(v.uv);
+			if      (ty == INP_PIN /2) d =   io_gate(v.uv);
+			else if (ty == BUF_GATE/2) d =  buf_gate(v.uv);
 			else if (ty == AND_GATE/2) d =  and_gate(v.uv);
 			else if (ty == OR_GATE /2) d =   or_gate(v.uv);
 			else /* ty == GT_XOR */ d =  xor_gate(v.uv);

@@ -257,8 +257,8 @@ struct Renderer : public RendererBackend {
 	}
 
 	void draw_gate (float2x3 const& mat, float2 size, int type, int state, lrgba col) {
-		if (type < 2)
-			return; // TEST: don't draw INP/OUT_PINs
+		//if (type < 2)
+		//	return; // TEST: don't draw INP/OUT_PINs
 
 		if (type >= AND3_GATE)
 			type = type - AND3_GATE + AND_GATE;
@@ -282,49 +282,121 @@ struct Renderer : public RendererBackend {
 		ogl::push_quad(pi, idx+0, idx+1, idx+2, idx+3);
 	}
 	
-	void draw_highlight (Game& g, std::string_view name, float2 size, float2x3 const& mat, lrgba col, bool draw_text) {
+	void draw_highlight_box (Game& g, float2 size, float2x3 const& mat, lrgba col) {
 		size  = abs((float2x2)mat * size);
 		float2 center = mat * float2(0);
 		
 		g.dbgdraw.wire_quad(float3(center - size*0.5f, 5.0f), size, col);
+	}
+	void draw_highlight_text (Game& g, float2 size, float2x3 const& mat, std::string_view name, lrgba col=1, float2 align=float2(0,1)) {
+		size  = abs((float2x2)mat * size);
+		float2 center = mat * float2(0);
 		
-		if (draw_text)
-			text.draw_text(name, 20*text_scale, 1,
-				TextRenderer::map_text(center + size*float2(-0.5f, 0.5f), g.view), float2(0,1));
+		text.draw_text(name, 20*text_scale, col,
+			TextRenderer::map_text(center + size*(align - 0.5f), g.view), align);
 	}
 	
-	void highlight (Game& g, Part* part, Chip* chip, float2x3 const& chip2world, lrgba col, bool draw_text=true) {
-		std::string_view name = part->chip->name;
-		if (part->chip == &gates[INP_PIN])
-			name = chip->inputs[indexof_part(chip->parts, part) - (int)chip->outputs.size()].name;
-		if (part->chip == &gates[OUT_PIN])
-			name = chip->outputs[indexof_part(chip->parts, part)].name;
-
-		auto mat = chip2world * part->pos.calc_matrix();
-		
-		draw_highlight(g, name, part->chip->size, mat, col, draw_text);
+	void highlight (Game& g, Part* part, float2x3 const& part2world, lrgba col, bool draw_text=true) {
+		draw_highlight_box(g, part->chip->size, part2world, col);
+		if (draw_text)
+			draw_highlight_text(g, part->chip->size, part2world, part->chip->name);
 	}
-	void highlight (Game& g, Editor::Hover& h, float2x3 const& chip2world, lrgba col, bool draw_text=true) {
+	void highlight (Game& g, Editor::Hover& h, float2x3 const& part2world, lrgba col, bool draw_text=true) {
 		if (h.type == Editor::Hover::PART) {
-			highlight(g, h.part, h.chip, chip2world, col, draw_text);
+			highlight(g, h.part, part2world, col, draw_text);
 		}
 		else {
 			
 			bool inp = h.type == Editor::Hover::PIN_INP;
-			auto& io = inp ? h.part->chip->inputs [h.pin] :
-			                 h.part->chip->outputs[h.pin];
+			auto& io = inp ? *h.part->chip->inputs [h.pin] :
+			                 *h.part->chip->outputs[h.pin];
 			
 			std::string_view name = "<unnamed io>"; // NOTE: ternary operator and implicit casting is bug prone -_-
 			if (!io.name.empty()) name = io.name;
 
 			auto pos = inp ?
-				get_inp_pos(h.part->chip->get_input(h.pin)) :
-				get_out_pos(h.part->chip->get_output(h.pin));
+				get_inp_pos(*h.part->chip->inputs [h.pin]) :
+				get_out_pos(*h.part->chip->outputs[h.pin]);
+
+			auto mat = part2world * translate(pos);
 			
-			auto mat = chip2world * h.part->pos.calc_matrix();
-			
-			draw_highlight(g, name, PIN_SIZE, mat * translate(pos), col * lrgba(1,1, 0.6f, 1), draw_text);
+			draw_highlight_box(g, PIN_SIZE, mat, col * lrgba(1,1, 0.6f, 1));
+			if (draw_text)
+				draw_highlight_text(g, PIN_SIZE, mat, name);
 		}
+	}
+
+	void draw_part (Game& g, Chip* chip, Part* part, float2x3 const& chip2world, int chip_state, lrgba col) {
+		uint8_t* prev = g.sim.state[g.sim.cur_state^1].data();
+		uint8_t* cur  = g.sim.state[g.sim.cur_state  ].data();
+		
+		auto part2chip = part->pos.calc_matrix();
+		auto part2world = chip2world * part2chip;
+
+		auto* sel = g.editor.in_mode<Editor::EditMode>() ?
+			&std::get<Editor::EditMode>(g.editor.mode).sel : nullptr;
+		
+		if (g.editor.hover.is_part(part)) {
+			highlight(g, g.editor.hover, part2world, lrgba(1,1,1,1));
+		}
+		else if (sel && sel->has_part(chip, part)) {
+			highlight(g, part, part2world, lrgba(0.7f, 0.7f, 0.9f, 1),
+					(int)sel->items.size() == 1); // only show text for single-part selections as to not spam too much text
+		}
+		if (!part->name.empty()) {
+			draw_highlight_text(g, part->chip->size, part2world, part->name,
+				lrgba(0.4f, 0.5f, 0.4f, 1), float2(0.5f, 0.5f));
+		}
+
+		draw_chip(g, part->chip, part2world, chip_state >= 0 ? chip_state + part->state_idx : -1, col);
+		
+		constexpr lrgba line_col = lrgba(0.8f, 0.01f, 0.025f, 1);
+				
+		for (int i=0; i<(int)part->chip->inputs.size(); ++i) {
+			auto& inp = part->chip->inputs[i];
+					
+			// center position input
+			float2 dst0 = part2chip * get_inp_pos(*inp);
+			float2 dst1 = part2chip * inp->pos.pos;
+
+			auto& inp_wire = part->inputs[i];
+			if (!inp_wire.part) {
+				build_line(chip2world, dst0, dst1, 0, line_col);
+			}
+			else {
+				// get connected part
+				auto& src_part = *inp_wire.part;
+					
+				// center position of connected output
+				auto smat = src_part.pos.calc_matrix();
+				auto& spart = *src_part.chip->outputs[inp_wire.pin_idx];
+				float2 src0 = smat * spart.pos.pos;
+				float2 src1 = smat * get_out_pos(spart);
+
+				uint8_t prev_state = chip_state >= 0 ? prev[chip_state + src_part.state_idx + inp_wire.pin_idx] : 1;
+				uint8_t  cur_state = chip_state >= 0 ? cur [chip_state + src_part.state_idx + inp_wire.pin_idx] : 1;
+				int state = (prev_state << 1) | cur_state;
+					
+				build_line(chip2world,
+					src0, src1, inp_wire.wire_points, dst0, dst1,
+					state, line_col);
+			}
+		}
+				
+		//for (int i=0; i<(int)part.chip->outputs.size(); ++i) {
+		//	{ // TODO: always draw output wire for now
+		//		// center position output
+		//		auto& spart = part.chip->get_output(i);
+		//		float2 dst0 = part2chip * spart.pos.pos;
+		//		float2 dst1 = part2chip * get_out_pos(spart);
+		//	
+		//		uint8_t prev_state = chip_state >= 0 ? prev[chip_state + part.state_idx + i] : 1;
+		//		uint8_t  cur_state = chip_state >= 0 ? cur [chip_state + part.state_idx + i] : 1;
+		//		int state = (prev_state << 1) | cur_state;
+		//	
+		//		build_line(chip2world, dst0, dst1, state, col);
+		//	}
+		//}
 	}
 
 	void draw_chip (Game& g, Chip* chip, float2x3 const& chip2world, int chip_state, lrgba col) {
@@ -345,77 +417,15 @@ struct Renderer : public RendererBackend {
 				float2 size = abs( (float2x2)chip2world * chip->size );
 				g.dbgdraw.wire_quad(float3(center - size*0.5f, 0.0f), size, lrgba(0.9f, 0.9f, 0.3f, 1));
 			}
-
+			
+			for (auto& part : chip->inputs) {
+				draw_part(g, chip, part.get(), chip2world, chip_state, col);
+			}
+			for (auto& part : chip->outputs) {
+				draw_part(g, chip, part.get(), chip2world, chip_state, col);
+			}
 			for (auto& part : chip->parts) {
-				
-				auto part2chip = part.pos.calc_matrix();
-				auto part2world = chip2world * part2chip;
-
-				if (g.editor.hover.is_part(&part)) {
-					highlight(g, g.editor.hover, chip2world, lrgba(0.25f,0.25f,0.25f,1));
-				}
-				if (g.editor.in_mode<Editor::EditMode>()) {
-					auto& e = std::get<Editor::EditMode>(g.editor.mode);
-					
-					if (e.sel.has_part(chip, &part))
-						highlight(g, &part, chip, chip2world, lrgba(1,1,1,1),
-							(int)e.sel.items.size() == 1); // only show text for single-part selections as to not spam too much text
-				}
-
-				draw_chip(g, part.chip, part2world, chip_state >= 0 ? chip_state + part.state_idx : -1, col);
-
-				constexpr lrgba col = lrgba(0.8f, 0.01f, 0.025f, 1);
-
-				for (int i=0; i<(int)part.chip->inputs.size(); ++i) {
-					
-					// center position input
-					auto& dpart = part.chip->get_input(i);
-					float2 dst0 = part2chip * get_inp_pos(dpart);
-					float2 dst1 = part2chip * dpart.pos.pos;
-
-					auto& inp = part.inputs[i];
-					if (inp.part_idx < 0) {
-						
-						auto& dpart = part.chip->get_input(i);
-						float2 dst0 = part2chip * get_inp_pos(dpart);
-						float2 dst1 = part2chip * dpart.pos.pos;
-
-						build_line(chip2world, dst0, dst1, 0, col);
-					}
-					else {
-						// get connected part
-						auto& src_part = chip->parts[inp.part_idx];
-					
-						// center position of connected output
-						auto smat = src_part.pos.calc_matrix();
-						auto& spart = src_part.chip->get_output(inp.pin_idx);
-						float2 src0 = smat * spart.pos.pos;
-						float2 src1 = smat * get_out_pos(spart);
-
-						uint8_t prev_state = chip_state >= 0 ? prev[chip_state + src_part.state_idx + inp.pin_idx] : 1;
-						uint8_t  cur_state = chip_state >= 0 ? cur [chip_state + src_part.state_idx + inp.pin_idx] : 1;
-						int state = (prev_state << 1) | cur_state;
-					
-						build_line(chip2world,
-							src0, src1, inp.wire_points, dst0, dst1,
-							state, col);
-					}
-				}
-				
-				//for (int i=0; i<(int)part.chip->outputs.size(); ++i) {
-				//	{ // TODO: always draw output wire for now
-				//		// center position output
-				//		auto& spart = part.chip->get_output(i);
-				//		float2 dst0 = part2chip * spart.pos.pos;
-				//		float2 dst1 = part2chip * get_out_pos(spart);
-				//	
-				//		uint8_t prev_state = chip_state >= 0 ? prev[chip_state + part.state_idx + i] : 1;
-				//		uint8_t  cur_state = chip_state >= 0 ? cur [chip_state + part.state_idx + i] : 1;
-				//		int state = (prev_state << 1) | cur_state;
-				//	
-				//		build_line(chip2world, dst0, dst1, state, col);
-				//	}
-				//}
+				draw_part(g, chip, part.get(), chip2world, chip_state, col);
 			}
 
 			if (g.editor.in_mode<Editor::WireMode>()) { // Wire preview
@@ -432,13 +442,13 @@ struct Renderer : public RendererBackend {
 			
 					if (out.part) {
 						auto  mat  = out.part->pos.calc_matrix();
-						auto& part = out.part->chip->get_output(out.pin);
+						auto& part = *out.part->chip->outputs[out.pin];
 						out0 = mat * part.pos.pos;
 						out1 = mat * get_out_pos(part);
 					}
 					if (inp.part) {
 						auto  mat  = inp.part->pos.calc_matrix();
-						auto& part = inp.part->chip->get_input(inp.pin);
+						auto& part = *inp.part->chip->inputs[inp.pin];
 						inp0 = mat * get_inp_pos(part);
 						inp1 = mat * part.pos.pos;
 					}
@@ -507,10 +517,9 @@ struct Renderer : public RendererBackend {
 					
 					constexpr lrgba col = lrgba(0.8f, 0.01f, 0.025f, 0.5f);
 					
-					for (int i=0; i<(int)preview.chip->inputs.size(); ++i) {
-						auto& dpart = preview.chip->get_input(i);
-						float2 dst0 = part2chip * get_inp_pos(dpart);
-						float2 dst1 = part2chip * dpart.pos.pos;
+					for (auto& inp : preview.chip->inputs) {
+						float2 dst0 = part2chip * get_inp_pos(*inp);
+						float2 dst1 = part2chip * inp->pos.pos;
 
 						build_line(float2x3::identity(), dst0, dst1, 0, col);
 					}

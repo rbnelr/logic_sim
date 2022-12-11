@@ -8,15 +8,38 @@ namespace logic_sim {
 void simulate_chip (Chip& chip, int state_base, uint8_t* cur, uint8_t* next) {
 		
 	int state_offs = 0;
+	
+	for (auto& part : chip.outputs) {
+		assert(part->chip == &gates[OUT_PIN]);
+		
+		assert(part->state_idx == state_offs);
+		assert(part->chip->state_count == 1);
+		
+		Part* src_a = part->inputs[0].part;
+
+		if (!src_a) {
+			// keep prev state (needed to toggle gates via LMB)
+			next[state_base + state_offs] = cur[state_base + state_offs];
+		}
+		else {
+			bool new_state = src_a && cur[state_base + src_a->state_idx + part->inputs[0].pin_idx] != 0;
+			
+			next[state_base + state_offs] = new_state;
+		}
+
+		state_offs += 1;
+	}
+	
+	state_offs += (int)chip.inputs.size();
 
 	for (auto& part : chip.parts) {
-		int input_count = (int)part.chip->inputs.size();
+		int input_count = (int)part->chip->inputs.size();
 
-		if (!is_gate(part.chip)) {
-			int output_count = (int)part.chip->outputs.size();
+		if (!is_gate(part->chip)) {
+			int output_count = (int)part->chip->outputs.size();
 
 			for (int i=0; i<input_count; ++i) {
-				Part* src = part.inputs[i].part_idx >= 0 ? &chip.parts[part.inputs[i].part_idx] : nullptr;
+				Part* src = part->inputs[i].part;
 					
 				uint8_t new_state;
 
@@ -26,44 +49,41 @@ void simulate_chip (Chip& chip, int state_base, uint8_t* cur, uint8_t* next) {
 				}
 				else {
 					// read input connection
-					new_state = cur[state_base + src->state_idx + part.inputs[i].pin_idx] != 0;
+					new_state = cur[state_base + src->state_idx + part->inputs[i].pin_idx] != 0;
 					// write input part state
 				}
 
 				next[state_base + state_offs + output_count + i] = new_state;
 			}
 
-			simulate_chip(*part.chip, state_base + state_offs, cur, next);
+			simulate_chip(*part->chip, state_base + state_offs, cur, next);
 		}
 		else {
-			auto type = gate_type(part.chip);
-				
-			assert(part.chip->state_count); // state_count stale!
-				
-			assert(part.state_idx == state_offs);
-			assert(part.chip->state_count == 1);
-				
-			// TODO: cache part_idx in input as well to avoid indirection
-			Part* src_a = input_count >= 1 && part.inputs[0].part_idx >= 0 ? &chip.parts[part.inputs[0].part_idx] : nullptr;
-			Part* src_b = input_count >= 2 && part.inputs[1].part_idx >= 0 ? &chip.parts[part.inputs[1].part_idx] : nullptr;
-			Part* src_c = input_count >= 3 && part.inputs[2].part_idx >= 0 ? &chip.parts[part.inputs[2].part_idx] : nullptr;
+			auto type = gate_type(part->chip);
 
-			if (type == INP_PIN) {
-				// input pins already updated outside of chip, inside of chip these do not have any inputs
-			}
-			else if (!src_a && !src_b) {
+			assert(type != INP_PIN && type != OUT_PIN);
+			
+			assert(part->chip->state_count); // state_count stale!
+			
+			assert(part->state_idx == state_offs);
+			assert(part->chip->state_count == 1);
+			
+			// TODO: cache part_idx in input as well to avoid indirection
+			Part* src_a = input_count >= 1 ? part->inputs[0].part : nullptr;
+			Part* src_b = input_count >= 2 ? part->inputs[1].part : nullptr;
+			Part* src_c = input_count >= 3 ? part->inputs[2].part : nullptr;
+
+			if (!src_a && !src_b) {
 				// keep prev state (needed to toggle gates via LMB)
 				next[state_base + state_offs] = cur[state_base + state_offs];
 			}
 			else {
-				bool a = src_a && cur[state_base + src_a->state_idx + part.inputs[0].pin_idx] != 0;
-				bool b = src_b && cur[state_base + src_b->state_idx + part.inputs[1].pin_idx] != 0;
-				bool c = src_c && cur[state_base + src_c->state_idx + part.inputs[2].pin_idx] != 0;
+				bool a = src_a && cur[state_base + src_a->state_idx + part->inputs[0].pin_idx] != 0;
+				bool b = src_b && cur[state_base + src_b->state_idx + part->inputs[1].pin_idx] != 0;
+				bool c = src_c && cur[state_base + src_c->state_idx + part->inputs[2].pin_idx] != 0;
 					
 				uint8_t new_state;
 				switch (type) {
-					case OUT_PIN  : new_state =  a;     break;
-
 					case BUF_GATE : new_state =  a;     break;
 					case NOT_GATE : new_state = !a;     break;
 					
@@ -90,9 +110,9 @@ void simulate_chip (Chip& chip, int state_base, uint8_t* cur, uint8_t* next) {
 			// don't recurse
 		}
 
-		state_offs += part.chip->state_count;
+		state_offs += part->chip->state_count;
 	}
-		
+	
 	assert(chip.state_count >= 0); // state_count stale!
 	assert(state_offs == chip.state_count); // state_count invalid!
 }
@@ -103,12 +123,9 @@ void LogicSim::simulate (Input& I) {
 	uint8_t* cur  = state[cur_state  ].data();
 	uint8_t* next = state[cur_state^1].data();
 
-	int output_count = (int)viewed_chip->outputs.size();
-	int input_count = (int)viewed_chip->inputs.size();
-
-	for (int i=0; i<input_count; ++i) {
-		// keep prev state (needed to toggle gates via LMB)
-		next[output_count + i] = cur[output_count + i] != 0;
+	// keep prev state (needed to toggle gates via LMB)
+	for (auto& part : viewed_chip->inputs) {
+		next[part->state_idx] = cur[part->state_idx] != 0;
 	}
 
 	simulate_chip(*viewed_chip, 0, cur, next);
@@ -117,92 +134,161 @@ void LogicSim::simulate (Input& I) {
 }
 
 ////
-void to_json (json& j, const Chip& chip, const LogicSim& sim) {
-		
-	j = {
-		{"name", chip.name},
-		{"col", chip.col},
-		{"inputs", chip.inputs},
-		{"outputs", chip.outputs},
-		{"size", chip.size},
-	};
-	json& parts_j = j["parts"];
+json part2json (LogicSim const& sim, Part& part, std::unordered_map<Part*, int>& part2idx) {
+	json j;
+	j["chip"] = is_gate(part.chip) ?
+			gate_type(part.chip) :
+			indexof_chip(sim.saved_chips, part.chip) + GATE_COUNT;
+	
+	if (!part.name.empty())
+		j["name"] = part.name;
+
+	j["pos"] = part.pos;
+	
+	auto& inputs = j["inputs"];
+
+	for (int i=0; i<part.chip->inputs.size(); ++i) {
+		json& ij = inputs.emplace_back();
+
+		ij["part_idx"] = part.inputs[i].part ? part2idx[part.inputs[i].part] : -1;
+		if (part.inputs[i].part) {
+			ij["pin_idx"] = part.inputs[i].pin_idx;
+
+			if (!part.inputs[i].wire_points.empty())
+				ij["wire_points"] = part.inputs[i].wire_points;
+		}
+	}
+
+	return j;
+}
+json chip2json (const Chip& chip, LogicSim const& sim) {
+	std::unordered_map<Part*, int> part2idx;
+	part2idx.reserve(chip.inputs.size() + chip.outputs.size() + chip.parts.size());
+	
+	int idx = 0;
+	for (auto& part : chip.outputs) {
+		part2idx[part.get()] = idx++;
+	}
+	for (auto& part : chip.inputs) {
+		part2idx[part.get()] = idx++;
+	}
+	for (auto& part : chip.parts) {
+		part2idx[part.get()] = idx++;
+	}
+	
+	json jouts  = json::array();
+	json jinps  = json::array();
+	json jparts = json::array();
+
+	for (auto& part : chip.outputs) {
+		jouts.emplace_back( part2json(sim, *part, part2idx) );
+	}
+
+	for (auto& part : chip.inputs) {
+		jinps.emplace_back( part2json(sim, *part, part2idx) );
+	}
 
 	for (auto& part : chip.parts) {
-		json& part_j = parts_j.emplace_back();
-
-		part_j = {
-			{"chip", is_gate(part.chip) ?
-				gate_type(part.chip) :
-				indexof_chip(sim.saved_chips, part.chip) + GATE_COUNT },
-			{"pos", part.pos}
-		};
-		auto& inputs = part_j["inputs"];
-
-		for (int i=0; i<part.chip->inputs.size(); ++i) {
-			json& ij = inputs.emplace_back();
-			ij["part_idx"] = part.inputs[i].part_idx;
-			if (part.inputs[i].part_idx >= 0) {
-				ij["pin_idx"] = part.inputs[i].pin_idx;
-				if (!part.inputs[i].wire_points.empty())
-					ij["wire_points"] = part.inputs[i].wire_points;
-			}
-		}
+		jparts.emplace_back( part2json(sim, *part, part2idx) );
 	}
-}
-void from_json (const json& j, Chip& chip, LogicSim& sim) {
 	
-	json parts = j.at("parts");
-	int part_count = (int)parts.size();
-
-	chip.parts.clear();
-	chip.parts.reserve(part_count);
-			
-	for (int i=0; i<part_count; ++i) {
-		json& partj = parts[i];
-			
-		int chip_id   = partj.at("chip");
-		Placement pos = partj.at("pos");
-
-		assert(chip_id >= 0);
-		Chip* part_chip = nullptr;
-		if (chip_id >= 0) {
-			if (chip_id >= 0 && chip_id < GATE_COUNT)
-				part_chip = &gates[chip_id];
-			else if (chip_id >= 0)
-				part_chip = sim.saved_chips[chip_id - GATE_COUNT].get();
-		}
-
-		auto& part = chip.parts.emplace_back(part_chip, pos);
-
-		if (partj.contains("inputs")) {
-			json inputsj = partj.at("inputs");
-					
-			assert(part.chip->inputs.size() == inputsj.size());
-				
-			for (int i=0; i<part.chip->inputs.size(); ++i) {
-				auto& inpj = inputsj.at(i);
-				auto& inp = part.inputs[i];
-
-				int part_idx = inpj.at("part_idx");
-					
-				if (part_idx >= 0 && part_idx < part_count) {
-					inp.part_idx = part_idx;
-					inp.pin_idx = inpj.at("pin_idx");
-				
-					if (inpj.contains("wire_points"))
-						inpj.at("wire_points").get_to(inp.wire_points);
-				}
-			}
-		}
-	}
+	json j = {
+		{"name",     chip.name},
+		{"col",      chip.col},
+		{"size",     chip.size},
+		{"inputs",   std::move(jinps)},
+		{"outputs",  std::move(jouts)},
+		{"parts",    std::move(jparts)},
+	};
+	return j;
 }
+void to_json (json& j, LogicSim const& sim) {
 
-void to_json (json& j, const LogicSim& sim) {
+	j["viewed_chip"] = indexof_chip(sim.saved_chips, sim.viewed_chip.get());
+
 	json& jchips = j["chips"];
 	for (auto& chip : sim.saved_chips) {
-		json& jchip = jchips.emplace_back();
-		to_json(jchip, *chip, sim);
+		jchips.emplace_back( chip2json(*chip, sim) );
+	}
+}
+
+Part* json2part (const json& j, LogicSim const& sim) {
+	
+	int chip_id      = j.at("chip");
+	std::string name = j.contains("name") ? j.at("name") : "";
+	Placement   pos  = j.at("pos");
+		
+	assert(chip_id >= 0);
+	Chip* part_chip = nullptr;
+	if (chip_id >= 0) {
+		if (chip_id >= 0 && chip_id < GATE_COUNT)
+			part_chip = &gates[chip_id];
+		else if (chip_id >= 0)
+			part_chip = sim.saved_chips[chip_id - GATE_COUNT].get();
+	}
+
+	return new Part(part_chip, std::move(name), pos);
+}
+void json2links (const json& j, Part& part, std::vector<Part*>& idx2part) {
+	if (j.contains("inputs")) {
+		json inputsj = j.at("inputs");
+		
+		assert(part.chip->inputs.size() == inputsj.size());
+		
+		for (int i=0; i<part.chip->inputs.size(); ++i) {
+			auto& inpj = inputsj.at(i);
+			auto& inp = part.inputs[i];
+
+			int part_idx = inpj.at("part_idx");
+					
+			if (part_idx >= 0 && part_idx < idx2part.size()) {
+				inp.part = idx2part[part_idx];
+				inp.pin_idx = inpj.at("pin_idx");
+				
+				if (inpj.contains("wire_points"))
+					inpj.at("wire_points").get_to(inp.wire_points);
+			}
+		}
+	}
+}
+void json2chip (const json& j, Chip& chip, LogicSim& sim) {
+	
+	auto& jouts = j.at("outputs");
+	auto& jinps = j.at("inputs");
+	auto& jparts = j.at("parts");
+	size_t total = jouts.size() + jinps.size() + jparts.size();
+	
+	chip.parts.clear();
+	chip.parts.reserve(jparts.size());
+	
+	// first pass to create part pointers
+	std::vector<Part*> idx2part(total, nullptr);
+	
+	int idx = 0;
+	int out_idx = 0, inp_idx = 0;
+	for (auto& j : jouts) {
+		auto* ptr = idx2part[idx++] = json2part(j, sim);
+		chip.outputs[out_idx++] = std::unique_ptr<Part>(ptr);
+	}
+	for (auto& j : jinps) {
+		auto* ptr = idx2part[idx++] = json2part(j, sim);
+		chip.inputs[inp_idx++] = std::unique_ptr<Part>(ptr);
+	}
+	for (auto& j : jparts) {
+		auto* ptr = idx2part[idx++] = json2part(j, sim);
+		chip.parts.emplace(ptr);
+	}
+
+	// second pass to link parts via existing pointers
+	idx = 0;
+	for (auto& j : jouts) {
+		json2links(j, *idx2part[idx++], idx2part);
+	}
+	for (auto& j : jinps) {
+		json2links(j, *idx2part[idx++], idx2part);
+	}
+	for (auto& j : jparts) {
+		json2links(j, *idx2part[idx++], idx2part);
 	}
 }
 void from_json (const json& j, LogicSim& sim, Camera2D& cam) {
@@ -212,17 +298,20 @@ void from_json (const json& j, LogicSim& sim, Camera2D& cam) {
 		
 		chip->name    = jchip.at("name");
 		chip->col     = jchip.at("col");
-		chip->inputs  = jchip.at("inputs");
-		chip->outputs = jchip.at("outputs");
 		chip->size    = jchip.at("size");
+
+		chip->outputs.resize(jchip.at("outputs").size());
+		chip->inputs .resize(jchip.at("inputs" ).size());
 	}
 	// then convert chip ids references in parts to valid chips
 	auto cur = sim.saved_chips.begin();
 	for (auto& jchip : j["chips"]) {
-		from_json(jchip, *(*cur++), sim);
+		json2chip(jchip, *(*cur++), sim);
 	}
 
-	sim.reset_chip_view(cam);
+	//int viewed_chip_idx = j["viewed_chip"];
+	//if (viewed_chip_idx >= 0)
+	//	sim.switch_to_chip_view( sim.saved_chips[viewed_chip_idx], cam);
 }
 
 ////
@@ -234,9 +323,9 @@ bool check_recursion (Chip* to_place, Chip* place_inside) {
 		return true;
 
 	for (auto& part : to_place->parts) {
-		if (!is_gate(part.chip) && to_place->_recurs == 0) { // only check every chip once
+		if (!is_gate(part->chip) && to_place->_recurs == 0) { // only check every chip once
 			to_place->_recurs++;
-			bool used_recursively = check_recursion(part.chip, place_inside);
+			bool used_recursively = check_recursion(part->chip, place_inside);
 			to_place->_recurs--;
 			if (used_recursively)
 				return true;
@@ -356,7 +445,7 @@ void Editor::saved_chips_imgui (LogicSim& sim, Camera2D& cam) {
 					ImGui::SetTooltip("Cannot place chip \"%s\" because it uses itself directly or inside a subchip.\n"
 										"Doing so would create infinite recursion!", chip->name.c_str());
 				}
-				if (ImGui::IsMouseClicked(ImGuiMouseButton_Left, false) && ImGui::IsItemHovered()) {
+				if (ImGui::IsMouseClicked(ImGuiMouseButton_Left, false) && !ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && ImGui::IsItemHovered()) {
 					chips_reorder_src = i;
 				}
 			}
@@ -403,7 +492,7 @@ void Editor::viewed_chip_imgui (LogicSim& sim) {
 		for (int i=0; i<(int)sim.viewed_chip->inputs.size(); ++i) {
 			ImGui::PushID(i);
 			ImGui::SetNextItemWidth(ImGui::CalcItemWidth() * 0.5f);
-			ImGui::InputText(prints("Input Pin #%d###name", i).c_str(), &sim.viewed_chip->inputs[i].name);
+			ImGui::InputText(prints("Input Pin #%d###name", i).c_str(), &sim.viewed_chip->inputs[i]->name);
 			ImGui::PopID();
 		}
 		ImGui::TreePop();
@@ -412,7 +501,7 @@ void Editor::viewed_chip_imgui (LogicSim& sim) {
 		for (int i=0; i<(int)sim.viewed_chip->outputs.size(); ++i) {
 			ImGui::PushID(i);
 			ImGui::SetNextItemWidth(ImGui::CalcItemWidth() * 0.5f);
-			ImGui::InputText(prints("Output Pin #%d###name", i).c_str(), &sim.viewed_chip->outputs[i].name);
+			ImGui::InputText(prints("Output Pin #%d###name", i).c_str(), &sim.viewed_chip->outputs[i]->name);
 			ImGui::PopID();
 		}
 		ImGui::TreePop();
@@ -428,6 +517,9 @@ void Editor::selection_imgui (PartSelection& sel) {
 	ImGui::Spacing();
 
 	ImGui::Text("First Selected: %s Instance", part.chip->name.c_str());
+
+	ImGui::InputText("name",          &part.name);
+
 	ImGui::Text("Placement in parent chip:");
 
 	int rot = (int)part.pos.rot;
@@ -458,7 +550,7 @@ void Editor::imgui (LogicSim& sim, Camera2D& cam) {
 			ImGui::Indent(10);
 			
 			// Child region so that window contents don't shift around when selection changes
-			if (ImGui::BeginChild("SelectionRegion", ImVec2(0, TEXT_BASE_HEIGHT * 9))) {
+			if (ImGui::BeginChild("SelectionRegion", ImVec2(0, TEXT_BASE_HEIGHT * 10))) {
 				if (!in_mode<EditMode>()) {
 					ImGui::Text("Not in Edit Mode");
 				}
@@ -546,145 +638,145 @@ void Editor::imgui (LogicSim& sim, Camera2D& cam) {
 }
 
 void Editor::add_part (LogicSim& sim, Chip& chip, PartPreview& part) {
-	assert(&chip == sim.viewed_chip.get());
-
-	int idx;
-	if (part.chip == &gates[OUT_PIN]) {
-		// insert output at end of outputs list
-		idx = (int)chip.outputs.size();
-		int old_outputs = (int)chip.outputs.size();
-
-		// add chip output at end
-		chip.outputs.emplace_back("");
-		
-		// No pin_idx needs to be changed because we can only add at the end of the outputs list
-	}
-	else if (part.chip == &gates[INP_PIN]) {
-		// insert input at end of inputs list
-		idx = (int)chip.outputs.size() + (int)chip.inputs.size();
-		int old_inputs = (int)chip.inputs.size();
-
-		// add chip input at end
-		chip.inputs.emplace_back("");
-				
-		// resize input array of every part of this chip type
-		for (auto& schip : sim.saved_chips) {
-			for (auto& part : schip->parts) {
-				if (part.chip == &chip) {
-					part.inputs.insert(old_inputs, old_inputs, {});
-				}
-			}
-		}
-	}
-	else {
-		// insert normal part at end of parts list
-		idx = (int)chip.parts.size();
-	}
-
-	// shuffle input wire connection indices (part indices) where needed
-	for (auto& cpart : chip.parts) {
-		for (int i=0; i<(int)cpart.chip->inputs.size(); ++i) {
-			if (cpart.inputs[i].part_idx >= idx) {
-				cpart.inputs[i].part_idx += part.chip->state_count;
-			}
-		}
-	}
-			
-	// insert states at state_idx of part that we inserted in front of (or after all parts of chip)
-	int state_idx = idx >= (int)chip.parts.size() ? chip.state_count : chip.parts[idx].state_idx;
-
-	// insert actual part into chip part list
-	chip.parts.emplace(chip.parts.begin() + idx, part.chip, part.pos);
-			
-	// insert states for part  TODO: this is wrong if anything but the viewed chip (top level state) is edited (which I currently can't do)
-	// -> need to fold this state insertion into the update_all_chip_state_indices() function because it knows exactly where states need to be inserted or erased
-	assert(part.chip->state_count > 0);
-	for (int i=0; i<2; ++i)
-		sim.state[i].insert(sim.state[i].begin() + state_idx, part.chip->state_count, 0);
-
-	// update state indices
-	sim.update_all_chip_state_indices();
+	//assert(&chip == sim.viewed_chip.get());
+	//
+	//int idx;
+	//if (part.chip == &gates[OUT_PIN]) {
+	//	// insert output at end of outputs list
+	//	idx = (int)chip.outputs.size();
+	//	int old_outputs = (int)chip.outputs.size();
+	//
+	//	// add chip output at end
+	//	chip.outputs.emplace_back("");
+	//	
+	//	// No pin_idx needs to be changed because we can only add at the end of the outputs list
+	//}
+	//else if (part.chip == &gates[INP_PIN]) {
+	//	// insert input at end of inputs list
+	//	idx = (int)chip.outputs.size() + (int)chip.inputs.size();
+	//	int old_inputs = (int)chip.inputs.size();
+	//
+	//	// add chip input at end
+	//	chip.inputs.emplace_back("");
+	//			
+	//	// resize input array of every part of this chip type
+	//	for (auto& schip : sim.saved_chips) {
+	//		for (auto& part : schip->parts) {
+	//			if (part.chip == &chip) {
+	//				part.inputs.insert(old_inputs, old_inputs, {});
+	//			}
+	//		}
+	//	}
+	//}
+	//else {
+	//	// insert normal part at end of parts list
+	//	idx = (int)chip.parts.size();
+	//}
+	//
+	//// shuffle input wire connection indices (part indices) where needed
+	//for (auto& cpart : chip.parts) {
+	//	for (int i=0; i<(int)cpart.chip->inputs.size(); ++i) {
+	//		if (cpart.inputs[i].part_idx >= idx) {
+	//			cpart.inputs[i].part_idx += part.chip->state_count;
+	//		}
+	//	}
+	//}
+	//		
+	//// insert states at state_idx of part that we inserted in front of (or after all parts of chip)
+	//int state_idx = idx >= (int)chip.parts.size() ? chip.state_count : chip.parts[idx].state_idx;
+	//
+	//// insert actual part into chip part list
+	//chip.parts.emplace(chip.parts.begin() + idx, part.chip, part.pos);
+	//		
+	//// insert states for part  TODO: this is wrong if anything but the viewed chip (top level state) is edited (which I currently can't do)
+	//// -> need to fold this state insertion into the update_all_chip_state_indices() function because it knows exactly where states need to be inserted or erased
+	//assert(part.chip->state_count > 0);
+	//for (int i=0; i<2; ++i)
+	//	sim.state[i].insert(sim.state[i].begin() + state_idx, part.chip->state_count, 0);
+	//
+	//// update state indices
+	//sim.update_all_chip_state_indices();
 }
 void Editor::remove_part (LogicSim& sim, Chip* chip, Part* part) {
-	assert(chip == sim.viewed_chip.get());
-	
-	int idx = indexof_part(chip->parts, part);
-			
-	if (part->chip == &gates[OUT_PIN]) {
-		assert(idx < (int)chip->outputs.size());
-		
-		int old_outputs = (int)chip->outputs.size();
-	
-		// erase output at out_idx
-		chip->outputs.erase(chip->outputs.begin() + idx);
-		
-		// remove wires to this output with horribly nested code
-		for (auto& schip : sim.saved_chips) {
-			for (auto& part : schip->parts) {
-				for (int i=0; i<(int)part.chip->inputs.size(); ++i) {
-					if (part.inputs[i].part_idx >= 0) {
-						auto& inpart = schip->parts[part.inputs[i].part_idx];
-						if (inpart.chip == chip && part.inputs[i].pin_idx == idx) {
-							part.inputs[i] = {};
-						}
-					}
-				}
-			}
-		}
-	}
-	else if (part->chip == &gates[INP_PIN]) {
-		int inp_idx = idx - (int)chip->outputs.size();
-		assert(inp_idx >= 0 && inp_idx < (int)chip->inputs.size());
-	
-		int old_inputs = (int)chip->inputs.size();
-	
-		// erase input at idx
-		chip->inputs.erase(chip->inputs.begin() + inp_idx);
-		
-		// resize input array of every part of this chip type
-		for (auto& schip : sim.saved_chips) {
-			for (auto& part : schip->parts) {
-				if (part.chip == chip) {
-					part.inputs.erase(old_inputs, inp_idx);
-				}
-			}
-		}
-	}
-	
-	// erase part state  TODO: this is wrong if anything but the viewed chip (top level state) is edited (which I currently can't do)
-	int first = part->state_idx;
-	int end   = part->state_idx + part->chip->state_count;
-	
-	for (int i=0; i<2; ++i)
-		sim.state[i].erase(sim.state[i].begin() + first, sim.state[i].begin() + end);
-	
-	// erase part from chip parts
-	chip->parts.erase(chip->parts.begin() + idx);
-	
-	// update input wire part indices
-	for (auto& cpart : chip->parts) {
-		for (int i=0; i<(int)cpart.chip->inputs.size(); ++i) {
-			if (cpart.inputs[i].part_idx == idx)
-				cpart.inputs[i].part_idx = -1;
-			else if (cpart.inputs[i].part_idx > idx)
-				cpart.inputs[i].part_idx -= 1;
-		}
-	}
-	
-	sim.update_all_chip_state_indices();
+	//assert(chip == sim.viewed_chip.get());
+	//
+	//int idx = indexof_part(chip->parts, part);
+	//		
+	//if (part->chip == &gates[OUT_PIN]) {
+	//	assert(idx < (int)chip->outputs.size());
+	//	
+	//	int old_outputs = (int)chip->outputs.size();
+	//
+	//	// erase output at out_idx
+	//	chip->outputs.erase(chip->outputs.begin() + idx);
+	//	
+	//	// remove wires to this output with horribly nested code
+	//	for (auto& schip : sim.saved_chips) {
+	//		for (auto& part : schip->parts) {
+	//			for (int i=0; i<(int)part.chip->inputs.size(); ++i) {
+	//				if (part.inputs[i].part_idx >= 0) {
+	//					auto& inpart = schip->parts[part.inputs[i].part_idx];
+	//					if (inpart.chip == chip && part.inputs[i].pin_idx == idx) {
+	//						part.inputs[i] = {};
+	//					}
+	//				}
+	//			}
+	//		}
+	//	}
+	//}
+	//else if (part->chip == &gates[INP_PIN]) {
+	//	int inp_idx = idx - (int)chip->outputs.size();
+	//	assert(inp_idx >= 0 && inp_idx < (int)chip->inputs.size());
+	//
+	//	int old_inputs = (int)chip->inputs.size();
+	//
+	//	// erase input at idx
+	//	chip->inputs.erase(chip->inputs.begin() + inp_idx);
+	//	
+	//	// resize input array of every part of this chip type
+	//	for (auto& schip : sim.saved_chips) {
+	//		for (auto& part : schip->parts) {
+	//			if (part.chip == chip) {
+	//				part.inputs.erase(old_inputs, inp_idx);
+	//			}
+	//		}
+	//	}
+	//}
+	//
+	//// erase part state  TODO: this is wrong if anything but the viewed chip (top level state) is edited (which I currently can't do)
+	//int first = part->state_idx;
+	//int end   = part->state_idx + part->chip->state_count;
+	//
+	//for (int i=0; i<2; ++i)
+	//	sim.state[i].erase(sim.state[i].begin() + first, sim.state[i].begin() + end);
+	//
+	//// erase part from chip parts
+	//chip->parts.erase(chip->parts.begin() + idx);
+	//
+	//// update input wire part indices
+	//for (auto& cpart : chip->parts) {
+	//	for (int i=0; i<(int)cpart.chip->inputs.size(); ++i) {
+	//		if (cpart.inputs[i].part_idx == idx)
+	//			cpart.inputs[i].part_idx = -1;
+	//		else if (cpart.inputs[i].part_idx > idx)
+	//			cpart.inputs[i].part_idx -= 1;
+	//	}
+	//}
+	//
+	//sim.update_all_chip_state_indices();
 }
 
 void Editor::add_wire (WireMode& w) {
-	auto& out = w.dir ? w.dst : w.src;
-	auto& inp = w.dir ? w.src : w.dst;
-
-	assert(out.part && inp.part);
-	assert(inp.pin < (int)inp.part->chip->inputs.size());
-	assert(out.pin < (int)out.part->chip->outputs.size());
-
-	int part_idx = indexof_part(w.chip->parts, out.part);
-
-	inp.part->inputs[inp.pin] = { part_idx, out.pin, std::move(w.points) };
+	//auto& out = w.dir ? w.dst : w.src;
+	//auto& inp = w.dir ? w.src : w.dst;
+	//
+	//assert(out.part && inp.part);
+	//assert(inp.pin < (int)inp.part->chip->inputs.size());
+	//assert(out.pin < (int)out.part->chip->outputs.size());
+	//
+	//int part_idx = indexof_part(w.chip->parts, out.part);
+	//
+	//inp.part->inputs[inp.pin] = { part_idx, out.pin, std::move(w.points) };
 }
 
 void edit_placement (Input& I, Placement& p) {
@@ -697,52 +789,62 @@ void edit_placement (Input& I, Placement& p) {
 	}
 }
 
+void Editor::edit_part (Input& I, LogicSim& sim, Chip& chip, Part& part, float2x3 const& world2chip, int state_idx) {
+	
+	auto world2part = part.pos.calc_inv_matrix() * world2chip;
+
+	//if (I.buttons['K'].went_down) {
+	//	printf("");
+	//}
+
+	if (!in_mode<PlaceMode>() && hitbox(part.chip->size, world2part))
+		hover = { Hover::PART, &part, &chip, -1, state_idx, world2chip };
+
+	if (in_mode<EditMode>() || in_mode<WireMode>()) {
+		if (part.chip != &gates[OUT_PIN]) {
+			for (int i=0; i<(int)part.chip->outputs.size(); ++i) {
+				if (hitbox(PIN_SIZE, get_out_pos_invmat(*part.chip->outputs[i]) * world2part))
+					hover = { Hover::PIN_OUT, &part, &chip, i, -1, world2chip };
+			}
+		}
+		if (part.chip != &gates[INP_PIN]) {
+			for (int i=0; i<(int)part.chip->inputs.size(); ++i) {
+				if (hitbox(PIN_SIZE, get_inp_pos_invmat(*part.chip->inputs[i]) * world2part))
+					hover = { Hover::PIN_INP, &part, &chip, i, -1, world2chip };
+			}
+		}
+	}
+
+	if (!is_gate(part.chip)) {
+			
+		edit_chip(I, sim, *part.chip, world2part, state_idx);
+
+		for (int i=0; i<(int)part.chip->outputs.size(); ++i) {
+			if (hitbox(PIN_SIZE, get_out_pos_invmat(*part.chip->outputs[i]) * world2part))
+				hover = { Hover::PIN_OUT, &part, &chip, i, -1, world2chip };
+		}
+		for (int i=0; i<(int)part.chip->inputs.size(); ++i) {
+			if (hitbox(PIN_SIZE, get_inp_pos_invmat(*part.chip->inputs[i]) * world2part))
+				hover = { Hover::PIN_INP, &part, &chip, i, -1, world2chip };
+		}
+	}
+}
 void Editor::edit_chip (Input& I, LogicSim& sim, Chip& chip, float2x3 const& world2chip, int state_base) {
 	
 	int state_offs = 0;
 	
+	for (auto& part : chip.outputs) {
+		edit_part(I, sim, chip, *part, world2chip, state_base + state_offs);
+		state_offs += part->chip->state_count;
+	}
+	for (auto& part : chip.inputs) {
+		edit_part(I, sim, chip, *part, world2chip, state_base + state_offs);
+		state_offs += part->chip->state_count;
+	}
+
 	for (auto& part : chip.parts) {
-		auto world2part = part.pos.calc_inv_matrix() * world2chip;
-
-		int part_state_idx = state_base + state_offs;
-		
-		//if (I.buttons['K'].went_down) {
-		//	printf("");
-		//}
-
-		if (!in_mode<PlaceMode>() && hitbox(part.chip->size, world2part))
-			hover = { Hover::PART, &part, &chip, -1, part_state_idx, world2chip };
-
-		if (in_mode<EditMode>() || in_mode<WireMode>()) {
-			if (part.chip != &gates[OUT_PIN]) {
-				for (int i=0; i<(int)part.chip->outputs.size(); ++i) {
-					if (hitbox(PIN_SIZE, get_out_pos_invmat(part.chip->get_output(i)) * world2part))
-						hover = { Hover::PIN_OUT, &part, &chip, i, -1, world2chip };
-				}
-			}
-			if (part.chip != &gates[INP_PIN]) {
-				for (int i=0; i<(int)part.chip->inputs.size(); ++i) {
-					if (hitbox(PIN_SIZE, get_inp_pos_invmat(part.chip->get_input(i)) * world2part))
-						hover = { Hover::PIN_INP, &part, &chip, i, -1, world2chip };
-				}
-			}
-		}
-
-		if (!is_gate(part.chip)) {
-			
-			edit_chip(I, sim, *part.chip, world2part, part_state_idx);
-
-			for (int i=0; i<(int)part.chip->outputs.size(); ++i) {
-				if (hitbox(PIN_SIZE, get_out_pos_invmat(part.chip->get_output(i)) * world2part))
-					hover = { Hover::PIN_OUT, &part, &chip, i, -1, world2chip };
-			}
-			for (int i=0; i<(int)part.chip->inputs.size(); ++i) {
-				if (hitbox(PIN_SIZE, get_inp_pos_invmat(part.chip->get_input(i)) * world2part))
-					hover = { Hover::PIN_INP, &part, &chip, i, -1, world2chip };
-			}
-		}
-
-		state_offs += part.chip->state_count;
+		edit_part(I, sim, chip, *part, world2chip, state_base + state_offs);
+		state_offs += part->chip->state_count;
 	}
 }
 
