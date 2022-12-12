@@ -369,12 +369,12 @@ struct Renderer : public RendererBackend {
 					
 				// center position of connected output
 				auto smat = src_part.pos.calc_matrix();
-				auto& spart = *src_part.chip->outputs[inp_wire.pin_idx];
+				auto& spart = *src_part.chip->outputs[inp_wire.pin];
 				float2 src0 = smat * spart.pos.pos;
 				float2 src1 = smat * get_out_pos(spart);
 
-				uint8_t prev_state = chip_state >= 0 ? prev[chip_state + src_part.state_idx + inp_wire.pin_idx] : 1;
-				uint8_t  cur_state = chip_state >= 0 ? cur [chip_state + src_part.state_idx + inp_wire.pin_idx] : 1;
+				uint8_t prev_state = chip_state >= 0 ? prev[chip_state + src_part.state_idx + inp_wire.pin] : 1;
+				uint8_t  cur_state = chip_state >= 0 ? cur [chip_state + src_part.state_idx + inp_wire.pin] : 1;
 				int state = (prev_state << 1) | cur_state;
 					
 				build_line(chip2world,

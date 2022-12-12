@@ -4,7 +4,7 @@
 #include <variant>
 
 template<typename T>
-void insert (std::unique_ptr<T[]>& old, int old_size, int idx, T&& val) {
+std::unique_ptr<T[]> insert (std::unique_ptr<T[]>& old, int old_size, int idx, T&& val) {
 	assert(idx >= 0 && idx <= old_size);
 
 	auto ptr = std::make_unique<T[]>(old_size + 1);
@@ -20,7 +20,7 @@ void insert (std::unique_ptr<T[]>& old, int old_size, int idx, T&& val) {
 	return ptr;
 }
 template<typename T>
-void erase (std::unique_ptr<T[]>& old, int old_size, int idx) {
+std::unique_ptr<T[]> erase (std::unique_ptr<T[]>& old, int old_size, int idx) {
 	assert(old_size > 0 && idx < old_size);
 		
 	auto ptr = std::make_unique<T[]>(old_size - 1);
@@ -33,13 +33,6 @@ void erase (std::unique_ptr<T[]>& old, int old_size, int idx) {
 
 	return ptr;
 }
-
-template <typename T>
-struct _DefaultKeySel {
-	T const& get_key (T const& t) const {
-		return t;
-	}
-};
 
 #include <unordered_set>
 
@@ -114,6 +107,80 @@ struct hashset {
 	}
 };*/
 
+// Acts like a set, ie. elements are unordered
+//  but implemented as a vector because std::unordered_set< std::unique_ptr<T> > does not work <C++20 (cannot search by raw pointer)
+// though iteration of elements is supported,
+//  so there is an order which is garantueed to stay fixed as long as no elements are added or removes
+//  on add or remove the order is invalidated, ie may change arbitrarily
+template <typename T>
+struct VectorSet {
+	std::vector<T> vec;
+
+	typedef std::vector<T>::iterator       it_t;
+	typedef std::vector<T>::const_iterator cit_t;
+
+	VectorSet () {}
+
+	VectorSet (VectorSet&& v): vec{std::move(v.vec)} {}
+	VectorSet& operator= (VectorSet&& v) { vec = std::move(v.vec); return *this; }
+
+	VectorSet (VectorSet const& v): vec{v.vec} {}
+	VectorSet& operator= (VectorSet  const& v) { vec = v.vec; return *this; }
+
+	it_t begin () { return vec.begin(); }
+	it_t end () { return vec.end(); }
+	cit_t begin () const { return vec.begin(); }
+	cit_t end () const { return vec.end(); }
+
+	int size () const { return (int)vec.size(); }
+
+	void clear () { vec.clear(); }
+	void reserve (int size) { vec.reserve(size); }
+
+	T& operator[] (int i) {
+		assert(i >= 0 && i < (int)vec.size());
+		return vec[i];
+	}
+	T const& operator[] (int i) const {
+		assert(i >= 0 && i < (int)vec.size());
+		return vec[i];
+	}
+
+	template <typename U>
+	int indexof (U const& val) {
+		return ::indexof(vec, val);
+	}
+	template <typename U, typename EQUAL>
+	int indexof (U const& val, EQUAL equal) {
+		return ::indexof(vec, val, equal);
+	}
+
+	template <typename U>
+	bool contains (U const& val) {
+		return ::indexof(vec, val) >= 0;
+	}
+	template <typename U, typename EQUAL>
+	bool contains (U const& val, EQUAL equal) {
+		return ::indexof(vec, val, equal) >= 0;
+	}
+
+	template <typename U>
+	void add (U&& val) {
+		vec.emplace_back(std::move(val));
+	}
+	void add (T const& val) {
+		vec.push_back(val);
+	}
+
+	void remove_at (int i) {
+		assert(i >= 0 && i < (int)vec.size());
+		//vec.erase(vec.begin() + i);
+		
+		vec[i] = std::move(vec[(int)vec.size()-1]);
+		vec.pop_back();
+	}
+};
+
 namespace logic_sim {
 	
 	constexpr float2x2 ROT[] = {
@@ -150,7 +217,7 @@ namespace logic_sim {
 			hi.y = max(hi.y, a.hi.y);
 		}
 	};
-
+	
 	struct Placement {
 		SERIALIZE(Placement, pos, rot, mirror, scale)
 
@@ -169,7 +236,11 @@ namespace logic_sim {
 	
 ////
 	struct Part;
-	
+
+	inline bool partptr_equal (std::unique_ptr<Part> const& l, Part const* r) {
+		return l.get() == r;
+	};
+
 	// A chip design that can be edited or simulated if viewed as the "global" chip
 	// Uses other chips as parts, which are instanced into it's own editing or simulation
 	// (but cannot use itself as part because this would cause infinite recursion)
@@ -187,9 +258,16 @@ namespace logic_sim {
 		std::vector< std::unique_ptr<Part> > outputs = {};
 		std::vector< std::unique_ptr<Part> > inputs = {};
 		
-		std::unordered_set< std::unique_ptr<Part> > parts = {};
-		
+		//std::unordered_set< std::unique_ptr<Part> > parts = {};
+		VectorSet< std::unique_ptr<Part> > parts = {};
+
 		int _recurs = 0;
+
+		bool contains_part (Part* part) {
+			return parts.contains(part, partptr_equal) ||
+				contains(outputs, part, partptr_equal) ||
+				contains(inputs, part, partptr_equal);
+		}
 	};
 
 	// An instance of a chip placed down in a chip
@@ -209,7 +287,7 @@ namespace logic_sim {
 		struct InputWire {
 			Part* part = nullptr;
 			// which output pin of the part is connected to
-			int pin_idx = 0;
+			int pin = 0;
 			
 			//int state_idx = 0;
 
@@ -217,18 +295,8 @@ namespace logic_sim {
 		};
 		std::unique_ptr<InputWire[]> inputs;
 		
-		struct OutputWire {
-			Part* part = nullptr;
-			// which input pin of the part is connected to
-			int pin_idx = 0;
-
-			// no wire 
-		};
-		std::unique_ptr<OutputWire[]> outputs;
-
 		Part (Chip* chip, std::string&& name="", Placement pos={}): chip{chip}, pos{pos}, name{name},
-			inputs {std::make_unique<InputWire []>(chip ? chip->inputs .size() : 0)},
-			outputs{std::make_unique<OutputWire[]>(chip ? chip->outputs.size() : 0)} {}
+			inputs {std::make_unique<InputWire []>(chip ? chip->inputs .size() : 0)} {}
 		
 		AABB get_aabb () const {
 			// mirror does not matter
@@ -240,7 +308,6 @@ namespace logic_sim {
 			return AABB{ pos.pos - size*0.5f, pos.pos + size*0.5f };
 		}
 	};
-
 
 ////
 	inline constexpr float PIN_SIZE   = 0.25f; // IO Pin hitbox size
@@ -499,6 +566,11 @@ namespace logic_sim {
 			Placement pos = {};
 		};
 
+		struct WireConn {
+			Part* part = nullptr;
+			int   pin = 0;
+		};
+
 		struct ViewMode {
 
 			Hover toggle_gate = {};
@@ -521,15 +593,11 @@ namespace logic_sim {
 
 			float2x3 world2chip = float2x3(0); // world2chip during hitbox test
 
-			// wiring direction false: out->inp  true: inp->out
+			// wiring direction false: src->dst  true: dst->src
 			bool dir;
 
-			struct Connection {
-				Part* part = nullptr;
-				int   pin = 0;
-			};
-			Connection src = {}; // where wiring started
-			Connection dst = {}; // where wiring ended
+			WireConn src = {}; // where wiring started
+			WireConn dst = {}; // where wiring ended
 
 			float2 unconn_pos;
 
@@ -588,7 +656,9 @@ namespace logic_sim {
 	////
 		void add_part (LogicSim& sim, Chip& chip, PartPreview& part);
 		void remove_part (LogicSim& sim, Chip* chip, Part* part);
-		void add_wire (WireMode& wire);
+		
+		void add_wire (LogicSim& sim, Chip* chip, WireConn src, WireConn dst, std::vector<float2>&& wire_points);
+		void remove_wire (LogicSim& sim, Chip* chip, WireConn dst);
 
 		void edit_part (Input& I, LogicSim& sim, Chip& chip, Part& part, float2x3 const& world2chip, int state_base);
 		void edit_chip (Input& I, LogicSim& sim, Chip& chip, float2x3 const& world2chip, int state_base);
