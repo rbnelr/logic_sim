@@ -263,6 +263,12 @@ namespace logic_sim {
 
 		int _recurs = 0;
 
+		
+		// TODO: store set of direct users of chip as chip* -> usecount hashmap
+		// adding a chip a as a part inside a chip c is a->users[c]++
+		// this can be iterated to find if chip can be placed
+		// this also can be iterated to recompute state indices on chip modification
+
 		bool contains_part (Part* part) {
 			return parts.contains(part, partptr_equal) ||
 				contains(outputs, part, partptr_equal) ||
@@ -398,29 +404,6 @@ namespace logic_sim {
 	}
 
 ////
-	inline int update_state_indices (Chip& chip) {
-		// state count cached, early out
-		if (chip.state_count >= 0)
-			return chip.state_count;
-			
-		// state count stale, recompute
-		// states are placed flattened in order of depth first traversal of part (chip instance) tree
-		chip.state_count = 0;
-		
-		for (auto& part : chip.outputs)
-			part->state_idx = chip.state_count++;
-		for (auto& part : chip.inputs)
-			part->state_idx = chip.state_count++;
-
-		for (auto& part : chip.parts) {
-			part->state_idx = chip.state_count;
-			// allocate as many states as are needed recursively for this part
-			chip.state_count += update_state_indices(*part->chip);
-		}
-
-		return chip.state_count;
-	}
-
 	inline int indexof_chip (std::vector<std::shared_ptr<Chip>> const& vec, Chip* chip) {
 		int idx = indexof(vec, chip, [] (std::shared_ptr<Chip> const& l, Chip* r) { return l.get() == r; });
 		return idx;
@@ -447,12 +430,45 @@ namespace logic_sim {
 		std::vector<uint8_t> state[2];
 
 		int cur_state = 0;
+		
+		static int update_state_indices (Chip& chip) {
+			// state count cached, early out
+			if (chip.state_count >= 0)
+				return chip.state_count;
+			
+			// state count stale, recompute
+			// states are placed flattened in order of depth first traversal of part (chip instance) tree
+			chip.state_count = 0;
+		
+			for (auto& part : chip.outputs)
+				part->state_idx = chip.state_count++;
+			for (auto& part : chip.inputs)
+				part->state_idx = chip.state_count++;
 
+			for (auto& part : chip.parts) {
+				part->state_idx = chip.state_count;
+				// allocate as many states as are needed recursively for this part
+				chip.state_count += update_state_indices(*part->chip);
+			}
+
+			return chip.state_count;
+		}
+		void update_all_chip_state_indices () {
+
+			// invalidate all chips and recompute state_counts
+			for (auto& c : saved_chips)
+				c->state_count = -1;
+			viewed_chip->state_count = -1;
+
+			for (auto& c : saved_chips)
+				update_state_indices(*c);
+			update_state_indices(*viewed_chip);
+		}
+		
 		void switch_to_chip_view (std::shared_ptr<Chip> chip, Camera2D& cam) {
 			// TODO: delete chip warning if main_chip will be deleted by this?
 			viewed_chip = std::move(chip); // move copy of shared ptr (ie original still exists)
 
-			// not actually needed?
 			update_all_chip_state_indices();
 
 			for (int i=0; i<2; ++i) {
@@ -471,23 +487,6 @@ namespace logic_sim {
 			switch_to_chip_view(
 				std::make_shared<Chip>("", lrgb(1), float2(10, 6)),
 				cam);
-		}
-
-		// TODO: Is this needed?
-		void update_all_chip_state_indices () {
-
-			// Only one chip (except on json reload) was invalidated
-			// (chips not depending on this one are not, but how do I know this?
-			//  -> if I keep chips in saved_chips strictly in dependency order I can know this easily)
-
-			// invalidate all chips and recompute state_counts
-			for (auto& c : saved_chips)
-				c->state_count = -1;
-			viewed_chip->state_count = -1;
-
-			for (auto& c : saved_chips)
-				update_state_indices(*c);
-			update_state_indices(*viewed_chip);
 		}
 
 		void imgui (Input& I) {
@@ -660,8 +659,8 @@ namespace logic_sim {
 		void add_wire (LogicSim& sim, Chip* chip, WireConn src, WireConn dst, std::vector<float2>&& wire_points);
 		void remove_wire (LogicSim& sim, Chip* chip, WireConn dst);
 
-		void edit_part (Input& I, LogicSim& sim, Chip& chip, Part& part, float2x3 const& world2chip, int state_base);
-		void edit_chip (Input& I, LogicSim& sim, Chip& chip, float2x3 const& world2chip, int state_base);
+		void edit_part (Game& g, Chip& chip, Part& part, float2x3 const& world2chip, int state_base);
+		void edit_chip (Game& g, Chip& chip, float2x3 const& world2chip, int state_base);
 
 		void update (Input& I, Game& g);
 		

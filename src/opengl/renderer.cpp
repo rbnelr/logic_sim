@@ -405,6 +405,15 @@ struct Renderer : public RendererBackend {
 		uint8_t* prev = g.sim.state[g.sim.cur_state^1].data();
 		uint8_t* cur  = g.sim.state[g.sim.cur_state  ].data();
 		
+		auto* sel = g.editor.in_mode<Editor::EditMode>() ?
+			&std::get<Editor::EditMode>(g.editor.mode).sel : nullptr;
+		if (sel && sel->items.size() > 1 && sel->chip == chip) {
+			float2 lo = chip2world * sel->bounds.lo;
+			float2 hi = chip2world * sel->bounds.hi;
+
+			g.dbgdraw.wire_quad(float3(lo, 5.0f), hi - lo, lrgba(0.8f, 0.8f, 1.0f, 0.5f));
+		}
+
 		if (is_gate(chip)) {
 			auto type = gate_type(chip);
 			uint8_t state = chip_state >= 0 ? cur[chip_state] : 1;

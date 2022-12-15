@@ -318,6 +318,7 @@ void from_json (const json& j, LogicSim& sim, Camera2D& cam) {
 
 // Test if to_place is used in place_inside
 // if true need to disallow placing place_inside in to_place to avoid infinite recursion
+// 
 bool check_recursion (Chip* to_place, Chip* place_inside) {
 	if (to_place == place_inside)
 		return true;
@@ -381,6 +382,9 @@ void Editor::saved_chips_imgui (LogicSim& sim, Camera2D& cam) {
 		const float TEXT_BASE_HEIGHT = ImGui::GetTextLineHeightWithSpacing();
 		bool reorder_was_drawn = false;
 
+		bool want_drag = chips_reorder_src < 0 &&
+			ImGui::IsMouseDragPastThreshold(ImGuiMouseButton_Left, 10); // TODO: how to now drag on double click
+
 		for (int i=0; i<(int)sim.saved_chips.size(); ++i) {
 			auto& chip = sim.saved_chips[i];
 			
@@ -393,6 +397,7 @@ void Editor::saved_chips_imgui (LogicSim& sim, Camera2D& cam) {
 			}
 			else {
 				ImGui::TableNextColumn();
+				ImGui::PushID(i);
 				
 				float y = ImGui::TableGetCellBgRect(GImGui->CurrentTable, 0).Min.y;
 				float my = ImGui::GetMousePos().y;
@@ -445,9 +450,11 @@ void Editor::saved_chips_imgui (LogicSim& sim, Camera2D& cam) {
 					ImGui::SetTooltip("Cannot place chip \"%s\" because it uses itself directly or inside a subchip.\n"
 										"Doing so would create infinite recursion!", chip->name.c_str());
 				}
-				if (ImGui::IsMouseClicked(ImGuiMouseButton_Left, false) && !ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && ImGui::IsItemHovered()) {
+				if (want_drag && ImGui::IsItemActive()) {
 					chips_reorder_src = i;
 				}
+
+				ImGui::PopID();
 			}
 		}
 		
@@ -729,7 +736,6 @@ void Editor::remove_part (LogicSim& sim, Chip* chip, Part* part) {
 		chip->parts.remove_at( chip->parts.indexof(part, partptr_equal) );
 	}
 
-	
 	sim.update_all_chip_state_indices();
 
 	// TODO
@@ -770,13 +776,9 @@ void edit_placement (Input& I, Placement& p) {
 	}
 }
 
-void Editor::edit_part (Input& I, LogicSim& sim, Chip& chip, Part& part, float2x3 const& world2chip, int state_idx) {
+void Editor::edit_part (Game& g, Chip& chip, Part& part, float2x3 const& world2chip, int state_idx) {
 	
 	auto world2part = part.pos.calc_inv_matrix() * world2chip;
-
-	//if (I.buttons['K'].went_down) {
-	//	printf("");
-	//}
 
 	if (!in_mode<PlaceMode>() && hitbox(part.chip->size, world2part))
 		hover = { Hover::PART, &part, &chip, -1, state_idx, world2chip };
@@ -798,7 +800,7 @@ void Editor::edit_part (Input& I, LogicSim& sim, Chip& chip, Part& part, float2x
 
 	if (!is_gate(part.chip)) {
 			
-		edit_chip(I, sim, *part.chip, world2part, state_idx);
+		edit_chip(g, *part.chip, world2part, state_idx);
 
 		for (int i=0; i<(int)part.chip->outputs.size(); ++i) {
 			if (hitbox(PIN_SIZE, get_out_pos_invmat(*part.chip->outputs[i]) * world2part))
@@ -810,21 +812,21 @@ void Editor::edit_part (Input& I, LogicSim& sim, Chip& chip, Part& part, float2x
 		}
 	}
 }
-void Editor::edit_chip (Input& I, LogicSim& sim, Chip& chip, float2x3 const& world2chip, int state_base) {
+void Editor::edit_chip (Game& g, Chip& chip, float2x3 const& world2chip, int state_base) {
 	
 	int state_offs = 0;
 	
 	for (auto& part : chip.outputs) {
-		edit_part(I, sim, chip, *part, world2chip, state_base + state_offs);
+		edit_part(g, chip, *part, world2chip, state_base + state_offs);
 		state_offs += part->chip->state_count;
 	}
 	for (auto& part : chip.inputs) {
-		edit_part(I, sim, chip, *part, world2chip, state_base + state_offs);
+		edit_part(g, chip, *part, world2chip, state_base + state_offs);
 		state_offs += part->chip->state_count;
 	}
 
 	for (auto& part : chip.parts) {
-		edit_part(I, sim, chip, *part, world2chip, state_base + state_offs);
+		edit_part(g, chip, *part, world2chip, state_base + state_offs);
 		state_offs += part->chip->state_count;
 	}
 }
@@ -844,7 +846,7 @@ void Editor::update (Input& I, Game& g) {
 
 	// compute hover
 	hover = {};
-	edit_chip(I, sim, *sim.viewed_chip, float2x3::identity(), 0);
+	edit_chip(g, *sim.viewed_chip, float2x3::identity(), 0);
 	
 	if (in_mode<PlaceMode>()) {
 		auto& preview_part = std::get<PlaceMode>(mode).preview_part;
@@ -991,10 +993,6 @@ void Editor::update (Input& I, Game& g) {
 
 				e.sel = {};
 			}
-			
-			if (e.sel.items.size() > 1)
-				g.dbgdraw.wire_quad(float3(e.sel.bounds.lo, 5.0f), e.sel.bounds.hi - e.sel.bounds.lo,
-					lrgba(0.8f, 0.8f, 1.0f, 0.5f));
 		}
 	}
 	
