@@ -147,7 +147,7 @@ struct glDebugDraw {
 		}
 	}
 
-	glDebugDraw () {
+	glDebugDraw (float line_width=1): line_width{line_width} {
 		setup_vao(IndirectLineVertex::attrib, indirect_lines_vao, indirect_vbo, 0, offsetof(IndirectBuffer, lines.vertices[0]));
 		
 		//{

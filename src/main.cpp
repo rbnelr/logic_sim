@@ -1,20 +1,10 @@
 #include "common.hpp"
 
 #include "game.hpp"
-
-extern std::unique_ptr<RendererBackend> make_ogl_renderer ();
+#include "opengl/renderer.hpp"
 
 struct App : IApp {
-	friend void to_json(nlohmann::ordered_json& j, App const& t) {
-		j["window"]   = t._window;
-		j["game"]     = t.game;
-		t.renderer->to_json(j["renderer"]);
-	}
-	friend void from_json(const nlohmann::ordered_json& j, App& t) {
-		if (j.contains("window"))   j.at("window")  .get_to(t._window);
-		if (j.contains("game"))     j.at("game")    .get_to(t.game);
-		if (j.contains("renderer")) t.renderer->from_json(j.at("renderer"));
-	}
+	SERIALIZE(App, _window, game, renderer)
 
 	virtual ~App () {}
 	
@@ -24,16 +14,17 @@ struct App : IApp {
 	Window& _window; // for serialization even though window has to exists out of App instance (different lifetimes)
 	App (Window& w): _window{w} {}
 
+	ogl::Renderer renderer;
 	Game game;
-	std::unique_ptr<RendererBackend> renderer = make_ogl_renderer();
 
 	virtual void imgui (Window& window) {
-		renderer->imgui(window.input);
+		renderer.imgui(window.input);
 		game.imgui(window.input);
 	}
 	virtual void frame (Window& window) {
-		game.update(window);
-		renderer->render(window, game, window.input.window_size);
+		renderer.begin(window, game, window.input.window_size);
+		game.update(window, renderer);
+		renderer.end(window, game, window.input.window_size);
 	}
 };
 

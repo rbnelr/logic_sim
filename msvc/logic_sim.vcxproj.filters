@@ -80,13 +80,11 @@
     <ClCompile Include="..\src\engine\dear_imgui\misc\cpp\imgui_stdlib.cpp">
       <Filter>engine</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\opengl\renderer.cpp">
-      <Filter>opengl</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\logic_sim.cpp" />
     <ClCompile Include="..\src\engine\common.cpp">
       <Filter>engine</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\opengl\renderer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="engine">
@@ -140,6 +138,12 @@
       <Filter>engine</Filter>
     </ClInclude>
     <ClInclude Include="..\src\engine\dear_imgui_custom\imgui_impl_opengl3.h">
+      <Filter>engine</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\opengl\renderer.hpp">
+      <Filter>opengl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\engine\kisslib\stl_extensions.hpp">
       <Filter>engine</Filter>
     </ClInclude>
   </ItemGroup>
