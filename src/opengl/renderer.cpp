@@ -17,7 +17,7 @@ void Renderer::build_line (float2x3 const& chip2world,
 
 	auto* out = lines;
 
-	float radius = abs(((float2x2)chip2world * float2(0.06f)).x);
+	float radius = abs(((float2x2)chip2world * float2(0.05f)).x);
 
 	auto line_seg = [&] (float2 p) {
 		float2 cur = chip2world * p;
@@ -25,7 +25,7 @@ void Renderer::build_line (float2x3 const& chip2world,
 		float dist0 = dist;
 		dist += distance(prev, cur);
 
-		*out++ = { prev, cur, float2(dist0, dist), radius, states, col };
+		*out++ = { prev, cur, float2(dist0, dist), radius, states, col, wire_id };
 
 		prev = cur;
 	};
@@ -48,16 +48,15 @@ void Renderer::build_line (float2x3 const& chip2world,
 	}
 }
 void Renderer::build_line (float2x3 const& chip2world, float2 a, float2 b, int states, lrgba col) {
-		
 	auto* out = push_back(line_renderer.lines, 1);
 
-	float radius = abs(((float2x2)chip2world * float2(0.06f)).x);
+	float radius = abs(((float2x2)chip2world * float2(0.05f)).x);
 
 	{
 		float2 p0 = chip2world * a;
 		float2 p1 = chip2world * b;
 
-		*out++ = { p0, p1, float2(0, 1), radius, states, col };
+		*out++ = { p0, p1, float2(0, 1), radius, states, col, wire_id };
 	}
 }
 
@@ -151,6 +150,8 @@ void Renderer::draw_chip (Game& g, Chip* chip, float2x3 const& chip2world, int c
 						src0, src1, inp_wire.wire_points, dst0, dst1,
 						state, line_col);
 				}
+
+				wire_id++;
 			}
 				
 			//for (int i=0; i<(int)part.chip->outputs.size(); ++i) {
@@ -205,6 +206,8 @@ void Renderer::draw_chip (Game& g, Chip* chip, float2x3 const& chip2world, int c
 				}
 			
 				build_line(chip2world, out0, out1, w.points, inp0, inp1, 3, lrgba(0.8f, 0.01f, 0.025f, 0.75f));
+				
+				wire_id++;
 			}
 		}
 	}
@@ -217,6 +220,8 @@ void Renderer::begin (Window& window, Game& g, int2 window_size) {
 
 	tri_renderer.update(window.input);
 	line_renderer.update(window.input);
+
+	wire_id = 0;
 }
 
 void Renderer::end (Window& window, Game& g, int2 window_size) {
@@ -250,7 +255,7 @@ void Renderer::end (Window& window, Game& g, int2 window_size) {
 	{
 		glViewport(0,0, window.input.window_size.x, window.input.window_size.y);
 		glClearColor(0.01f, 0.012f, 0.014f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	}
 
 	draw_background();
@@ -277,12 +282,14 @@ void Renderer::end (Window& window, Game& g, int2 window_size) {
 					float2 dst1 = part2chip * inp->pos.pos;
 
 					build_line(float2x3::identity(), dst0, dst1, 0, col);
+					
+					wire_id++;
 				}
 			}
 		}
 	}
 		
-	line_renderer.render(state, g.sim_t);
+	line_renderer.render(state, g.sim_t, wire_id);
 	tri_renderer.render(state);
 
 	gl_dbgdraw.render(state, dbgdraw);

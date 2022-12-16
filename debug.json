@@ -7,7 +7,7 @@
 	},
 	"game": {
 		"sim": {
-			"viewed_chip": 17,
+			"viewed_chip": 19,
 			"chips": [
 				{
 					"name": "<main>",
@@ -13335,16 +13335,366 @@
 							]
 						}
 					]
+				},
+				{
+					"name": "tick_test",
+					"col": [
+						1.0,
+						1.0,
+						1.0
+					],
+					"size": [
+						4.0,
+						2.0
+					],
+					"inputs": [
+						{
+							"chip": 0,
+							"pos": {
+								"pos": [
+									-2.0,
+									0.0
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						},
+						{
+							"chip": 0,
+							"pos": {
+								"pos": [
+									-2.0,
+									-0.5
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": -1
+								}
+							]
+						}
+					],
+					"outputs": [
+						{
+							"chip": 1,
+							"pos": {
+								"pos": [
+									2.0,
+									0.0
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 5,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 1,
+							"pos": {
+								"pos": [
+									2.0,
+									-0.5
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 5,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											1.0,
+											-0.0
+										],
+										[
+											1.5,
+											-0.5
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 1,
+							"pos": {
+								"pos": [
+									2.0,
+									0.5
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 4,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											-1.5,
+											-0.5
+										],
+										[
+											-0.5,
+											0.5
+										]
+									]
+								}
+							]
+						}
+					],
+					"parts": [
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									0.0,
+									0.0
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 3,
+									"pin_idx": 0
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "tick_test2",
+					"col": [
+						1.0,
+						1.0,
+						1.0
+					],
+					"size": [
+						10.0,
+						6.0
+					],
+					"inputs": [],
+					"outputs": [],
+					"parts": [
+						{
+							"chip": 31,
+							"pos": {
+								"pos": [
+									2.0,
+									1.5
+								],
+								"rot": 0,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 7,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											-3.75,
+											2.25
+										],
+										[
+											-3.75,
+											1.5
+										]
+									]
+								},
+								{
+									"part_idx": 0,
+									"pin_idx": 1,
+									"wire_points": [
+										[
+											4.25,
+											0.25
+										],
+										[
+											-0.5,
+											0.25
+										],
+										[
+											-0.5,
+											1.0
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									4.75,
+									0.0
+								],
+								"rot": 1,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 0,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											4.75,
+											1.5
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									5.25,
+									-0.0
+								],
+								"rot": 1,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 0,
+									"pin_idx": 2,
+									"wire_points": [
+										[
+											5.25,
+											2.0
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									-3.75,
+									0.5
+								],
+								"rot": 1,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 7,
+									"pin_idx": 0,
+									"wire_points": [
+										[
+											-3.75,
+											2.25
+										]
+									]
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									-4.25,
+									0.5
+								],
+								"rot": 3,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 6,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									-3.75,
+									-0.75
+								],
+								"rot": 1,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 3,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 2,
+							"pos": {
+								"pos": [
+									-4.25,
+									-0.75
+								],
+								"rot": 3,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 5,
+									"pin_idx": 0
+								}
+							]
+						},
+						{
+							"chip": 3,
+							"pos": {
+								"pos": [
+									-4.25,
+									1.75
+								],
+								"rot": 3,
+								"mirror": false,
+								"scale": 1.0
+							},
+							"inputs": [
+								{
+									"part_idx": 4,
+									"pin_idx": 0
+								}
+							]
+						}
+					]
 				}
 			]
 		},
 		"cam": {
 			"pos": [
-				0.0,
-				0.0,
+				1.1741454601287842,
+				1.4153331518173218,
 				0.0
 			],
-			"zoom": -3.8198556900024414,
+			"zoom": -2.3938560485839844,
 			"rot": 0.0,
 			"move_speed": 1.0,
 			"zoom_smooth_fac": 16.0,

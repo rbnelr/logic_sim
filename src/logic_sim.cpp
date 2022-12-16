@@ -8,7 +8,6 @@ namespace logic_sim {
 ////
 void simulate_chip (Chip& chip, int state_base, uint8_t* cur, uint8_t* next) {
 		
-	int _sid_initial = state_base;
 	int sid = state_base;
 	
 	for (auto& part : chip.outputs) {
@@ -112,7 +111,7 @@ void simulate_chip (Chip& chip, int state_base, uint8_t* cur, uint8_t* next) {
 	}
 	
 	assert(chip.state_count >= 0); // state_count stale!
-	assert(sid - _sid_initial == chip.state_count); // state_count invalid!
+	assert(sid - state_base == chip.state_count); // state_count invalid!
 }
 
 void LogicSim::simulate (Input& I) {
@@ -715,6 +714,13 @@ void Editor::remove_part (LogicSim& sim, Chip* chip, Part* part) {
 	assert(chip == sim.viewed_chip.get());
 
 	// remove wire connections to this part
+	for (auto& p : chip->outputs) {
+		for (int i=0; i<(int)p->chip->inputs.size(); ++i) {
+			if (p->inputs[i].part && p->inputs[i].part == part) {
+				remove_wire(sim, chip, { p.get(), i });
+			}
+		}
+	}
 	for (auto& p : chip->parts) {
 		for (int i=0; i<(int)p->chip->inputs.size(); ++i) {
 			if (p->inputs[i].part && p->inputs[i].part == part) {

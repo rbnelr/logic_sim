@@ -78,6 +78,7 @@ struct LineRenderer {
 		float  radius;
 		int    states;
 		float4 col;
+		int    wire_id;
 
 		ATTRIBUTES {
 			ATTRIB_INSTANCED( idx++, GL_FLOAT,2, LineInstance, pos0);
@@ -86,6 +87,7 @@ struct LineRenderer {
 			ATTRIB_INSTANCED( idx++, GL_FLOAT,1, LineInstance, radius);
 			ATTRIBI_INSTANCED(idx++, GL_INT  ,1, LineInstance, states);
 			ATTRIB_INSTANCED( idx++, GL_FLOAT,4, LineInstance, col);
+			ATTRIBI_INSTANCED(idx++, GL_INT  ,1, LineInstance, wire_id);
 		}
 	};
 
@@ -98,7 +100,7 @@ struct LineRenderer {
 		lines.shrink_to_fit();
 	}
 
-	void render (StateManager& state, float sim_t) {
+	void render (StateManager& state, float sim_t, int num_wires) {
 		ZoneScoped;
 
 		if (shad->prog) {
@@ -110,16 +112,17 @@ struct LineRenderer {
 				glUseProgram(shad->prog);
 
 				shad->set_uniform("sim_t", sim_t);
+				shad->set_uniform("num_wires", (float)num_wires);
 
 				PipelineState s;
-				s.depth_test = false;
-				s.depth_write = false;
+				s.depth_test = true;
+				s.depth_write = true;
 				s.blend_enable = true;
 				s.cull_face = false;
 				state.set(s);
 
 				glBindVertexArray(vbo_lines.vao);
-				glDrawArraysInstanced(GL_TRIANGLES, 0, 6, (GLsizei)lines.size());
+				glDrawArraysInstanced(GL_TRIANGLES, 0, 6*2, (GLsizei)lines.size());
 			}
 		}
 
@@ -229,7 +232,7 @@ struct Renderer {
 		draw_text(name, center + size*(align - 0.5f), font_size, col, align);
 	}
 
-
+	int wire_id;
 
 	void build_line (float2x3 const& chip2world,
 			float2 start0, float2 start1, std::vector<float2> const& points, float2 end0, float2 end1,
