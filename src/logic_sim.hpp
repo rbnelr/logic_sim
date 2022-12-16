@@ -1,10 +1,15 @@
 #pragma once
 #include "common.hpp"
 #include "camera.hpp"
+#include "opengl/renderer.hpp"
+
 #include <variant>
+#include <unordered_set>
+
+namespace ogl { struct Renderer; }
 
 template<typename T>
-std::unique_ptr<T[]> insert (std::unique_ptr<T[]>& old, int old_size, int idx, T&& val) {
+inline std::unique_ptr<T[]> insert (std::unique_ptr<T[]>& old, int old_size, int idx, T&& val) {
 	assert(idx >= 0 && idx <= old_size);
 
 	auto ptr = std::make_unique<T[]>(old_size + 1);
@@ -20,7 +25,7 @@ std::unique_ptr<T[]> insert (std::unique_ptr<T[]>& old, int old_size, int idx, T
 	return ptr;
 }
 template<typename T>
-std::unique_ptr<T[]> erase (std::unique_ptr<T[]>& old, int old_size, int idx) {
+inline std::unique_ptr<T[]> erase (std::unique_ptr<T[]>& old, int old_size, int idx) {
 	assert(old_size > 0 && idx < old_size);
 		
 	auto ptr = std::make_unique<T[]>(old_size - 1);
@@ -33,8 +38,6 @@ std::unique_ptr<T[]> erase (std::unique_ptr<T[]>& old, int old_size, int idx) {
 
 	return ptr;
 }
-
-#include <unordered_set>
 
 /*
 template<typename T, typename KSel=_DefaultKeySel<T>>
@@ -121,11 +124,16 @@ struct VectorSet {
 
 	VectorSet () {}
 
+	VectorSet (int size, T const& val): vec{(size_t)size, val} {}
+	VectorSet (int size): vec{(size_t)size} {}
+
+	VectorSet (std::initializer_list<T> list): vec{list} {}
+
 	VectorSet (VectorSet&& v): vec{std::move(v.vec)} {}
 	VectorSet& operator= (VectorSet&& v) { vec = std::move(v.vec); return *this; }
 
 	VectorSet (VectorSet const& v): vec{v.vec} {}
-	VectorSet& operator= (VectorSet  const& v) { vec = v.vec; return *this; }
+	VectorSet& operator= (VectorSet const& v) { vec = v.vec; return *this; }
 
 	it_t begin () { return vec.begin(); }
 	it_t end () { return vec.end(); }
@@ -133,6 +141,7 @@ struct VectorSet {
 	cit_t end () const { return vec.end(); }
 
 	int size () const { return (int)vec.size(); }
+	bool empty () const { return vec.empty(); }
 
 	void clear () { vec.clear(); }
 	void reserve (int size) { vec.reserve(size); }
@@ -180,6 +189,28 @@ struct VectorSet {
 		vec.pop_back();
 	}
 };
+
+template <typename T>
+inline std::unique_ptr<T[]> deep_copy (std::unique_ptr<T[]> const& arr, int size) {
+	auto arr2 = std::make_unique<T[]>(size);
+	for (int i=0; i<size; ++i)
+		arr2[i] = arr[i];
+	return arr2;
+}
+template <typename T>
+inline std::vector<std::unique_ptr<T>> deep_copy (std::vector<std::unique_ptr<T>> const& vec) {
+	std::vector<std::unique_ptr<T>> vec2(vec.size());
+	for (size_t i=0; i<vec.size(); ++i)
+		vec2[i] = std::make_unique<T>(*vec[i]);
+	return vec2;
+}
+template <typename T>
+inline VectorSet<std::unique_ptr<T>> deep_copy (VectorSet<std::unique_ptr<T>> const& vec) {
+	VectorSet<std::unique_ptr<T>> vec2(vec.size());
+	for (int i=0; i<vec.size(); ++i)
+		vec2[i] = std::make_unique<T>(*vec[i]);
+	return vec2;
+}
 
 namespace logic_sim {
 	
@@ -246,9 +277,9 @@ namespace logic_sim {
 	// (but cannot use itself as part because this would cause infinite recursion)
 	struct Chip {
 		std::string name = "";
-		lrgb        col = lrgb(0.8f);
+		lrgb        col = lrgb(1);
 		
-		float2 size = 16;
+		float2 size = float2(10, 6);
 		
 		// how many total outputs are used (recursively)
 		// and thus how many state vars need to be allocated
@@ -274,6 +305,13 @@ namespace logic_sim {
 				contains(outputs, part, partptr_equal) ||
 				contains(inputs, part, partptr_equal);
 		}
+
+		Chip () = default;
+		Chip (Chip&&) = default;
+		Chip (Chip const& chip): name{chip.name}, col{chip.col}, size{chip.size},
+			outputs{ deep_copy(chip.outputs) },
+			inputs { deep_copy(chip.inputs)  },
+			parts  { deep_copy(chip.parts)   } {}
 	};
 
 	// An instance of a chip placed down in a chip
@@ -288,7 +326,7 @@ namespace logic_sim {
 
 		// where the states of this parts outputs are stored for this chip
 		// ie. any chip being placed itself is a part with a state_idx, it's subparts then each have a state_idx relative to it
-		int state_idx = -1; // check parent chip for state state_count, then this is also stale
+		int sid = -1; // check parent chip for state state_count, then this is also stale
 
 		struct InputWire {
 			Part* part = nullptr;
@@ -301,22 +339,46 @@ namespace logic_sim {
 		};
 		std::unique_ptr<InputWire[]> inputs;
 		
-		Part (Chip* chip, std::string&& name="", Placement pos={}): chip{chip}, pos{pos}, name{name},
+		Part (Chip* chip, std::string&& name, Placement pos): chip{chip}, pos{pos}, name{name},
 			inputs {std::make_unique<InputWire []>(chip ? chip->inputs .size() : 0)} {}
 		
-		AABB get_aabb () const {
+		Part (Part const& part): chip{part.chip}, name{part.name}, pos{part.pos},
+			inputs{deep_copy(part.inputs, (int)part.chip->inputs.size())} {}
+
+		AABB get_aabb (float padding=0) const {
 			// mirror does not matter
 			float2 size = chip->size * pos.scale;
 
 			// Does not handle non-90 deg rotations
 			size = abs(ROT[pos.rot] * size);
 
-			return AABB{ pos.pos - size*0.5f, pos.pos + size*0.5f };
+			return AABB{ pos.pos - size*0.5f - padding,
+			             pos.pos + size*0.5f + padding };
+		}
+	};
+	
+	// Can uniquely identify a chip instance, needed for editor interations
+	// This is safe as long as the ids are not recomputed
+	// this only happens when parts are added or deleted, in which case the selection is reset
+	struct ChipInstanceID {
+		Chip* ptr = nullptr;
+		int   sid = 0;
+
+		operator bool () {
+			return ptr;
+		}
+
+		bool operator== (ChipInstanceID const& r) {
+			return ptr == r.ptr && sid == r.sid;
+		}
+		bool operator!= (ChipInstanceID const& r) {
+			return !(sid == r.sid);
 		}
 	};
 
+
 ////
-	inline constexpr float PIN_SIZE   = 0.25f; // IO Pin hitbox size
+	inline constexpr float PIN_SIZE   = 0.225f; // IO Pin hitbox size
 	inline constexpr float PIN_LENGTH = 0.5f; // IO Pin base wire length
 
 	enum GateType {
@@ -364,8 +426,8 @@ namespace logic_sim {
 	// Not const because we use Chip* for both editable (user-defined) chips and primitve gates
 	// alternatively just cast const away?
 	inline Chip gates[GATE_COUNT] = {
-		_GATE("<input>",  srgb(190,255,  0), float2(PIN_LENGTH+0.2f, PIN_SIZE+0.1f), {{"In", float2(0)}}, {{"Out", float2(0)}}),
-		_GATE("<output>", srgb(255, 10, 10), float2(PIN_LENGTH+0.2f, PIN_SIZE+0.1f), {{"In", float2(0)}}, {{"Out", float2(0)}}),
+		_GATE("<input>",  srgb(190,255,  0), float2(PIN_LENGTH, 0.25f), {{"In", float2(0)}}, {{"Out", float2(0)}}),
+		_GATE("<output>", srgb(255, 10, 10), float2(PIN_LENGTH, 0.25f), {{"In", float2(0)}}, {{"Out", float2(0)}}),
 
 		_GATE("Buffer Gate", lrgb(0.5f, 0.5f,0.75f), float2(1,0.5f), {{"In", float2(-0.25f, +0)}}, {{"Out", float2(0.25f, 0)}}),
 		_GATE("NOT Gate",    lrgb(   0,    0,    1), float2(1,0.5f), {{"In", float2(-0.25f, +0)}}, {{"Out", float2(0.25f, 0)}}),
@@ -420,7 +482,7 @@ namespace logic_sim {
 		// simulation state is never (de)serialized
 		// editor state is never (de)serialized
 		friend void to_json (json& j, const LogicSim& sim);
-		friend void from_json (const json& j, LogicSim& sim, Camera2D& cam);
+		friend void from_json (const json& j, LogicSim& sim);
 
 
 		std::vector<std::shared_ptr<Chip>> saved_chips;
@@ -441,12 +503,12 @@ namespace logic_sim {
 			chip.state_count = 0;
 		
 			for (auto& part : chip.outputs)
-				part->state_idx = chip.state_count++;
+				part->sid = chip.state_count++;
 			for (auto& part : chip.inputs)
-				part->state_idx = chip.state_count++;
+				part->sid = chip.state_count++;
 
 			for (auto& part : chip.parts) {
-				part->state_idx = chip.state_count;
+				part->sid = chip.state_count;
 				// allocate as many states as are needed recursively for this part
 				chip.state_count += update_state_indices(*part->chip);
 			}
@@ -465,7 +527,7 @@ namespace logic_sim {
 			update_state_indices(*viewed_chip);
 		}
 		
-		void switch_to_chip_view (std::shared_ptr<Chip> chip, Camera2D& cam) {
+		void switch_to_chip_view (std::shared_ptr<Chip> chip) {
 			// TODO: delete chip warning if main_chip will be deleted by this?
 			viewed_chip = std::move(chip); // move copy of shared ptr (ie original still exists)
 
@@ -476,17 +538,18 @@ namespace logic_sim {
 				state[i].shrink_to_fit();
 			}
 			cur_state = 0;
+		}
+		void reset_chip_view (Camera2D& cam) {
+			switch_to_chip_view(std::make_shared<Chip>());
+			adjust_camera_for_viewed_chip(cam);
+		}
 
+		void adjust_camera_for_viewed_chip (Camera2D& cam) {
 			float sz = max(viewed_chip->size.x, viewed_chip->size.y);
 			sz = clamp(sz, 8.0f, 256.0f);
 
 			cam.pos = 0;
 			cam.zoom_to(sz * 1.25f);
-		}
-		void reset_chip_view (Camera2D& cam) {
-			switch_to_chip_view(
-				std::make_shared<Chip>("", lrgb(1), float2(10, 6)),
-				cam);
 		}
 
 		void imgui (Input& I) {
@@ -497,7 +560,7 @@ namespace logic_sim {
 	};
 	
 	struct Editor {
-
+		
 		struct Hover {
 			enum Type {
 				NONE = 0,
@@ -506,27 +569,21 @@ namespace logic_sim {
 				PIN_OUT,
 			};
 			Type type = NONE;
-
+			
+			ChipInstanceID chip = {};
 			Part* part = nullptr;
-			Chip* chip = nullptr;
+
 			int   pin = -1;
 			
-			int part_state_idx = -1; // needed to toggle gates even when they are part of a chip placed in the viewed chip
+			float2x3 chip2world;
+			float2x3 world2chip;
 			
-			float2x3 world2chip = float2x3(0); // world2chip during hitbox test
-
 			operator bool () {
 				return type != NONE;
-			}
-
-			bool is_part (Part* part) {
-				return this->part == part;
 			}
 		};
 		
 		struct PartSelection {
-			Chip* chip = nullptr;
-
 			struct Item {
 				Part*  part;
 				float2 bounds_offs;
@@ -534,9 +591,12 @@ namespace logic_sim {
 			struct _cmp {
 				bool operator() (Item const& l, Item const& r) { return l.part == r.part; }
 			};
-			std::vector<Item> items; // TODO: use custom hashset here
 			
-			float2x3 world2chip = float2x3(0);
+			ChipInstanceID chip = {};
+			VectorSet<Item> items; // TODO: use custom hashset here
+			
+			float2x3 chip2world;
+			float2x3 world2chip;
 			
 			AABB bounds;
 			
@@ -547,16 +607,26 @@ namespace logic_sim {
 			static bool _cmp (Item const& i, Part const* p) { return i.part == p; }
 			
 			bool has_part (Chip* chip, Part* part) {
-				return this->chip == chip && contains(items, part, _cmp);
+				if (this->chip.ptr != chip) assert(!items.contains(part, _cmp));
+				return this->chip.ptr == chip && items.contains(part, _cmp);
 			}
 			bool toggle_part (Part* part) {
-				int idx = indexof(items, part, _cmp);
+				int idx = items.indexof(part, _cmp);
 				if (idx < 0)
-					items.push_back({ part, 0 });
+					items.add({ part, 0 });
 				else
-					items.erase(items.begin() + idx);
+					items.remove_at(idx);
 
 				return idx < 0; // if was added
+			}
+
+			// Selection and Hover can be compared for their chip_sid to determine
+			// if they refer to the same chip instance
+			// This is safe as long as the ids are not recomputed
+			// this only happens when parts are added or deleted, in which case the selection is reset
+			bool inst_contains_inst (Hover& hov) {
+				if (chip.ptr != hov.chip.ptr) assert(!items.contains(hov.part, _cmp));
+				return chip == hov.chip && items.contains(hov.part, _cmp);
 			}
 		};
 		
@@ -571,8 +641,7 @@ namespace logic_sim {
 		};
 
 		struct ViewMode {
-
-			Hover toggle_gate = {};
+			int toggle_sid = -1;
 			bool state_toggle_value; // new state value while toggle is 'held'
 		};
 		struct EditMode {
@@ -581,6 +650,9 @@ namespace logic_sim {
 
 			bool dragging = false; // dragging selection
 			float2 drag_offset;
+
+			bool box_selecting = false;
+			float2 box_sel_src;
 		};
 		struct PlaceMode {
 			
@@ -588,7 +660,7 @@ namespace logic_sim {
 		};
 		struct WireMode {
 			
-			Chip* chip = nullptr;
+			ChipInstanceID chip = {};
 
 			float2x3 world2chip = float2x3(0); // world2chip during hitbox test
 
@@ -614,7 +686,6 @@ namespace logic_sim {
 
 		void reset () {
 			mode = ViewMode();
-			hover = {};
 		}
 
 		float snapping_size = 0.125f;
@@ -659,10 +730,15 @@ namespace logic_sim {
 		void add_wire (LogicSim& sim, Chip* chip, WireConn src, WireConn dst, std::vector<float2>&& wire_points);
 		void remove_wire (LogicSim& sim, Chip* chip, WireConn dst);
 
-		void edit_part (Game& g, Chip& chip, Part& part, float2x3 const& world2chip, int state_base);
-		void edit_chip (Game& g, Chip& chip, float2x3 const& world2chip, int state_base);
+		struct HoverInput {
+			ChipInstanceID only_chip = {}; // only hover in chip instance  null -> in all
+			bool allow_pins;
+			bool allow_parts;
+		};
+		void find_hover (Chip& chip, HoverInput& I,
+			float2x3 const& chip2world, float2x3 const& world2chip, int state_base);
 
-		void update (Input& I, Game& g);
+		void update (Input& I, LogicSim& sim, ogl::Renderer& r);
 		
 		void update_toggle_gate (Input& I, LogicSim& sim, Window& window);
 	};

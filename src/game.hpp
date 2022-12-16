@@ -3,9 +3,10 @@
 #include "camera.hpp"
 #include "engine/dbgdraw.hpp"
 #include "logic_sim.hpp"
+#include "opengl/renderer.hpp"
 
 struct Game {
-	friend SERIALIZE_TO_JSON(Game)   { SERIALIZE_TO_JSON_EXPAND(sim) }
+	friend SERIALIZE_TO_JSON(Game)   { SERIALIZE_TO_JSON_EXPAND(sim, cam) }
 	friend SERIALIZE_FROM_JSON(Game) {
 		t.sim_t = 1;
 		t.tick_counter = 0;
@@ -14,12 +15,12 @@ struct Game {
 		t.sim = {}; // reset entire sim
 		t.sim.reset_chip_view(t.cam);
 
-		if (j.contains("sim")) from_json(j["sim"], t.sim, t.cam);
+		if (j.contains("sim")) from_json(j["sim"], t.sim);
+
+		SERIALIZE_FROM_JSON_EXPAND(cam)
 	}
 
 	Camera2D cam = Camera2D(0, 12.5f); // init to 12.5f == max(10,6)*1.25 from reset_chip_view() to avoid anim on load
-	
-	DebugDraw dbgdraw;
 	
 	logic_sim::LogicSim sim;
 	logic_sim::Editor   editor;
@@ -78,11 +79,7 @@ struct Game {
 		editor.imgui(sim, cam);
 	}
 
-	View3D view;
-
-	float3 sun_dir;
-
-	void update (Window& window) {
+	void update (Window& window, ogl::Renderer& renderer) {
 		ZoneScoped;
 
 		auto& I = window.input;
@@ -90,11 +87,9 @@ struct Game {
 		manual_tick = I.buttons['T'].went_down || manual_tick;
 		if (I.buttons[' '].went_down) pause = !pause;
 
-		dbgdraw.clear();
-
-		view = cam.update(I, (float2)I.window_size);
+		renderer.view = cam.update(I, (float2)I.window_size);
 		
-		editor.update(I, *this);
+		editor.update(I, sim, renderer);
 
 		if (!pause && sim_freq >= 0.1f) {
 			
