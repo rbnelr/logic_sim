@@ -116,7 +116,7 @@ void simulate_chip (Chip& chip, int state_base, uint8_t* cur, uint8_t* next) {
 
 void LogicSim::simulate (Input& I) {
 	ZoneScoped;
-		
+	
 	uint8_t* cur  = state[cur_state  ].data();
 	uint8_t* next = state[cur_state^1].data();
 
@@ -730,7 +730,7 @@ void Editor::remove_part (LogicSim& sim, Chip* chip, Part* part) {
 	}
 
 	if (part->chip == &gates[OUT_PIN]) {
-		int idx = indexof(chip->outputs, part, partptr_equal);
+		int idx = indexof(chip->outputs, part, Partptr_equal());
 		assert(idx >= 0);
 		
 		// remove wires to this chip output pin in all chips using this chip as a part
@@ -747,7 +747,7 @@ void Editor::remove_part (LogicSim& sim, Chip* chip, Part* part) {
 		chip->outputs.erase(chip->outputs.begin() + idx);
 	}
 	else if (part->chip == &gates[INP_PIN]) {
-		int idx = indexof(chip->inputs, part, partptr_equal);
+		int idx = indexof(chip->inputs, part, Partptr_equal());
 		assert(idx >= 0);
 	
 		// resize input array of every part of this chip type
@@ -763,7 +763,7 @@ void Editor::remove_part (LogicSim& sim, Chip* chip, Part* part) {
 		chip->inputs.erase(chip->inputs.begin() + idx);
 	}
 	else {
-		chip->parts.remove_at( chip->parts.indexof(part, partptr_equal) );
+		chip->parts.try_remove(part);
 	}
 
 	sim.update_all_chip_state_indices();
@@ -796,13 +796,13 @@ void Editor::remove_wire (LogicSim& sim, Chip* chip, WireConn dst) {
 	dst.part->inputs[dst.pin] = {};
 }
 
-void edit_placement (Input& I, Placement& p) {
+void edit_placement (Input& I, Placement& p, float2 center=0) {
 	if (I.buttons['R'].went_down) {
 		int dir = I.buttons[KEY_LEFT_SHIFT].is_down ? -1 : +1;
-		p.rot = wrap(p.rot + dir, 4);
+		p.rotate_around(center, dir);
 	}
 	if (I.buttons['M'].went_down) {
-		p.mirror = !p.mirror;
+		p.mirror_around(center);
 	}
 }
 
@@ -817,13 +817,12 @@ constexpr lrgba sel_col         = lrgba(0, 1, 1, 1);
 constexpr lrgba multisel_col    = lrgba(0, 1, 1, 0.5f);
 
 std::string_view part_name (Part& part, std::string& buf) {
+	if (part.chip == &gates[OUT_PIN] || part.chip == &gates[INP_PIN])
+		return part.name;
 	if (part.name.empty())
 		return part.chip->name;
 	buf = prints("%s (%s)", part.chip->name.c_str(), part.name.c_str());
 	return buf;
-}
-std::string_view pin_name (Part& pin) {
-	return !pin.name.empty() ? (std::string_view)pin.name : "<unnamed io>";
 }
 
 void highlight_pin (ogl::Renderer& r, Part* part, int pin_idx, bool is_inp, float2x3 const& part2world, lrgba col) {
@@ -835,19 +834,19 @@ void highlight_pin (ogl::Renderer& r, Part* part, int pin_idx, bool is_inp, floa
 	auto mat = part2world * translate(pos);
 		
 	r.draw_highlight_box(PIN_SIZE, mat, col * pin_col);
-	r.draw_highlight_text(PIN_SIZE, mat, pin_name(pin), part_text_sz, pin_col);
+	r.draw_highlight_text(PIN_SIZE, mat, pin.name, part_text_sz, pin_col);
 }
 void highlight_chip_names (ogl::Renderer& r, Chip& chip, float2x3 const& chip2world) {
 	if (&chip != &gates[OUT_PIN]) {
 		for (int i=0; i<(int)chip.outputs.size(); ++i) {
 			auto& pin = *chip.outputs[i];
-			r.draw_text(pin_name(pin), chip2world * get_out_pos(pin), pin_text_sz, pin_col, float2(0.5f, 1), 0.4f);
+			r.draw_text(pin.name, chip2world * get_out_pos(pin), pin_text_sz, pin_col, 0.5f, 0.4f);
 		}
 	}
 	if (&chip != &gates[INP_PIN]) {
 		for (int i=0; i<(int)chip.inputs.size(); ++i) {
 			auto& pin = *chip.inputs[i];
-			r.draw_text(pin_name(pin), chip2world * get_inp_pos(pin), pin_text_sz, pin_col, float2(0.5f, 1), 0.4f);
+			r.draw_text(pin.name, chip2world * get_inp_pos(pin), pin_text_sz, pin_col, 0.5f, 0.4f);
 		}
 	}
 			
@@ -858,7 +857,7 @@ void highlight_chip_names (ogl::Renderer& r, Chip& chip, float2x3 const& chip2wo
 }
 
 // find last (depth first search) hovered part or pin, where pins have priority over parts
-void Editor::find_hover (Chip& chip, HoverInput& I,
+void Editor::find_hover (Chip& chip, SelectInput& I,
 		float2x3 const& chip2world, float2x3 const& world2chip, int state_base) {
 
 	// state index
@@ -919,13 +918,62 @@ void Editor::find_hover (Chip& chip, HoverInput& I,
 	}
 }
 
-void Editor::update (Input& I, LogicSim& sim, ogl::Renderer& r) {
-	{ // Get cursor position
-		float3 cur_pos = 0;
-		_cursor_valid = !ImGui::GetIO().WantCaptureMouse && r.view.cursor_ray(I, &cur_pos);
-		_cursor_pos = (float2)cur_pos;
+void Editor::find_boxsel (Chip& chip, bool remove, AABB box,
+		float2x3 const& chip2world, float2x3 const& world2chip, int state_base,
+		PartSelection& sel) {
+	
+	// state index
+	int sid = state_base;
+
+	auto chip_id = ChipInstanceID{ &chip, state_base };
+	
+	auto edit_part = [&] (Part& part) {
+		//auto part2world = chip2world * part.pos.calc_matrix();
+		//auto world2part = part.pos.calc_inv_matrix() * world2chip;
+		//
+		//if (I.allow_pins) {
+		//	if (part.chip != &gates[OUT_PIN]) {
+		//		for (int i=0; i<(int)part.chip->outputs.size(); ++i) {
+		//			if (box.is_inside(get_out_pos(*part.chip->inputs[i])))
+		//				sel = { Hover::PIN_OUT, chip_id, &part, i, chip2world, world2chip };
+		//		}
+		//	}
+		//	if (part.chip != &gates[INP_PIN]) {
+		//		for (int i=0; i<(int)part.chip->inputs.size(); ++i) {
+		//			if (box.is_inside(get_inp_pos(*part.chip->inputs[i])))
+		//				hover = { Hover::PIN_INP, chip_id, &part, i, chip2world, world2chip };
+		//		}
+		//	}
+		//}
+
+
+		if (box.is_inside(part.pos.pos)) {
+			if (remove)
+				sel.items.try_remove(&part);
+			else
+				sel.items.try_add(PartSelection::Item{ &part });
+		}
+
+		//if (!is_gate(part.chip)) {
+		//	find_hover(*part.chip, I, part2world, world2part, sid);
+		//}
+
+		sid += part.chip->state_count;
+	};
+
+	for (auto& part : chip.outputs) {
+		edit_part(*part);
+	}
+	for (auto& part : chip.inputs) {
+		edit_part(*part);
 	}
 
+	for (auto& part : chip.parts) {
+		edit_part(*part);
+	}
+}
+
+void Editor::update (Input& I, LogicSim& sim, ogl::Renderer& r) {
 	// E toggles between edit and view mode (other modes are always exited)
 	if (I.buttons['E'].went_down)
 		toggle_edit_mode(*this);
@@ -933,44 +981,54 @@ void Editor::update (Input& I, LogicSim& sim, ogl::Renderer& r) {
 	if (I.buttons['K'].went_down)
 		printf(""); // for debugging
 
+	{ // Get cursor position
+		float3 cur_pos = 0;
+		_cursor_valid = !ImGui::GetIO().WantCaptureMouse && r.view.cursor_ray(I, &cur_pos);
+		_cursor_pos = (float2)cur_pos;
+	}
+
 	// compute hover
 	hover = {};
 
-	HoverInput hi;
-	hi.only_chip = {};
-	hi.allow_pins  = in_mode<EditMode>() || in_mode<WireMode>();
-	hi.allow_parts = !in_mode<PlaceMode>();
+	SelectInput in;
+	in.only_chip = {};
+	in.allow_pins  = in_mode<EditMode>() || in_mode<WireMode>();
+	in.allow_parts = !in_mode<PlaceMode>();
 
 	if (in_mode<EditMode>() && I.buttons[KEY_LEFT_SHIFT].is_down) {
 		auto& e = std::get<EditMode>(mode);
 		if (e.sel) {
 			// only allow parts of this chip instance to be added/removed on this multiselect with shift-click
-			hi.only_chip     = e.sel.chip;
-			hi.allow_pins = false;
+			in.only_chip  = e.sel.chip;
+			in.allow_pins = false;
 		}
 	}
 	else if (in_mode<WireMode>()) {
 		auto& w = std::get<WireMode>(mode);
 
 		// only allow parts of this chip instance to be added/removed on this multiselect with shift-click
-		hi.only_chip     = w.chip;
-		hi.allow_pins = true;
+		in.only_chip  = w.chip;
+		in.allow_pins = true;
 	}
 
-	find_hover(*sim.viewed_chip, hi, float2x3::identity(), float2x3::identity(), 0);
+	if (_cursor_valid) {
+		find_hover(*sim.viewed_chip, in, float2x3::identity(), float2x3::identity(), 0);
+	}
 	
+	PartSelection boxsel = {};
 
 	if (in_mode<PlaceMode>()) {
 		auto& preview_part = std::get<PlaceMode>(mode).preview_part;
 		
 		edit_placement(I, preview_part.pos);
-
-		r.draw_highlight_box(preview_part.chip->size, preview_part.pos.calc_matrix(), preview_box_col);
 		
 		if (_cursor_valid) {
+			
 			// move to-be-placed gate preview with cursor
 			preview_part.pos.pos = snap(_cursor_pos);
-					
+			
+			r.draw_highlight_box(preview_part.chip->size, preview_part.pos.calc_matrix(), preview_box_col);
+			
 			// place gate on left click
 			if (I.buttons[MOUSE_BUTTON_LEFT].went_down) {
 				add_part(sim, *sim.viewed_chip, preview_part); // preview becomes real gate, TODO: add a way to add parts to chips other than the viewed chip (keep selected chip during part placement?)
@@ -992,17 +1050,23 @@ void Editor::update (Input& I, LogicSim& sim, ogl::Renderer& r) {
 			e.box_selecting = false;
 		}
 		
+		bool ctrl  = I.buttons[KEY_LEFT_CONTROL].is_down;
 		bool shift = I.buttons[KEY_LEFT_SHIFT].is_down;
-		
-		if (I.buttons[MOUSE_BUTTON_LEFT].went_down) {
-			// normal click or shift-click with no current selection
-			if (!shift || !e.sel) {
-				// unselect via click on background
-				if (!hover) {
+		auto& lmb  = I.buttons[MOUSE_BUTTON_LEFT];
+
+		if (lmb.went_down) {
+			if (!hover) {
+				
+				if (!shift && !ctrl) {
 					e.sel = {};
 				}
-				// begin wiring with hovered pin as start
-				else if (hover.type == Hover::PIN_INP || hover.type == Hover::PIN_OUT) {
+				
+				e.box_selecting = true;
+				e.box_sel_start = _cursor_pos;
+			}
+			else if (hover.type == Hover::PIN_INP || hover.type == Hover::PIN_OUT) {
+				if (!shift && !ctrl) {
+
 					mode = WireMode{ hover.chip, hover.world2chip,
 						hover.type == Hover::PIN_INP, { hover.part, hover.pin } };
 			
@@ -1011,9 +1075,18 @@ void Editor::update (Input& I, LogicSim& sim, ogl::Renderer& r) {
 					
 					I.buttons[MOUSE_BUTTON_LEFT].went_down = false; // consume click to avoid wire mode also getting click?
 				}
-				// clicked part
+			}
+			else {
+				assert(hover.type == Hover::PART);
+
+				if (shift && e.sel) {
+					assert(hover.chip == e.sel.chip); // enforced in find_hover() TODO?
+					e.sel.toggle_part(hover.part);
+				}
+				else if (ctrl && e.sel) {
+					
+				}
 				else {
-					assert(hover.type == Hover::PART);
 					// non-shift click on already selected part (only on same instance or else dragging might use wrong matrix)
 					if (e.sel.inst_contains_inst(hover)) {
 						// keep multiselect if clicked on already selected item
@@ -1024,16 +1097,84 @@ void Editor::update (Input& I, LogicSim& sim, ogl::Renderer& r) {
 					}
 				}
 			}
-			// shift clicked to add/remove from selection
-			else {
-				assert(e.sel && !e.sel.items.empty());
-				// shift clicked part
-				if (hover.type == Hover::PART) {
-					assert(hover.chip == e.sel.chip); // enforced in find_hover()
-					e.sel.toggle_part(hover.part);
+
+			//// normal click or shift-click with no current selection
+			//if (!shift || !e.sel) {
+			//	// unselect via click on background
+			//	if (!hover) {
+			//		e.sel = {};
+			//		
+			//		e.box_selecting = true;
+			//		e.box_sel_start = _cursor_pos;
+			//	}
+			//	// begin wiring with hovered pin as start
+			//	else if (hover.type == Hover::PIN_INP || hover.type == Hover::PIN_OUT) {
+			//		mode = WireMode{ hover.chip, hover.world2chip,
+			//			hover.type == Hover::PIN_INP, { hover.part, hover.pin } };
+			//
+			//		if (hover.type == Hover::PIN_INP && hover.part->inputs[hover.pin].part)
+			//			remove_wire(sim, hover.chip.ptr, { hover.part, hover.pin });
+			//		
+			//		I.buttons[MOUSE_BUTTON_LEFT].went_down = false; // consume click to avoid wire mode also getting click?
+			//	}
+			//	// clicked part
+			//	else {
+			//		assert(hover.type == Hover::PART);
+			//		// non-shift click on already selected part (only on same instance or else dragging might use wrong matrix)
+			//		if (e.sel.inst_contains_inst(hover)) {
+			//			// keep multiselect if clicked on already selected item
+			//		}
+			//		// non-shift click on non-selected part, replace selection
+			//		else {
+			//			e.sel = { hover.chip, {{ hover.part }}, hover.chip2world, hover.world2chip };
+			//		}
+			//	}
+			//}
+			//// shift clicked to add/remove from selection
+			//else {
+			//	assert(e.sel && !e.sel.items.empty());
+			//	// shift clicked part
+			//	if (hover.type == Hover::PART) {
+			//		assert(hover.chip == e.sel.chip); // enforced in find_hover()
+			//		e.sel.toggle_part(hover.part);
+			//	}
+			//	else {
+			//		// ignore click for pins or on background
+			//	}
+			//}
+		}
+		
+		if (in_mode<EditMode>()) { // still in edit mode? else e becomes invalid
+			if (e.box_selecting) {
+
+				bool remove = false;
+
+				// shift lmb: add to selection
+				// ctrl  lmb: remove from selection
+				if (shift || ctrl) {
+					remove = ctrl;
 				}
+				// just lmb: replace selection
 				else {
-					// ignore click for pins or on background
+					e.sel = {};
+				}
+				
+				boxsel = e.sel;
+				if (!boxsel) 
+					boxsel = { {sim.viewed_chip.get(), 0}, {}, float2x3::identity(), float2x3::identity() };
+
+				float2 lo = min(e.box_sel_start, _cursor_pos);
+				float2 hi = max(e.box_sel_start, _cursor_pos);
+				float2 size = hi - lo;
+				
+				find_boxsel(*boxsel.chip.ptr, remove, AABB{lo,hi}, boxsel.chip2world, boxsel.world2chip, 0, boxsel);
+				
+				r.dbgdraw.wire_quad(float3(lo, 0), size, multisel_col);
+
+				if (lmb.went_up) {
+					e.sel = boxsel;
+
+					e.box_selecting = false;
 				}
 			}
 		}
@@ -1056,7 +1197,7 @@ void Editor::update (Input& I, LogicSim& sim, ogl::Renderer& r) {
 				}
 			}
 			
-			if (shift) {
+			if (shift || ctrl) {
 				e.dragging = false;
 			}
 			else {
@@ -1085,15 +1226,17 @@ void Editor::update (Input& I, LogicSim& sim, ogl::Renderer& r) {
 							item.part->pos.pos = item.bounds_offs + bounds_center;
 					}
 					// stop dragging gate
-					if (I.buttons[MOUSE_BUTTON_LEFT].went_up) {
+					else {
 						e.dragging = false;
 					}
 				}
 			}
 
-			for (auto& i : e.sel.items)
-				edit_placement(I, i.part->pos);
-			
+			// TODO: rotate around mouse cursor when dragging?
+			for (auto& i : e.sel.items) {
+				edit_placement(I, i.part->pos, bounds_center);
+			}
+
 			// Duplicate selected part with CTRL+C
 			// TODO: CTRL+D moves the camera to the right, change that?
 			//if (I.buttons[KEY_LEFT_CONTROL].is_down && I.buttons['C'].went_down) {
@@ -1172,38 +1315,44 @@ void Editor::update (Input& I, LogicSim& sim, ogl::Renderer& r) {
 		}
 	}
 	
+//// Highlights
 	highlight_chip_names(r, *sim.viewed_chip, float2x3::identity());
 	
 	if (in_mode<EditMode>()) {
 		auto& e = std::get<EditMode>(mode);
 		
-		if (e.sel) {
+		PartSelection& sel = e.box_selecting ? boxsel : e.sel;
+
+		if (sel) {
 			std::string buf;
 
 			// only show text for single-part selections as to not spam too much text
-			if (e.sel.items.size() == 1) {
-				auto& item = e.sel.items[0];
+			if (sel.items.size() == 1) {
+				auto& item = sel.items[0];
 
-				auto part2world = e.sel.chip2world * item.part->pos.calc_matrix();
+				auto part2world = sel.chip2world * item.part->pos.calc_matrix();
 
 				r.draw_highlight_box(item.part->chip->size, part2world, sel_col);
 				r.draw_highlight_text(item.part->chip->size, part2world, part_name(*item.part, buf), part_text_sz, sel_col);
 			}
 			else {
-				for (auto& item : e.sel.items) {
-					auto part2world = e.sel.chip2world * item.part->pos.calc_matrix();
+				for (auto& item : sel.items) {
+					auto part2world = sel.chip2world * item.part->pos.calc_matrix();
 
 					r.draw_highlight_box(item.part->chip->size, part2world, sel_col);
 				}
 				
-				float2 sz = e.sel.bounds.hi - e.sel.bounds.lo;
-				float2 center = (e.sel.bounds.hi + e.sel.bounds.lo) * 0.5f;
-
-				auto part2world = e.sel.chip2world * translate(center);
-
-				r.draw_highlight_box(sz, part2world, multisel_col);
+				//if (!e.box_selecting) {
+				//	float2 sz     =  sel.bounds.hi - sel.bounds.lo;
+				//	float2 center = (sel.bounds.hi + sel.bounds.lo) * 0.5f;
+				//
+				//	auto part2world = sel.chip2world * translate(center);
+				//
+				//	r.draw_highlight_box(sz, part2world, multisel_col);
+				//}
 			}
 		}
+
 	}
 
 	if (hover) {

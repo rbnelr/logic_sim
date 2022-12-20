@@ -268,23 +268,23 @@ void Renderer::end (Window& window, Game& g, int2 window_size) {
 	}
 		
 	{ // Gate preview
-		if (g.editor.in_mode<Editor::PlaceMode>()) {
+		if (g.editor.in_mode<Editor::PlaceMode>() && g.editor._cursor_valid) {
 			auto& preview = std::get<Editor::PlaceMode>(g.editor.mode).preview_part;
-			if (preview.chip && g.editor._cursor_valid) {
-				auto part2chip = preview.pos.calc_matrix();
 
-				draw_chip(g, preview.chip, part2chip, -1, lrgba(1,1,1,0.5f));
-					
-				constexpr lrgba col = lrgba(0.8f, 0.01f, 0.025f, 0.5f);
-					
-				for (auto& inp : preview.chip->inputs) {
-					float2 dst0 = part2chip * get_inp_pos(*inp);
-					float2 dst1 = part2chip * inp->pos.pos;
+			assert(preview.chip);
+			auto part2chip = preview.pos.calc_matrix();
 
-					build_line(float2x3::identity(), dst0, dst1, 0, col);
+			draw_chip(g, preview.chip, part2chip, -1, lrgba(1,1,1,0.5f));
 					
-					wire_id++;
-				}
+			constexpr lrgba col = lrgba(0.8f, 0.01f, 0.025f, 0.5f);
+					
+			for (auto& inp : preview.chip->inputs) {
+				float2 dst0 = part2chip * get_inp_pos(*inp);
+				float2 dst1 = part2chip * inp->pos.pos;
+
+				build_line(float2x3::identity(), dst0, dst1, 0, col);
+					
+				wire_id++;
 			}
 		}
 	}

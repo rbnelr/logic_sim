@@ -115,7 +115,7 @@ struct hashset {
 // though iteration of elements is supported,
 //  so there is an order which is garantueed to stay fixed as long as no elements are added or removes
 //  on add or remove the order is invalidated, ie may change arbitrarily
-template <typename T>
+template <typename T, typename EQUAL=std::equal_to<T>>
 struct VectorSet {
 	std::vector<T> vec;
 
@@ -156,37 +156,47 @@ struct VectorSet {
 	}
 
 	template <typename U>
-	int indexof (U const& val) {
-		return ::indexof(vec, val);
-	}
-	template <typename U, typename EQUAL>
-	int indexof (U const& val, EQUAL equal) {
-		return ::indexof(vec, val, equal);
-	}
-
-	template <typename U>
 	bool contains (U const& val) {
-		return ::indexof(vec, val) >= 0;
-	}
-	template <typename U, typename EQUAL>
-	bool contains (U const& val, EQUAL equal) {
-		return ::indexof(vec, val, equal) >= 0;
+		return ::indexof(vec, val, EQUAL()) >= 0;
 	}
 
 	template <typename U>
 	void add (U&& val) {
+		assert(!contains(val));
 		vec.emplace_back(std::move(val));
 	}
-	void add (T const& val) {
-		vec.push_back(val);
-	}
+	//void add (T const& val) {
+	//	add(val);
+	//}
 
-	void remove_at (int i) {
-		assert(i >= 0 && i < (int)vec.size());
-		//vec.erase(vec.begin() + i);
+	template <typename U>
+	bool try_add (U&& val) {
+		if (contains(val))
+			return false;
+		vec.emplace_back(std::move(val));
+		return true;
+	}
+	template <typename U>
+	bool try_remove (U const& val) {
+		int idx = indexof(vec, val, EQUAL());
+		if (idx < 0)
+			return false;
 		
-		vec[i] = std::move(vec[(int)vec.size()-1]);
+		vec[idx] = std::move(vec[(int)vec.size()-1]);
 		vec.pop_back();
+		return true;
+	}
+	
+	template <typename U>
+	bool toggle (U const& val) {
+		int idx = indexof(vec, val, EQUAL());
+		if (idx < 0)
+			vec.emplace_back(std::move(val));
+		else {
+			vec[idx] = std::move(vec[(int)vec.size()-1]);
+			vec.pop_back();
+		}
+		return idx < 0; // if was added
 	}
 };
 
@@ -204,9 +214,9 @@ inline std::vector<std::unique_ptr<T>> deep_copy (std::vector<std::unique_ptr<T>
 		vec2[i] = std::make_unique<T>(*vec[i]);
 	return vec2;
 }
-template <typename T>
-inline VectorSet<std::unique_ptr<T>> deep_copy (VectorSet<std::unique_ptr<T>> const& vec) {
-	VectorSet<std::unique_ptr<T>> vec2(vec.size());
+template <typename T, typename EQUAL>
+inline VectorSet<std::unique_ptr<T>, EQUAL> deep_copy (VectorSet<std::unique_ptr<T>, EQUAL> const& vec) {
+	VectorSet<std::unique_ptr<T>, EQUAL> vec2(vec.size());
 	for (int i=0; i<vec.size(); ++i)
 		vec2[i] = std::make_unique<T>(*vec[i]);
 	return vec2;
@@ -247,6 +257,11 @@ namespace logic_sim {
 			hi.x = max(hi.x, a.hi.x);
 			hi.y = max(hi.y, a.hi.y);
 		}
+
+		bool is_inside (float2 point) const {
+			return point.x >= lo.x && point.x < hi.x &&
+			       point.y >= lo.y && point.y < hi.y;
+		}
 	};
 	
 	struct Placement {
@@ -263,13 +278,30 @@ namespace logic_sim {
 		float2x3 calc_inv_matrix () {
 			return MIRROR[mirror] * INV_ROT[rot] * ::scale(float2(1.0f/scale)) * translate(-pos);
 		}
+
+		void rotate_around (float2 center, short ang) {
+			pos = (ROT[wrap(ang, 4)] * (pos - center)) + center;
+
+			rot = wrap(rot + ang, 4);
+		}
+		void mirror_around (float2 center) {
+			//pos = (MIRROR[1] * (pos - center)) + center;
+			pos.x = center.x - (pos.x - center.x);
+
+			if (rot % 2)
+				rot = wrap(rot + 2, 4);
+
+			mirror = !mirror;
+		}
 	};
 	
 ////
 	struct Part;
 
-	inline bool partptr_equal (std::unique_ptr<Part> const& l, Part const* r) {
-		return l.get() == r;
+	struct Partptr_equal {
+		inline bool operator() (std::unique_ptr<Part> const& l, Part const* r) {
+			return l.get() == r;
+		};
 	};
 
 	// A chip design that can be edited or simulated if viewed as the "global" chip
@@ -290,7 +322,7 @@ namespace logic_sim {
 		std::vector< std::unique_ptr<Part> > inputs = {};
 		
 		//std::unordered_set< std::unique_ptr<Part> > parts = {};
-		VectorSet< std::unique_ptr<Part> > parts = {};
+		VectorSet< std::unique_ptr<Part>, Partptr_equal > parts = {};
 
 		int _recurs = 0;
 
@@ -301,9 +333,9 @@ namespace logic_sim {
 		// this also can be iterated to recompute state indices on chip modification
 
 		bool contains_part (Part* part) {
-			return parts.contains(part, partptr_equal) ||
-				contains(outputs, part, partptr_equal) ||
-				contains(inputs, part, partptr_equal);
+			return parts.contains(part) ||
+				contains(outputs, part, Partptr_equal()) ||
+				contains(inputs, part, Partptr_equal());
 		}
 
 		Chip () = default;
@@ -588,12 +620,13 @@ namespace logic_sim {
 				Part*  part;
 				float2 bounds_offs;
 			};
-			struct _cmp {
-				bool operator() (Item const& l, Item const& r) { return l.part == r.part; }
+			struct ItemCmp {
+				inline bool operator() (Item const& l, Item const& r) { return l.part == r.part; }
+				inline bool operator() (Item const& l, Part* r) { return l.part == r; }
 			};
-			
+
 			ChipInstanceID chip = {};
-			VectorSet<Item> items; // TODO: use custom hashset here
+			VectorSet<Item, ItemCmp> items; // TODO: use custom hashset here
 			
 			float2x3 chip2world;
 			float2x3 world2chip;
@@ -607,17 +640,26 @@ namespace logic_sim {
 			static bool _cmp (Item const& i, Part const* p) { return i.part == p; }
 			
 			bool has_part (Chip* chip, Part* part) {
-				if (this->chip.ptr != chip) assert(!items.contains(part, _cmp));
-				return this->chip.ptr == chip && items.contains(part, _cmp);
+				if (this->chip.ptr != chip) assert(!items.contains(part));
+				return this->chip.ptr == chip && items.contains(part);
 			}
 			bool toggle_part (Part* part) {
-				int idx = items.indexof(part, _cmp);
-				if (idx < 0)
-					items.add({ part, 0 });
-				else
-					items.remove_at(idx);
+				return items.toggle(Item{ part }); // if was added
+			}
 
-				return idx < 0; // if was added
+			void add (PartSelection& r) {
+				assert(chip == r.chip);
+
+				for (auto& it : r.items) {
+					items.try_add(Item{ it.part });
+				}
+			}
+			void remove (PartSelection& r) {
+				assert(chip == r.chip);
+
+				for (auto& it : r.items) {
+					items.try_remove(it.part);
+				}
 			}
 
 			// Selection and Hover can be compared for their chip_sid to determine
@@ -625,8 +667,8 @@ namespace logic_sim {
 			// This is safe as long as the ids are not recomputed
 			// this only happens when parts are added or deleted, in which case the selection is reset
 			bool inst_contains_inst (Hover& hov) {
-				if (chip.ptr != hov.chip.ptr) assert(!items.contains(hov.part, _cmp));
-				return chip == hov.chip && items.contains(hov.part, _cmp);
+				if (chip.ptr != hov.chip.ptr) assert(!items.contains(hov.part));
+				return chip == hov.chip && items.contains(hov.part);
 			}
 		};
 		
@@ -652,7 +694,7 @@ namespace logic_sim {
 			float2 drag_offset;
 
 			bool box_selecting = false;
-			float2 box_sel_src;
+			float2 box_sel_start;
 		};
 		struct PlaceMode {
 			
@@ -702,7 +744,7 @@ namespace logic_sim {
 		
 		// check mouse cursor against chip hitbox
 		bool hitbox (float2 box_size, float2x3 const& world2chip) {
-			if (!_cursor_valid) return false;
+			assert(_cursor_valid);
 			
 			// cursor in space of chip normalized to size
 			float2 p = world2chip * _cursor_pos;
@@ -730,13 +772,17 @@ namespace logic_sim {
 		void add_wire (LogicSim& sim, Chip* chip, WireConn src, WireConn dst, std::vector<float2>&& wire_points);
 		void remove_wire (LogicSim& sim, Chip* chip, WireConn dst);
 
-		struct HoverInput {
+		struct SelectInput {
 			ChipInstanceID only_chip = {}; // only hover in chip instance  null -> in all
 			bool allow_pins;
 			bool allow_parts;
 		};
-		void find_hover (Chip& chip, HoverInput& I,
+		void find_hover (Chip& chip, SelectInput& I,
 			float2x3 const& chip2world, float2x3 const& world2chip, int state_base);
+
+		void find_boxsel (Chip& chip, bool remove, AABB box,
+			float2x3 const& chip2world, float2x3 const& world2chip, int state_base,
+			PartSelection& sel);
 
 		void update (Input& I, LogicSim& sim, ogl::Renderer& r);
 		

@@ -157,7 +157,7 @@ struct Renderer {
 	CommonUniforms common_ubo;
 
 	DebugDraw dbgdraw;
-	glDebugDraw gl_dbgdraw = { 3 };
+	glDebugDraw gl_dbgdraw = { 2 };
 
 	TextRenderer text_renderer = TextRenderer("fonts/AsimovExtraWide-veG4.ttf", 64, true);
 	
