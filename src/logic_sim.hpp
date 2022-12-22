@@ -304,6 +304,36 @@ namespace logic_sim {
 		};
 	};
 
+
+	struct WireNode {
+		float2 pos;
+		
+		VectorSet<WireNode*> edges; // TODO: small vec opt to 4 entries
+	};
+	//struct WireEdge {
+	//	WireNode* a;
+	//	WireNode* b;
+	//};
+	//struct WireGraph {
+	//	VectorSet<WireNode*> nodes; // free nodes and part nodes
+	//	VectorSet<WireEdge*> edges; // can be generated from nodes, should this even be cached at all?
+	//
+	//	int state_id = -1;
+	//};
+	//struct Part {
+	//	struct IO {
+	//		WireNode node;
+	//		int state_id = -1;
+	//	};
+	//	vector<IO> ios;
+	//};
+	//struct LogicGraph {
+	//	VectorSet<WireGraph> graphs;
+	//
+	//
+	//};
+
+
 	// A chip design that can be edited or simulated if viewed as the "global" chip
 	// Uses other chips as parts, which are instanced into it's own editing or simulation
 	// (but cannot use itself as part because this would cause infinite recursion)
@@ -323,6 +353,8 @@ namespace logic_sim {
 		
 		//std::unordered_set< std::unique_ptr<Part> > parts = {};
 		VectorSet< std::unique_ptr<Part>, Partptr_equal > parts = {};
+
+		VectorSet< std::unique_ptr<WireNode> > wire_nodes = {};
 
 		int _recurs = 0;
 
@@ -413,7 +445,7 @@ namespace logic_sim {
 	inline constexpr float PIN_SIZE   = 0.225f; // IO Pin hitbox size
 	inline constexpr float PIN_LENGTH = 0.5f; // IO Pin base wire length
 
-	enum GateType {
+	enum class GateType {
 		//NULL_GATE =-1,
 		INP_PIN   =0,
 		OUT_PIN   ,
@@ -517,7 +549,7 @@ namespace logic_sim {
 		friend void from_json (const json& j, LogicSim& sim);
 
 
-		std::vector<std::shared_ptr<Chip>> saved_chips;
+		Chip saved_chips;
 
 		std::shared_ptr<Chip> viewed_chip;
 
@@ -701,20 +733,11 @@ namespace logic_sim {
 			PartPreview preview_part = {};
 		};
 		struct WireMode {
-			
-			ChipInstanceID chip = {};
+			WireNode* prev = nullptr;
+			WireNode* cur;
 
-			float2x3 world2chip = float2x3(0); // world2chip during hitbox test
-
-			// wiring direction false: src->dst  true: dst->src
-			bool dir;
-
-			WireConn src = {}; // where wiring started
-			WireConn dst = {}; // where wiring ended
-
-			float2 unconn_pos;
-
-			std::vector<float2> points;
+			// buf for new node, cur points to this if new node will be created
+			WireNode  node;
 		};
 
 		std::variant<ViewMode, EditMode, PlaceMode, WireMode>
