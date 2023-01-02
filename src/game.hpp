@@ -48,6 +48,10 @@ struct Game {
 		ImGui::Separator();
 			
 		if (imgui_Header("Simulation", true)) {
+			
+			sim.imgui(I);
+
+			ImGui::Separator();
 
 			cam.imgui("View");
 			
@@ -70,13 +74,24 @@ struct Game {
 				ImGui::SameLine();
 				ImGui::TextEx("Tick");
 			}
-			
-			sim.imgui(I);
 
 			ImGui::PopID();
 		}
 
 		editor.imgui(sim, cam);
+	}
+
+	IApp::ShouldClose close_confirmation (IApp* app) {
+		if (sim.unsaved_changes) {
+			auto res = imgui_unsaved_changes_confirmation();
+			if (res == GuiUnsavedConfirm::PENDING) return IApp::ShouldClose::CLOSE_PENDING;
+			if (res == GuiUnsavedConfirm::CANCEL)  return IApp::ShouldClose::CLOSE_CANCEL;
+			if (res == GuiUnsavedConfirm::SAVE) {
+				app->json_save();
+				assert(!sim.unsaved_changes);
+			}
+		}
+		return IApp::ShouldClose::CLOSE_NOW;
 	}
 
 	void update (Window& window, ogl::Renderer& r) {

@@ -200,28 +200,6 @@ struct VectorSet {
 	}
 };
 
-template <typename T>
-inline std::unique_ptr<T[]> deep_copy (std::unique_ptr<T[]> const& arr, int size) {
-	auto arr2 = std::make_unique<T[]>(size);
-	for (int i=0; i<size; ++i)
-		arr2[i] = arr[i];
-	return arr2;
-}
-template <typename T>
-inline std::vector<std::unique_ptr<T>> deep_copy (std::vector<std::unique_ptr<T>> const& vec) {
-	std::vector<std::unique_ptr<T>> vec2(vec.size());
-	for (size_t i=0; i<vec.size(); ++i)
-		vec2[i] = std::make_unique<T>(*vec[i]);
-	return vec2;
-}
-template <typename T, typename EQUAL>
-inline VectorSet<std::unique_ptr<T>, EQUAL> deep_copy (VectorSet<std::unique_ptr<T>, EQUAL> const& vec) {
-	VectorSet<std::unique_ptr<T>, EQUAL> vec2(vec.size());
-	for (int i=0; i<vec.size(); ++i)
-		vec2[i] = std::make_unique<T>(*vec[i]);
-	return vec2;
-}
-
 namespace logic_sim {
 	
 	constexpr float2x2 ROT[] = {
@@ -301,6 +279,9 @@ namespace logic_sim {
 	struct Partptr_equal {
 		inline bool operator() (std::unique_ptr<Part> const& l, Part const* r) {
 			return l.get() == r;
+		}
+		inline bool operator() (std::unique_ptr<Part> const& l, std::unique_ptr<Part> const& r) {
+			return l == r;
 		};
 	};
 
@@ -324,8 +305,7 @@ namespace logic_sim {
 		//std::unordered_set< std::unique_ptr<Part> > parts = {};
 		VectorSet< std::unique_ptr<Part>, Partptr_equal > parts = {};
 
-		int _recurs = 0;
-
+		VectorSet<Chip*> users;
 		
 		// TODO: store set of direct users of chip as chip* -> usecount hashmap
 		// adding a chip a as a part inside a chip c is a->users[c]++
@@ -339,11 +319,14 @@ namespace logic_sim {
 		}
 
 		Chip () = default;
+
 		Chip (Chip&&) = default;
-		Chip (Chip const& chip): name{chip.name}, col{chip.col}, size{chip.size},
-			outputs{ deep_copy(chip.outputs) },
-			inputs { deep_copy(chip.inputs)  },
-			parts  { deep_copy(chip.parts)   } {}
+		Chip& operator= (Chip&&) = default;
+
+		Chip (Chip const&) = delete;
+		Chip& operator= (Chip const&) = delete;
+		
+		Chip deep_copy () const;
 	};
 
 	// An instance of a chip placed down in a chip
@@ -374,9 +357,6 @@ namespace logic_sim {
 		Part (Chip* chip, std::string&& name, Placement pos): chip{chip}, pos{pos}, name{name},
 			inputs {std::make_unique<InputWire []>(chip ? chip->inputs .size() : 0)} {}
 		
-		Part (Part const& part): chip{part.chip}, name{part.name}, pos{part.pos},
-			inputs{deep_copy(part.inputs, (int)part.chip->inputs.size())} {}
-
 		AABB get_aabb (float padding=0) const {
 			// mirror does not matter
 			float2 size = chip->size * pos.scale;
@@ -388,6 +368,7 @@ namespace logic_sim {
 			             pos.pos + size*0.5f + padding };
 		}
 	};
+
 	
 	// Can uniquely identify a chip instance, needed for editor interations
 	// This is safe as long as the ids are not recomputed
@@ -524,6 +505,8 @@ namespace logic_sim {
 		std::vector<uint8_t> state[2];
 
 		int cur_state = 0;
+
+		bool unsaved_changes = false;
 		
 		static int update_state_indices (Chip& chip) {
 			// state count cached, early out
@@ -558,7 +541,8 @@ namespace logic_sim {
 				update_state_indices(*c);
 			update_state_indices(*viewed_chip);
 		}
-		
+		void recompute_chip_users ();
+
 		void switch_to_chip_view (std::shared_ptr<Chip> chip) {
 			// TODO: delete chip warning if main_chip will be deleted by this?
 			viewed_chip = std::move(chip); // move copy of shared ptr (ie original still exists)
@@ -583,8 +567,29 @@ namespace logic_sim {
 			cam.pos = 0;
 			cam.zoom_to(sz * 1.25f);
 		}
+		
+		// delete chip from saved_chips, and reset viewed chip such that chip will actually be deleted
+		// this is probably the least confusing option for the user
+		void delete_chip (Chip* chip, Camera2D& cam) {
+			assert(chip->users.empty()); // hopefully users is correct or we will crash
+			
+			int idx = indexof_chip(saved_chips, chip);
+			if (idx >= 0)
+				saved_chips.erase(saved_chips.begin() + idx);
+			
+			if (viewed_chip.get() == chip)
+				reset_chip_view(cam);
 
+			unsaved_changes = true;
+		}
+		
 		void imgui (Input& I) {
+			if (unsaved_changes) {
+				ImGui::TextColored(ImVec4(1.00f, 0.67f, 0.00f, 1), "Unsaved changes");
+			}
+			else {
+				ImGui::Text("No unsaved changes");
+			}
 			ImGui::Text("Gates (# of states): %d", (int)state[0].size());
 		}
 		
@@ -757,10 +762,11 @@ namespace logic_sim {
 	////
 		void select_gate_imgui (LogicSim& sim, const char* name, Chip* type);
 		
+		void viewed_chip_imgui (LogicSim& sim, Camera2D& cam);
+
 		void saved_chip_imgui (LogicSim& sim, std::shared_ptr<Chip>& chip, bool can_place, bool is_viewed);
 		void saved_chips_imgui (LogicSim& sim, Camera2D& cam);
 		
-		void viewed_chip_imgui (LogicSim& sim);
 		void selection_imgui (PartSelection& sel);
 
 		void imgui (LogicSim& sim, Camera2D& cam);
