@@ -131,6 +131,74 @@ void LogicSim::simulate (Input& I) {
 }
 
 ////
+Chip Chip::deep_copy () const {
+	Chip c;
+	c.name = name;
+	c.col  = col;
+	c.size = size;
+			
+	// TODO: Is this really needed? How else to deep copy links correctly?
+	// -> Good reason to use indices instead of pointers again?
+	std::unordered_map<Part*, Part*> map; // old* -> new*
+			
+	auto create_part = [&] (Part* old) {
+		auto new_ = std::make_unique<Part>(old->chip, std::string(old->name), old->pos);
+		map.emplace(old, new_.get());
+		return new_;
+	};
+	auto deep_copy = [&] (Part* old, Part* new_) {
+		for (int i=0; i<(int)old->chip->inputs.size(); ++i) {
+			new_->inputs[i].part        = map[old->inputs[i].part];
+			new_->inputs[i].pin         = old->inputs[i].pin;
+			new_->inputs[i].wire_points = old->inputs[i].wire_points;
+		}
+	};
+
+	c.outputs.reserve(outputs.size());
+	c.inputs .reserve(inputs .size());
+	c.parts  .reserve(parts  .size());
+
+	for (auto& p : outputs)
+		c.outputs.emplace_back( create_part(p.get()) );
+			
+	for (auto& p : inputs)
+		c.inputs .emplace_back( create_part(p.get()) );
+
+	for (auto& p : parts)
+		c.parts  .add( create_part(p.get()) );
+			
+	for (size_t i=0; i<outputs.size(); ++i) {
+		deep_copy(c.outputs[i].get(), outputs[i].get());
+	}
+	for (size_t i=0; i<inputs.size(); ++i) {
+		deep_copy(c.inputs[i].get(), inputs[i].get());
+	}
+	for (auto& old : parts) {
+		deep_copy(old.get(), map[old.get()]);
+	}
+
+	return c;
+}
+
+void _add_user_to_chip_deps (Chip* chip, Chip* user) {
+	for (auto& p : chip->parts) {
+		if (!is_gate(p->chip)) {
+			// iterate unique recursive dependencies
+			if (p->chip->users.try_add(user)) {
+				_add_user_to_chip_deps(p->chip, user);
+			}
+		}
+	}
+}
+void LogicSim::recompute_chip_users () {
+	for (auto& chip : saved_chips) {
+		chip->users.clear();
+	}
+	for (auto& chip : saved_chips) {
+		_add_user_to_chip_deps(chip.get(), chip.get()); // add chip to all its recursive dependencies
+	}
+}
+
 json part2json (LogicSim const& sim, Part& part, std::unordered_map<Part*, int>& part2idx) {
 	json j;
 	j["chip"] = is_gate(part.chip) ?
@@ -207,6 +275,10 @@ void to_json (json& j, LogicSim const& sim) {
 	for (auto& chip : sim.saved_chips) {
 		jchips.emplace_back( chip2json(*chip, sim) );
 	}
+
+	// HACK: const-cast, only way around this would be not using const in json lib
+	//  or using global bool, which I want to avoid
+	((LogicSim&)sim).unsaved_changes = false;
 }
 
 Part* json2part (const json& j, LogicSim const& sim) {
@@ -306,6 +378,8 @@ void from_json (const json& j, LogicSim& sim) {
 		json2chip(jchip, *(*cur++), sim);
 	}
 
+	sim.recompute_chip_users();
+
 	int viewed_chip_idx = j["viewed_chip"];
 	if (viewed_chip_idx >= 0) {
 		sim.switch_to_chip_view( sim.saved_chips[viewed_chip_idx]);
@@ -313,25 +387,6 @@ void from_json (const json& j, LogicSim& sim) {
 }
 
 ////
-
-// Test if to_place is used in place_inside
-// if true need to disallow placing place_inside in to_place to avoid infinite recursion
-// 
-bool check_recursion (Chip* to_place, Chip* place_inside) {
-	if (to_place == place_inside)
-		return true;
-
-	for (auto& part : to_place->parts) {
-		if (!is_gate(part->chip) && to_place->_recurs == 0) { // only check every chip once
-			to_place->_recurs++;
-			bool used_recursively = check_recursion(part->chip, place_inside);
-			to_place->_recurs--;
-			if (used_recursively)
-				return true;
-		}
-	}
-	return false;
-}
 
 void toggle_edit_mode (Editor& e) {
 	if (e.in_mode<Editor::ViewMode>())
@@ -354,6 +409,56 @@ void Editor::select_gate_imgui (LogicSim& sim, const char* name, Chip* type) {
 	}
 }
 
+void Editor::viewed_chip_imgui (LogicSim& sim, Camera2D& cam) {
+
+	ImGui::InputText("name",  &sim.viewed_chip->name);
+	ImGui::ColorEdit3("col",  &sim.viewed_chip->col.x);
+	ImGui::DragFloat2("size", &sim.viewed_chip->size.x);
+
+	if (ImGui::TreeNodeEx("Inputs")) {
+		for (int i=0; i<(int)sim.viewed_chip->inputs.size(); ++i) {
+			ImGui::PushID(i);
+			ImGui::SetNextItemWidth(ImGui::CalcItemWidth() * 0.5f);
+			ImGui::InputText(prints("Input Pin #%d###name", i).c_str(), &sim.viewed_chip->inputs[i]->name);
+			ImGui::PopID();
+		}
+		ImGui::TreePop();
+	}
+	if (ImGui::TreeNodeEx("Outputs")) {
+		for (int i=0; i<(int)sim.viewed_chip->outputs.size(); ++i) {
+			ImGui::PushID(i);
+			ImGui::SetNextItemWidth(ImGui::CalcItemWidth() * 0.5f);
+			ImGui::InputText(prints("Output Pin #%d###name", i).c_str(), &sim.viewed_chip->outputs[i]->name);
+			ImGui::PopID();
+		}
+		ImGui::TreePop();
+	}
+
+	ImGui::Separator();
+	int users = sim.viewed_chip->users.size();
+
+	ImGui::PushStyleColor(ImGuiCol_Button,        (ImVec4)ImColor::HSV(0.0f, 0.6f, 0.6f));
+	ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(0.0f, 0.7f, 0.7f));
+	ImGui::PushStyleColor(ImGuiCol_ButtonActive,  (ImVec4)ImColor::HSV(0.0f, 0.8f, 0.8f));
+
+	if (users == 0) {
+		bool clicked = ImGui::ButtonEx("Delete###Del");
+		
+		ImGui::PopStyleColor(3);
+		
+		if (imgui_delete_confirmation(sim.viewed_chip->name.c_str(), clicked) == GuiConfirm::YES) {
+			sim.delete_chip(sim.viewed_chip.get(), cam);
+		}
+	}
+	else {
+		ImGui::BeginDisabled();
+		ImGui::ButtonEx(prints("Delete (Still %d Users)###Del", users).c_str());
+		ImGui::EndDisabled();
+		
+		ImGui::PopStyleColor(3);
+	}
+}
+
 void Editor::saved_chips_imgui (LogicSim& sim, Camera2D& cam) {
 	
 	if (ImGui::Button("Clear View")) {
@@ -362,17 +467,27 @@ void Editor::saved_chips_imgui (LogicSim& sim, Camera2D& cam) {
 		reset();
 	}
 	ImGui::SameLine();
+	
+	int idx = indexof_chip(sim.saved_chips, sim.viewed_chip.get());
+	bool dupl = idx >= 0;
 
-	if (ImGui::ButtonEx("Save as New")) {
+	if (ImGui::Button(dupl ? "Duplicate###_Save" : "Save as New###_Save")) {
 		if (!sim.viewed_chip->name.empty()) {
 			// save chip as new, duplicate it if it already was a saved chip
-			auto to_save = sim.viewed_chip;
-			if (indexof_chip(sim.saved_chips, sim.viewed_chip.get()) >= 0)
-				to_save = std::make_shared<Chip>(*to_save);
+			
+			std::shared_ptr<Chip> saved_chip;
+			if (dupl) {
+				// save copy after current entry
+				saved_chip = std::make_shared<Chip>( sim.viewed_chip->deep_copy() );
+				sim.saved_chips.emplace(sim.saved_chips.begin() + idx + 1, saved_chip);
+			}
+			else {
+				// save new chip at end of list
+				saved_chip = sim.viewed_chip;
+				sim.saved_chips.emplace_back(saved_chip);
+			}
 
-			sim.saved_chips.emplace_back(to_save);
-
-			sim.switch_to_chip_view(to_save);
+			sim.switch_to_chip_view(saved_chip);
 		}
 		else {
 			ImGui::OpenPopup("POPUP_SaveAsNewEnterName");
@@ -400,7 +515,7 @@ void Editor::saved_chips_imgui (LogicSim& sim, Camera2D& cam) {
 			auto& chip = sim.saved_chips[i];
 			
 			bool selected = in_mode<PlaceMode>() && std::get<PlaceMode>(mode).preview_part.chip == chip.get();
-			bool can_place = !check_recursion(chip.get(), sim.viewed_chip.get());
+			bool can_place = !sim.viewed_chip->users.contains(chip.get());
 			bool is_viewed = chip.get() == sim.viewed_chip.get();
 
 			if (i == chips_reorder_src) {
@@ -503,30 +618,6 @@ void Editor::saved_chips_imgui (LogicSim& sim, Camera2D& cam) {
 	//	sim.saved_chips.erase(sim.saved_chips.begin() + delete_item);
 	//}
 }
-void Editor::viewed_chip_imgui (LogicSim& sim) {
-	ImGui::InputText("name",  &sim.viewed_chip->name);
-	ImGui::ColorEdit3("col",  &sim.viewed_chip->col.x);
-	ImGui::DragFloat2("size", &sim.viewed_chip->size.x);
-
-	if (ImGui::TreeNodeEx("Inputs")) {
-		for (int i=0; i<(int)sim.viewed_chip->inputs.size(); ++i) {
-			ImGui::PushID(i);
-			ImGui::SetNextItemWidth(ImGui::CalcItemWidth() * 0.5f);
-			ImGui::InputText(prints("Input Pin #%d###name", i).c_str(), &sim.viewed_chip->inputs[i]->name);
-			ImGui::PopID();
-		}
-		ImGui::TreePop();
-	}
-	if (ImGui::TreeNodeEx("Outputs")) {
-		for (int i=0; i<(int)sim.viewed_chip->outputs.size(); ++i) {
-			ImGui::PushID(i);
-			ImGui::SetNextItemWidth(ImGui::CalcItemWidth() * 0.5f);
-			ImGui::InputText(prints("Output Pin #%d###name", i).c_str(), &sim.viewed_chip->outputs[i]->name);
-			ImGui::PopID();
-		}
-		ImGui::TreePop();
-	}
-}
 
 void Editor::selection_imgui (PartSelection& sel) {
 	ImGui::Text("%d Item selected", (int)sel.items.size());
@@ -594,7 +685,7 @@ void Editor::imgui (LogicSim& sim, Camera2D& cam) {
 		if (imgui_Header("Viewed Chip", true)) {
 			ImGui::Indent(10);
 					
-			viewed_chip_imgui(sim);
+			viewed_chip_imgui(sim, cam);
 			
 			ImGui::Unindent(10);
 			ImGui::PopID();
@@ -709,6 +800,10 @@ void Editor::add_part (LogicSim& sim, Chip& chip, PartPreview& part) {
 	// TODO
 	for (int i=0; i<2; ++i)
 		sim.state[i].assign(sim.viewed_chip->state_count, 0);
+	
+	sim.recompute_chip_users();
+	
+	sim.unsaved_changes = true;
 }
 void Editor::remove_part (LogicSim& sim, Chip* chip, Part* part) {
 	assert(chip == sim.viewed_chip.get());
@@ -771,6 +866,10 @@ void Editor::remove_part (LogicSim& sim, Chip* chip, Part* part) {
 	// TODO
 	for (int i=0; i<2; ++i)
 		sim.state[i].assign(sim.viewed_chip->state_count, 0);
+
+	sim.recompute_chip_users();
+
+	sim.unsaved_changes = true;
 }
 
 void Editor::add_wire (LogicSim& sim, Chip* chip, WireConn src, WireConn dst, std::vector<float2>&& wire_points) {
@@ -781,6 +880,8 @@ void Editor::add_wire (LogicSim& sim, Chip* chip, WireConn src, WireConn dst, st
 	assert(chip->contains_part(dst.part));
 
 	dst.part->inputs[dst.pin] = { src.part, src.pin, std::move(wire_points) };
+
+	sim.unsaved_changes = true;
 }
 void Editor::remove_wire (LogicSim& sim, Chip* chip, WireConn dst) {
 
@@ -794,15 +895,19 @@ void Editor::remove_wire (LogicSim& sim, Chip* chip, WireConn dst) {
 	assert(dst.part->inputs[dst.pin].part == src.part && dst.part->inputs[dst.pin].pin == src.pin);
 
 	dst.part->inputs[dst.pin] = {};
+
+	sim.unsaved_changes = true;
 }
 
-void edit_placement (Input& I, Placement& p, float2 center=0) {
+void edit_placement (LogicSim& sim, Input& I, Placement& p, float2 center=0) {
 	if (I.buttons['R'].went_down) {
 		int dir = I.buttons[KEY_LEFT_SHIFT].is_down ? -1 : +1;
 		p.rotate_around(center, dir);
+		sim.unsaved_changes = true;
 	}
 	if (I.buttons['M'].went_down) {
 		p.mirror_around(center);
+		sim.unsaved_changes = true;
 	}
 }
 
@@ -1020,7 +1125,7 @@ void Editor::update (Input& I, LogicSim& sim, ogl::Renderer& r) {
 	if (in_mode<PlaceMode>()) {
 		auto& preview_part = std::get<PlaceMode>(mode).preview_part;
 		
-		edit_placement(I, preview_part.pos);
+		edit_placement(sim, I, preview_part.pos);
 		
 		if (_cursor_valid) {
 			
@@ -1222,8 +1327,12 @@ void Editor::update (Input& I, LogicSim& sim, ogl::Renderer& r) {
 
 					// drag gate
 					if (I.buttons[MOUSE_BUTTON_LEFT].is_down) {
-						for (auto& item : e.sel.items)
-							item.part->pos.pos = item.bounds_offs + bounds_center;
+						if (length_sqr(e.drag_offset) > 0) {
+							for (auto& item : e.sel.items)
+								item.part->pos.pos = item.bounds_offs + bounds_center;
+
+							sim.unsaved_changes = true;
+						}
 					}
 					// stop dragging gate
 					else {
@@ -1234,7 +1343,7 @@ void Editor::update (Input& I, LogicSim& sim, ogl::Renderer& r) {
 
 			// TODO: rotate around mouse cursor when dragging?
 			for (auto& i : e.sel.items) {
-				edit_placement(I, i.part->pos, bounds_center);
+				edit_placement(sim, I, i.part->pos, bounds_center);
 			}
 
 			// Duplicate selected part with CTRL+C

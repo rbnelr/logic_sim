@@ -17,6 +17,10 @@ struct App : IApp {
 	ogl::Renderer renderer;
 	Game game;
 
+	virtual ShouldClose close_confirmation () {
+		return game.close_confirmation(this);
+	}
+
 	virtual void imgui (Window& window) {
 		renderer.imgui(window.input);
 		game.imgui(window.input);

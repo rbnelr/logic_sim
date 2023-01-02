@@ -293,7 +293,13 @@ void Renderer::end (Window& window, Game& g, int2 window_size) {
 	tri_renderer.render(state);
 
 	gl_dbgdraw.render(state, dbgdraw);
-		
+	
+	if (g.sim_paused) {
+		screen_outline.draw(state, lrgba(0.2f, 0.2f, 1, 1));
+	}
+	
+	glLineWidth(gl_dbgdraw.line_width);
+
 	text_renderer.render(state);
 
 	{

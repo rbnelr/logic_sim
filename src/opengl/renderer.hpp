@@ -130,6 +130,59 @@ struct LineRenderer {
 	}
 };
 
+struct ScreenOutline {
+	Shader* shad = g_shaders.compile("screen_outline");
+	
+	struct Vertex {
+		float2 pos;
+
+		ATTRIBUTES {
+			ATTRIB(idx++, GL_FLOAT,2, Vertex, pos);
+		}
+	};
+	VertexBuffer vbo = vertex_buffer<Vertex>("ScreenOutline.Vertex");
+	
+	static constexpr Vertex verts[] = {
+		{ float2(-1,-1) },
+		{ float2(+1,-1) },
+		
+		{ float2(+1,-1) },
+		{ float2(+1,+1) },
+		
+		{ float2(+1,+1) },
+		{ float2(-1,+1) },
+		
+		{ float2(-1,+1) },
+		{ float2(-1,-1) },
+	};
+	ScreenOutline () {
+		vbo.upload(verts, ARRLEN(verts));
+	}
+
+	void draw (StateManager& state, lrgba col) {
+		ZoneScoped;
+		OGL_TRACE("draw_paused_outline");
+
+		glUseProgram(shad->prog);
+
+		shad->set_uniform("col", col);
+
+		PipelineState s;
+		s.depth_write = false;
+		s.depth_test = false;
+		s.blend_enable = true;
+		s.poly_mode = POLY_LINE;
+		state.set_no_override(s);
+
+		glLineWidth(6); // half is off-screen
+
+		{
+			glBindVertexArray(vbo.vao);
+			glDrawArrays(GL_LINES, 0, ARRLEN(verts));
+		}
+	}
+};
+
 struct Renderer {
 	SERIALIZE_NONE(Renderer)
 	
@@ -203,6 +256,8 @@ struct Renderer {
 		glDrawArrays(GL_TRIANGLES, 0, 3);
 	}
 	
+	ScreenOutline screen_outline;
+
 	// clamp font size in world-space units
 	float clamp_font_size (float size, float min, float max) {
 		float scale = view.frust_near_size.y / view.viewport_size.y;

@@ -26,7 +26,7 @@ struct Game {
 	logic_sim::Editor   editor;
 
 	float sim_freq = 5.0f;
-	bool pause = false;
+	bool sim_paused = false;
 	bool manual_tick = false;
 
 	// [0,1)  1 means next tick happens, used to animate between prev_state and cur_state
@@ -48,12 +48,16 @@ struct Game {
 		ImGui::Separator();
 			
 		if (imgui_Header("Simulation", true)) {
+			
+			sim.imgui(I);
+
+			ImGui::Separator();
 
 			cam.imgui("View");
 			
 			ImGui::SliderFloat("Sim Freq", &sim_freq, 0.1f, 200, "%.1f", ImGuiSliderFlags_Logarithmic);
 
-			ImGui::Checkbox("Pause [Space]", &pause);
+			ImGui::Checkbox("Pause [Space]", &sim_paused);
 			ImGui::SameLine();
 			manual_tick = ImGui::Button("Man. Tick [T]");
 
@@ -70,8 +74,6 @@ struct Game {
 				ImGui::SameLine();
 				ImGui::TextEx("Tick");
 			}
-			
-			sim.imgui(I);
 
 			ImGui::PopID();
 		}
@@ -79,19 +81,32 @@ struct Game {
 		editor.imgui(sim, cam);
 	}
 
-	void update (Window& window, ogl::Renderer& renderer) {
+	IApp::ShouldClose close_confirmation (IApp* app) {
+		if (sim.unsaved_changes) {
+			auto res = imgui_unsaved_changes_confirmation();
+			if (res == GuiUnsavedConfirm::PENDING) return IApp::ShouldClose::CLOSE_PENDING;
+			if (res == GuiUnsavedConfirm::CANCEL)  return IApp::ShouldClose::CLOSE_CANCEL;
+			if (res == GuiUnsavedConfirm::SAVE) {
+				app->json_save();
+				assert(!sim.unsaved_changes);
+			}
+		}
+		return IApp::ShouldClose::CLOSE_NOW;
+	}
+
+	void update (Window& window, ogl::Renderer& r) {
 		ZoneScoped;
 
 		auto& I = window.input;
 
 		manual_tick = I.buttons['T'].went_down || manual_tick;
-		if (I.buttons[' '].went_down) pause = !pause;
+		if (I.buttons[' '].went_down) sim_paused = !sim_paused;
 
-		renderer.view = cam.update(I, (float2)I.window_size);
+		r.view = cam.update(I, (float2)I.window_size);
 		
-		editor.update(I, sim, renderer);
+		editor.update(I, sim, r);
 
-		if (!pause && sim_freq >= 0.1f) {
+		if (!sim_paused && sim_freq >= 0.1f) {
 			
 			for (int i=0; i<10 && sim_t >= 1.0f; ++i) {
 				
