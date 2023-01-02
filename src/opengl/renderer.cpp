@@ -60,6 +60,18 @@ void Renderer::build_line (float2x3 const& chip2world, float2 a, float2 b, int s
 	}
 }
 
+void Renderer::draw_wire_point (float2x3 const& chip2world, float2 pos, int states, lrgba col) {
+	auto* out = push_back(line_renderer.lines, 1);
+
+	float radius = abs(((float2x2)chip2world * float2(0.08f)).x);
+
+	{
+		float2 p = chip2world * pos;
+
+		*out++ = { p, p, float2(0, 1), radius, states, col, wire_id };
+	}
+}
+
 void Renderer::draw_gate (float2x3 const& mat, float2 size, int type, int state, lrgba col) {
 	//if (type < 2)
 	//	return; // TEST: don't draw INP/OUT_PINs
@@ -86,6 +98,8 @@ void Renderer::draw_gate (float2x3 const& mat, float2 size, int type, int state,
 	ogl::push_quad(pi, idx+0, idx+1, idx+2, idx+3);
 }
 
+constexpr lrgba line_col = lrgba(0.8f, 0.01f, 0.025f, 1);
+
 void Renderer::draw_chip (Game& g, Chip* chip, float2x3 const& chip2world, int chip_state, lrgba col) {
 	auto& editor = g.editor;
 
@@ -103,7 +117,7 @@ void Renderer::draw_chip (Game& g, Chip* chip, float2x3 const& chip2world, int c
 	else {
 		{ // TODO: make this look nicer, rounded thick outline? color the background inside chip differently?
 			float2 center = chip2world * float2(0);
-			float2 size = abs( (float2x2)chip2world * chip->size );
+			float2 size = abs( (float2x2)chip2world * chip->size ) - 1.0f/16;
 			dbgdraw.wire_quad(float3(center - size*0.5f, 0.0f), size, lrgba(0.001f, 0.001f, 0.001f, 1));
 		}
 		
@@ -114,13 +128,8 @@ void Renderer::draw_chip (Game& g, Chip* chip, float2x3 const& chip2world, int c
 			auto part2chip = part->pos.calc_matrix();
 			auto part2world = chip2world * part2chip;
 
-			auto* sel = g.editor.in_mode<Editor::EditMode>() ?
-				&std::get<Editor::EditMode>(g.editor.mode).sel : nullptr;
-		
 			draw_chip(g, part->chip, part2world, chip_state >= 0 ? chip_state + part->sid : -1, col);
 		
-			constexpr lrgba line_col = lrgba(0.8f, 0.01f, 0.025f, 1);
-				
 			for (int i=0; i<(int)part->chip->inputs.size(); ++i) {
 				auto& inp = part->chip->inputs[i];
 					
@@ -169,6 +178,10 @@ void Renderer::draw_chip (Game& g, Chip* chip, float2x3 const& chip2world, int c
 			//	}
 			//}
 		};
+		
+		for (auto& n : chip->wire_nodes) {
+			draw_wire_point(chip2world, n->pos, 3, line_col);
+		}
 
 		for (auto& part : chip->inputs) {
 			draw_part(part.get());
@@ -180,36 +193,36 @@ void Renderer::draw_chip (Game& g, Chip* chip, float2x3 const& chip2world, int c
 			draw_part(part.get());
 		}
 
-		if (g.editor.in_mode<Editor::WireMode>()) { // Wire preview
-			auto& w = std::get<Editor::WireMode>(g.editor.mode);
-			
-			if ((w.dst.part || w.src.part) && w.chip.ptr == chip) {
-				ZoneScopedN("push wire_preview");
-					
-				auto& out = w.dir ? w.dst : w.src;
-				auto& inp = w.dir ? w.src : w.dst;
-
-				float2 out0 = w.unconn_pos, out1 = w.unconn_pos;
-				float2 inp0 = w.unconn_pos, inp1 = w.unconn_pos;
-			
-				if (out.part) {
-					auto  mat  = out.part->pos.calc_matrix();
-					auto& part = *out.part->chip->outputs[out.pin];
-					out0 = mat * part.pos.pos;
-					out1 = mat * get_out_pos(part);
-				}
-				if (inp.part) {
-					auto  mat  = inp.part->pos.calc_matrix();
-					auto& part = *inp.part->chip->inputs[inp.pin];
-					inp0 = mat * get_inp_pos(part);
-					inp1 = mat * part.pos.pos;
-				}
-			
-				build_line(chip2world, out0, out1, w.points, inp0, inp1, 3, lrgba(0.8f, 0.01f, 0.025f, 0.75f));
-				
-				wire_id++;
-			}
-		}
+		//if (g.editor.in_mode<Editor::WireMode>()) { // Wire preview
+		//	auto& w = std::get<Editor::WireMode>(g.editor.mode);
+		//	
+		//	if ((w.dst.part || w.src.part) && w.chip.ptr == chip) {
+		//		ZoneScopedN("push wire_preview");
+		//			
+		//		auto& out = w.dir ? w.dst : w.src;
+		//		auto& inp = w.dir ? w.src : w.dst;
+		//
+		//		float2 out0 = w.unconn_pos, out1 = w.unconn_pos;
+		//		float2 inp0 = w.unconn_pos, inp1 = w.unconn_pos;
+		//	
+		//		if (out.part) {
+		//			auto  mat  = out.part->pos.calc_matrix();
+		//			auto& part = *out.part->chip->outputs[out.pin];
+		//			out0 = mat * part.pos.pos;
+		//			out1 = mat * get_out_pos(part);
+		//		}
+		//		if (inp.part) {
+		//			auto  mat  = inp.part->pos.calc_matrix();
+		//			auto& part = *inp.part->chip->inputs[inp.pin];
+		//			inp0 = mat * get_inp_pos(part);
+		//			inp1 = mat * part.pos.pos;
+		//		}
+		//	
+		//		build_line(chip2world, out0, out1, w.points, inp0, inp1, 3, lrgba(0.8f, 0.01f, 0.025f, 0.75f));
+		//		
+		//		wire_id++;
+		//	}
+		//}
 	}
 
 }
@@ -266,19 +279,26 @@ void Renderer::end (Window& window, Game& g, int2 window_size) {
 			
 		draw_chip(g, g.sim.viewed_chip.get(), float2x3::identity(), 0, lrgba(1));
 	}
+
+	{
+		if (g.editor.in_mode<Editor::WireMode>()) {
+			auto& w = std::get<Editor::WireMode>(g.editor.mode);
+			draw_wire_point(float2x3::identity(), w.cur->pos, 3, line_col * lrgba(1,1,1,0.5f));
+		}
+	}
 		
 	{ // Gate preview
 		if (g.editor.in_mode<Editor::PlaceMode>() && g.editor._cursor_valid) {
-			auto& preview = std::get<Editor::PlaceMode>(g.editor.mode).preview_part;
+			auto& pl = std::get<Editor::PlaceMode>(g.editor.mode);
+			
+			assert(pl.place_chip);
+			auto part2chip = pl.place_pos.calc_matrix();
 
-			assert(preview.chip);
-			auto part2chip = preview.pos.calc_matrix();
-
-			draw_chip(g, preview.chip, part2chip, -1, lrgba(1,1,1,0.5f));
+			draw_chip(g, pl.place_chip, part2chip, -1, lrgba(1,1,1,0.5f));
 					
 			constexpr lrgba col = lrgba(0.8f, 0.01f, 0.025f, 0.5f);
 					
-			for (auto& inp : preview.chip->inputs) {
+			for (auto& inp : pl.place_chip->inputs) {
 				float2 dst0 = part2chip * get_inp_pos(*inp);
 				float2 dst1 = part2chip * inp->pos.pos;
 

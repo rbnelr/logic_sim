@@ -56,11 +56,11 @@ uniform float num_wires;
 		
 		v.t = mix(t.x, t.y, v.coord.x / v.len);
 		
-		col_a = vec4(col.rgb * vec3((states & 1) != 0 ? 1.0 : 0.03), col.a);
-		col_b = vec4(col.rgb * vec3((states & 2) != 0 ? 1.0 : 0.03), col.a);
+		col_a = vec4(col.rgb * vec3((states & 1) != 0 ? 1.0 : 0.1), col.a);
+		col_b = vec4(col.rgb * vec3((states & 2) != 0 ? 1.0 : 0.1), col.a);
 		
-		col_a.rgb = mix(0.02 * col.rgb, col_a.rgb, layer);
-		col_b.rgb = mix(0.02 * col.rgb, col_b.rgb, layer);
+		col_a.rgb = mix(0.0 * col.rgb, col_a.rgb, layer);
+		col_b.rgb = mix(0.0 * col.rgb, col_b.rgb, layer);
 		
 		// line vertices
 		vec2 pos = uv.x == -1.0 ? pos0 : pos1;

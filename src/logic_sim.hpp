@@ -39,77 +39,6 @@ inline std::unique_ptr<T[]> erase (std::unique_ptr<T[]>& old, int old_size, int 
 	return ptr;
 }
 
-/*
-template<typename T, typename KSel=_DefaultKeySel<T>>
-struct hashset {
-
-	typedef key_t = decltype(KSel::get_key(t));
-
-	struct _Hash {
-		static size_t operator() (T const& t) {
-			return std::hash<key_t>()
-				(KSel::get_key(t));
-		}
-	};
-	struct _KeyEqual {
-		static bool operator() (T const& l, T const& r) {
-			return KSel::get_key(l) == KSel::get_key(r);
-		}
-	};
-
-	typedef set_t std::unordered_set<T, _Hash, _KeyEqual>;
-
-	set_t set;
-
-	hashset () {}
-
-	hashset (hashset&& r): set{ std::move(r) };
-	hashset& operator= (hashset&& r) {
-		this->set = std::move(r);
-		return *this
-	};
-
-	hashset (hashset const& r): set{ r };
-	hashset& operator= (hashset const& r) {
-		this->set = r;
-		return *this
-	};
-
-	bool empty () const {
-		return set.empty();
-	}
-
-	set_t::iterator begin () {
-		return set.begin();
-	}
-	set_t::iterator end () {
-		return set.end();
-	}
-
-	set_t::const_iterator begin () {
-		return set.begin();
-	}
-	set_t::const_iterator end () {
-		return set.end();
-	}
-
-	bool contains (key_t const& key) {
-		return set.find(key) != set.end();
-	}
-
-	bool add (T&& val) {
-		return set.emplace(val);
-	}
-
-	bool remove (key_t const& key) {
-		return set.erase(key);
-	}
-
-	set_t::iterator find (key_t const& key) {
-		return set.find(key);
-	}
-};*/
-
 // Acts like a set, ie. elements are unordered
 //  but implemented as a vector because std::unordered_set< std::unique_ptr<T> > does not work <C++20 (cannot search by raw pointer)
 // though iteration of elements is supported,
@@ -202,6 +131,9 @@ struct VectorSet {
 
 namespace logic_sim {
 	
+	inline constexpr float PIN_SIZE   = 0.225f; // IO Pin hitbox size
+	inline constexpr float PIN_LENGTH = 0.5f; // IO Pin base wire length
+
 	constexpr float2x2 ROT[] = {
 		float2x2(  1, 0,  0, 1 ),
 		float2x2(  0, 1, -1, 0 ),
@@ -275,6 +207,7 @@ namespace logic_sim {
 	
 ////
 	struct Part;
+	struct WireNode;
 
 	struct Partptr_equal {
 		inline bool operator() (std::unique_ptr<Part> const& l, Part const* r) {
@@ -284,12 +217,49 @@ namespace logic_sim {
 			return l == r;
 		};
 	};
+	
+	enum ThingType {
+		T_NONE=0,
+		T_PART,
+		T_NODE,
+		T_PIN_INP,
+		T_PIN_OUT,
+	};
+	struct ThingPtr {
+		ThingType type;
+		int       pin;
+		union {
+			Part*     part;
+			WireNode* node;
+		};
 
+		ThingPtr ()                                   : type{T_NONE}, pin{0}, part{nullptr} {}
+		ThingPtr (Part* part)                         : type{T_PART}, pin{0}, part{part} {
+			assert(part != nullptr);
+		}
+		ThingPtr (WireNode* node)                     : type{T_NODE}, pin{0}, node{node} {
+			assert(node != nullptr);
+		}
+		ThingPtr (ThingType type, Part* part, int pin): type{type}, pin{pin}, part{part} {
+			assert(part != nullptr);
+		}
+		
+		operator bool () const { return type != T_NONE; }
+
+		bool operator== (ThingPtr const& r) const {
+			return memcmp(this, &r, sizeof(ThingPtr)) == 0;
+		}
+	};
 
 	struct WireNode {
 		float2 pos;
 		
-		VectorSet<WireNode*> edges; // TODO: small vec opt to 4 entries
+		VectorSet<ThingPtr> edges; // TODO: small vec opt to 4 entries
+
+		AABB get_aabb () const {
+			return AABB{ pos - PIN_SIZE*0.5f,
+			             pos + PIN_SIZE*0.5f };
+		}
 	};
 	//struct WireEdge {
 	//	WireNode* a;
@@ -392,43 +362,25 @@ namespace logic_sim {
 		Part (Chip* chip, std::string&& name, Placement pos): chip{chip}, pos{pos}, name{name},
 			inputs {std::make_unique<InputWire []>(chip ? chip->inputs .size() : 0)} {}
 		
-		AABB get_aabb (float padding=0) const {
+		AABB get_aabb () const {
 			// mirror does not matter
 			float2 size = chip->size * pos.scale;
 
 			// Does not handle non-90 deg rotations
 			size = abs(ROT[pos.rot] * size);
 
-			return AABB{ pos.pos - size*0.5f - padding,
-			             pos.pos + size*0.5f + padding };
+			return AABB{ pos.pos - size*0.5f,
+			             pos.pos + size*0.5f };
 		}
 	};
 	
-	// Can uniquely identify a chip instance, needed for editor interations
-	// This is safe as long as the ids are not recomputed
-	// this only happens when parts are added or deleted, in which case the selection is reset
-	struct ChipInstanceID {
-		Chip* ptr = nullptr;
-		int   sid = 0;
-
-		operator bool () {
-			return ptr;
-		}
-
-		bool operator== (ChipInstanceID const& r) {
-			return ptr == r.ptr && sid == r.sid;
-		}
-		bool operator!= (ChipInstanceID const& r) {
-			return !(sid == r.sid);
-		}
+	struct WireConn {
+		Part* part = nullptr;
+		int   pin = 0;
 	};
 
-
 ////
-	inline constexpr float PIN_SIZE   = 0.225f; // IO Pin hitbox size
-	inline constexpr float PIN_LENGTH = 0.5f; // IO Pin base wire length
-
-	enum class GateType {
+	enum GateType {
 		//NULL_GATE =-1,
 		INP_PIN   =0,
 		OUT_PIN   ,
@@ -532,7 +484,7 @@ namespace logic_sim {
 		friend void from_json (const json& j, LogicSim& sim);
 
 
-		Chip saved_chips;
+		std::vector<std::shared_ptr<Chip>> saved_chips;
 
 		std::shared_ptr<Chip> viewed_chip;
 
@@ -602,6 +554,17 @@ namespace logic_sim {
 			cam.zoom_to(sz * 1.25f);
 		}
 		
+		
+		void imgui (Input& I) {
+			if (unsaved_changes) {
+				ImGui::TextColored(ImVec4(1.00f, 0.67f, 0.00f, 1), "Unsaved changes");
+			}
+			else {
+				ImGui::Text("No unsaved changes");
+			}
+			ImGui::Text("Gates (# of states): %d", (int)state[0].size());
+		}
+		
 		// delete chip from saved_chips, and reset viewed chip such that chip will actually be deleted
 		// this is probably the least confusing option for the user
 		void delete_chip (Chip* chip, Camera2D& cam) {
@@ -617,127 +580,87 @@ namespace logic_sim {
 			unsaved_changes = true;
 		}
 		
-		void imgui (Input& I) {
-			if (unsaved_changes) {
-				ImGui::TextColored(ImVec4(1.00f, 0.67f, 0.00f, 1), "Unsaved changes");
-			}
-			else {
-				ImGui::Text("No unsaved changes");
-			}
-			ImGui::Text("Gates (# of states): %d", (int)state[0].size());
-		}
+		void add_part (Chip& chip, Chip* part_chip, Placement part_pos);
+		void remove_part (Chip& chip, Part* part);
 		
+		void add_wire (Chip& chip, WireConn src, WireConn dst, std::vector<float2>&& wire_points);
+		void remove_wire (Chip& chip, WireConn dst);
+
+
 		void simulate (Input& I);
 	};
 	
 	struct Editor {
 		
-		struct Hover {
-			enum Type {
-				NONE = 0,
-				PART,
-				PIN_INP,
-				PIN_OUT,
-			};
-			Type type = NONE;
-			
-			ChipInstanceID chip = {};
-			Part* part = nullptr;
-
-			int   pin = -1;
-			
-			float2x3 chip2world;
-			float2x3 world2chip;
-			
-			operator bool () {
-				return type != NONE;
-			}
-		};
-		
 		struct PartSelection {
 			struct Item {
-				Part*  part;
-				float2 bounds_offs;
+				ThingPtr ptr;
+				float2   bounds_offs;
 			};
 			struct ItemCmp {
-				inline bool operator() (Item const& l, Item const& r) { return l.part == r.part; }
-				inline bool operator() (Item const& l, Part* r) { return l.part == r; }
+				inline bool operator() (Item const& l, Item const& r) { return l.ptr == r.ptr; }
+				inline bool operator() (Item const& l, ThingPtr r) { return l.ptr == r; }
 			};
 
-			ChipInstanceID chip = {};
 			VectorSet<Item, ItemCmp> items; // TODO: use custom hashset here
-			
-			float2x3 chip2world;
-			float2x3 world2chip;
 			
 			AABB bounds;
 			
 			operator bool () {
 				return !items.empty();
 			}
-
-			static bool _cmp (Item const& i, Part const* p) { return i.part == p; }
 			
-			bool has_part (Chip* chip, Part* part) {
-				if (this->chip.ptr != chip) assert(!items.contains(part));
-				return this->chip.ptr == chip && items.contains(part);
+			bool contains (ThingPtr item) {
+				assert(item.type == T_PART || item.type == T_NODE);
+				return items.contains(item);
 			}
-			bool toggle_part (Part* part) {
-				return items.toggle(Item{ part }); // if was added
+			bool toggle (ThingPtr item) {
+				assert(item.type == T_PART || item.type == T_NODE);
+				return items.toggle(item);
 			}
 
 			void add (PartSelection& r) {
-				assert(chip == r.chip);
-
 				for (auto& it : r.items) {
-					items.try_add(Item{ it.part });
+					items.try_add(Item{ it.ptr });
 				}
 			}
 			void remove (PartSelection& r) {
-				assert(chip == r.chip);
-
 				for (auto& it : r.items) {
-					items.try_remove(it.part);
+					items.try_remove(it.ptr);
 				}
-			}
-
-			// Selection and Hover can be compared for their chip_sid to determine
-			// if they refer to the same chip instance
-			// This is safe as long as the ids are not recomputed
-			// this only happens when parts are added or deleted, in which case the selection is reset
-			bool inst_contains_inst (Hover& hov) {
-				if (chip.ptr != hov.chip.ptr) assert(!items.contains(hov.part));
-				return chip == hov.chip && items.contains(hov.part);
 			}
 		};
 		
-		struct PartPreview {
-			Chip* chip = nullptr;
-			Placement pos = {};
-		};
-
-		struct WireConn {
-			Part* part = nullptr;
-			int   pin = 0;
-		};
-
 		struct ViewMode {
+			struct Hover_Part {
+				Part* part = nullptr;
+				int   sid = -1;
+
+				float2x3 part2world;
+			};
+			Hover_Part hover_part = {};
+
 			int toggle_sid = -1;
 			bool state_toggle_value; // new state value while toggle is 'held'
+
+			
+			void find_hover (float2 cursor_pos, Chip& chip,
+					float2x3 chip2world, float2x3 world2chip, int sid);
 		};
 		struct EditMode {
 
 			PartSelection sel = {};
 
 			bool dragging = false; // dragging selection
+			float2 drag_start;
 			float2 drag_offset;
 
 			bool box_selecting = false;
 			float2 box_sel_start;
 		};
 		struct PlaceMode {
-			
-			PartPreview preview_part = {};
+			Chip*     place_chip = nullptr;
+			Placement place_pos = {};
 		};
 		struct WireMode {
 			WireNode* prev = nullptr;
@@ -747,14 +670,24 @@ namespace logic_sim {
 			WireNode  node;
 		};
 
-		std::variant<ViewMode, EditMode, PlaceMode, WireMode>
-			mode = ViewMode();
+		static constexpr const char* mode_names[] = {
+			"View",
+			"Edit",
+			"Place",
+			"Wire"
+		};
+		typedef std::variant<
+			ViewMode,
+			EditMode,
+			PlaceMode,
+			WireMode
+		> ModeVariant;
+
+		ModeVariant mode = ViewMode();
 
 		template <typename T> bool in_mode () {
 			return std::holds_alternative<T>(mode);
 		}
-
-		Hover hover = {};
 
 		void reset () {
 			mode = ViewMode();
@@ -767,23 +700,11 @@ namespace logic_sim {
 			return snapping ? round(pos / snapping_size) * snapping_size : pos;
 		}
 
+		int chips_reorder_src = -1;
+		
 		bool _cursor_valid;
 		float2 _cursor_pos;
 
-		int chips_reorder_src = -1;
-		
-		// check mouse cursor against chip hitbox
-		bool hitbox (float2 box_size, float2x3 const& world2chip) {
-			assert(_cursor_valid);
-			
-			// cursor in space of chip normalized to size
-			float2 p = world2chip * _cursor_pos;
-			p /= box_size;
-			// chip is a [-0.5, 0.5] box in this space
-			return p.x >= -0.5f && p.x < 0.5f &&
-			       p.y >= -0.5f && p.y < 0.5f;
-		}
-		
 	////
 		void select_gate_imgui (LogicSim& sim, const char* name, Chip* type);
 		
@@ -797,27 +718,9 @@ namespace logic_sim {
 		void imgui (LogicSim& sim, Camera2D& cam);
 		
 	////
-		void add_part (LogicSim& sim, Chip& chip, PartPreview& part);
-		void remove_part (LogicSim& sim, Chip* chip, Part* part);
-		
-		void add_wire (LogicSim& sim, Chip* chip, WireConn src, WireConn dst, std::vector<float2>&& wire_points);
-		void remove_wire (LogicSim& sim, Chip* chip, WireConn dst);
-
-		struct SelectInput {
-			ChipInstanceID only_chip = {}; // only hover in chip instance  null -> in all
-			bool allow_pins;
-			bool allow_parts;
-		};
-		void find_hover (Chip& chip, SelectInput& I,
-			float2x3 const& chip2world, float2x3 const& world2chip, int state_base);
-
-		void find_boxsel (Chip& chip, bool remove, AABB box,
-			float2x3 const& chip2world, float2x3 const& world2chip, int state_base,
-			PartSelection& sel);
-
 		void update (Input& I, LogicSim& sim, ogl::Renderer& r);
 		
 		void update_toggle_gate (Input& I, LogicSim& sim, Window& window);
 	};
 	
-}
+} // namespace logic_sim
