@@ -17,7 +17,7 @@ void Renderer::build_line (float2x3 const& chip2world,
 
 	auto* out = lines;
 
-	float radius = abs(((float2x2)chip2world * float2(0.05f)).x);
+	float radius = abs(((float2x2)chip2world * float2(WIRE_RADIUS)).x);
 
 	auto line_seg = [&] (float2 p) {
 		float2 cur = chip2world * p;
@@ -50,7 +50,7 @@ void Renderer::build_line (float2x3 const& chip2world,
 void Renderer::build_line (float2x3 const& chip2world, float2 a, float2 b, int states, lrgba col) {
 	auto* out = push_back(line_renderer.lines, 1);
 
-	float radius = abs(((float2x2)chip2world * float2(0.05f)).x);
+	float radius = abs(((float2x2)chip2world * float2(WIRE_RADIUS)).x);
 
 	{
 		float2 p0 = chip2world * a;
@@ -60,15 +60,15 @@ void Renderer::build_line (float2x3 const& chip2world, float2 a, float2 b, int s
 	}
 }
 
-void Renderer::draw_wire_point (float2x3 const& chip2world, float2 pos, int states, lrgba col) {
+void Renderer::draw_wire_point (float2x3 const& chip2world, float2 pos, float radius, int states, lrgba col) {
 	auto* out = push_back(line_renderer.lines, 1);
 
-	float radius = abs(((float2x2)chip2world * float2(0.08f)).x);
+	float r = abs(((float2x2)chip2world * float2(radius)).x);
 
 	{
 		float2 p = chip2world * pos;
 
-		*out++ = { p, p, float2(0, 1), radius, states, col, wire_id };
+		*out++ = { p, p, float2(0, 1), r, states, col, wire_id };
 	}
 }
 
@@ -180,7 +180,13 @@ void Renderer::draw_chip (Game& g, Chip* chip, float2x3 const& chip2world, int c
 		};
 		
 		for (auto& n : chip->wire_nodes) {
-			draw_wire_point(chip2world, n->pos, 3, line_col);
+			float r = WIRE_RADIUS;
+			if (n->edges.size() == 0 || n->edges.size() > 2)
+				r *= WIRE_NODE_RADIUS_FAC;
+			draw_wire_point(chip2world, n->pos, r, 0, line_col);
+		}
+		for (auto& e : chip->wire_edges) {
+			build_line(chip2world, e->a.get_wire_pos(), e->b.get_wire_pos(), 0, line_col);
 		}
 
 		for (auto& part : chip->inputs) {
@@ -283,7 +289,16 @@ void Renderer::end (Window& window, Game& g, int2 window_size) {
 	{
 		if (g.editor.in_mode<Editor::WireMode>()) {
 			auto& w = std::get<Editor::WireMode>(g.editor.mode);
-			draw_wire_point(float2x3::identity(), w.cur->pos, 3, line_col * lrgba(1,1,1,0.5f));
+			
+			if (w.cur.type == T_NODE)
+				draw_wire_point(float2x3::identity(), w.cur.get_wire_pos(),
+					WIRE_RADIUS*WIRE_NODE_RADIUS_FAC, 0, line_col * lrgba(1,1,1,0.5f));
+			
+			constexpr lrgba col = line_col * lrgba(1,1,1,0.5f);
+
+			if (w.cur && w.prev) {
+				build_line(float2x3::identity(), w.prev.get_wire_pos(), w.cur.get_wire_pos(), 0, col);
+			}
 		}
 	}
 		
@@ -296,7 +311,7 @@ void Renderer::end (Window& window, Game& g, int2 window_size) {
 
 			draw_chip(g, pl.place_chip, part2chip, -1, lrgba(1,1,1,0.5f));
 					
-			constexpr lrgba col = lrgba(0.8f, 0.01f, 0.025f, 0.5f);
+			constexpr lrgba col = line_col * lrgba(1,1,1,0.5f);
 					
 			for (auto& inp : pl.place_chip->inputs) {
 				float2 dst0 = part2chip * get_inp_pos(*inp);

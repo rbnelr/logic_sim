@@ -39,11 +39,12 @@ inline std::unique_ptr<T[]> erase (std::unique_ptr<T[]>& old, int old_size, int 
 	return ptr;
 }
 
-// Acts like a set, ie. elements are unordered
-//  but implemented as a vector because std::unordered_set< std::unique_ptr<T> > does not work <C++20 (cannot search by raw pointer)
-// though iteration of elements is supported,
-//  so there is an order which is garantueed to stay fixed as long as no elements are added or removes
-//  on add or remove the order is invalidated, ie may change arbitrarily
+// Use vector like a set
+// because std::unordered_set< std::unique_ptr<T> > does not work before C++20 (cannot lookup via T*)
+
+// Acts like a set in that add/remove is O(1)
+// but implemented as a vector so elements are ordered
+// but order is unstable, ie changes on remove (implemented as a swap with last)
 template <typename T, typename EQUAL=std::equal_to<T>>
 struct VectorSet {
 	std::vector<T> vec;
@@ -131,7 +132,12 @@ struct VectorSet {
 
 namespace logic_sim {
 	
-	inline constexpr float PIN_SIZE   = 0.225f; // IO Pin hitbox size
+	inline constexpr float SEL_HIGHL_SHRINK = 1.0f/64;
+
+	inline constexpr float WIRE_RADIUS = 0.04f;
+	inline constexpr float WIRE_NODE_RADIUS_FAC = 2.25f;
+
+	inline constexpr float PIN_SIZE   = 0.2f; // IO Pin hitbox size
 	inline constexpr float PIN_LENGTH = 0.5f; // IO Pin base wire length
 
 	constexpr float2x2 ROT[] = {
@@ -249,6 +255,10 @@ namespace logic_sim {
 		bool operator== (ThingPtr const& r) const {
 			return memcmp(this, &r, sizeof(ThingPtr)) == 0;
 		}
+		
+		AABB get_aabb () const;
+		float2& get_pos ();
+		float2 get_wire_pos () const;
 	};
 
 	struct WireNode {
@@ -261,10 +271,10 @@ namespace logic_sim {
 			             pos + PIN_SIZE*0.5f };
 		}
 	};
-	//struct WireEdge {
-	//	WireNode* a;
-	//	WireNode* b;
-	//};
+	struct WireEdge {
+		ThingPtr a; // WireNode* or T_PIN_INP or T_PIN_OUT
+		ThingPtr b;
+	};
 	//struct WireGraph {
 	//	VectorSet<WireNode*> nodes; // free nodes and part nodes
 	//	VectorSet<WireEdge*> edges; // can be generated from nodes, should this even be cached at all?
@@ -306,6 +316,7 @@ namespace logic_sim {
 		VectorSet< std::unique_ptr<Part>, Partptr_equal > parts = {};
 
 		VectorSet< std::unique_ptr<WireNode> > wire_nodes = {};
+		VectorSet< std::unique_ptr<WireEdge> > wire_edges = {};
 
 		int _recurs = 0;
 
@@ -593,40 +604,20 @@ namespace logic_sim {
 	struct Editor {
 		
 		struct PartSelection {
-			struct Item {
-				ThingPtr ptr;
-				float2   bounds_offs;
-			};
-			struct ItemCmp {
-				inline bool operator() (Item const& l, Item const& r) { return l.ptr == r.ptr; }
-				inline bool operator() (Item const& l, ThingPtr r) { return l.ptr == r; }
-			};
-
-			VectorSet<Item, ItemCmp> items; // TODO: use custom hashset here
-			
-			AABB bounds;
+			VectorSet<ThingPtr> items;
 			
 			operator bool () {
 				return !items.empty();
 			}
 			
-			bool contains (ThingPtr item) {
-				assert(item.type == T_PART || item.type == T_NODE);
-				return items.contains(item);
-			}
-			bool toggle (ThingPtr item) {
-				assert(item.type == T_PART || item.type == T_NODE);
-				return items.toggle(item);
-			}
-
 			void add (PartSelection& r) {
 				for (auto& it : r.items) {
-					items.try_add(Item{ it.ptr });
+					items.try_add(it);
 				}
 			}
 			void remove (PartSelection& r) {
 				for (auto& it : r.items) {
-					items.try_remove(it.ptr);
+					items.try_remove(it);
 				}
 			}
 		};
@@ -647,6 +638,10 @@ namespace logic_sim {
 			void find_hover (float2 cursor_pos, Chip& chip,
 					float2x3 chip2world, float2x3 world2chip, int sid);
 		};
+		struct PlaceMode {
+			Chip*     place_chip = nullptr;
+			Placement place_pos = {};
+		};
 		struct EditMode {
 
 			PartSelection sel = {};
@@ -658,13 +653,9 @@ namespace logic_sim {
 			bool box_selecting = false;
 			float2 box_sel_start;
 		};
-		struct PlaceMode {
-			Chip*     place_chip = nullptr;
-			Placement place_pos = {};
-		};
 		struct WireMode {
-			WireNode* prev = nullptr;
-			WireNode* cur;
+			ThingPtr prev = {};
+			ThingPtr cur;
 
 			// buf for new node, cur points to this if new node will be created
 			WireNode  node;
@@ -672,14 +663,14 @@ namespace logic_sim {
 
 		static constexpr const char* mode_names[] = {
 			"View",
-			"Edit",
 			"Place",
+			"Edit",
 			"Wire"
 		};
 		typedef std::variant<
 			ViewMode,
-			EditMode,
 			PlaceMode,
+			EditMode,
 			WireMode
 		> ModeVariant;
 

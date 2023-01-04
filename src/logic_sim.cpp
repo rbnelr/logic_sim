@@ -576,7 +576,7 @@ void Editor::viewed_chip_imgui (LogicSim& sim, Camera2D& cam) {
 	ImGui::PushStyleColor(ImGuiCol_ButtonActive,  (ImVec4)ImColor::HSV(0.0f, 0.8f, 0.8f));
 
 	if (users == 0) {
-		bool clicked = ImGui::ButtonEx("Delete###Del");
+		bool clicked = ImGui::ButtonEx("Delete Chip###Del");
 		
 		ImGui::PopStyleColor(3);
 		
@@ -586,14 +586,13 @@ void Editor::viewed_chip_imgui (LogicSim& sim, Camera2D& cam) {
 	}
 	else {
 		ImGui::BeginDisabled();
-		ImGui::ButtonEx(prints("Delete (Still %d Users)###Del", users).c_str());
+		ImGui::ButtonEx(prints("Delete Chip (Still %d Users)###Del", users).c_str());
 		ImGui::EndDisabled();
 		
 		ImGui::PopStyleColor(3);
 	}
 }
 void Editor::saved_chips_imgui (LogicSim& sim, Camera2D& cam) {
-	
 	if (ImGui::Button("Clear View")) {
 		// discard main_chip contents by resetting main_chip to empty
 		sim.reset_chip_view(cam);
@@ -763,15 +762,12 @@ void Editor::selection_imgui (PartSelection& sel) {
 	else if (sel.items.size() > 1) {
 		ImGui::Text("%d Items selected", sel.items.size());
 	}
-	else if (sel.items[0].ptr.type == T_NODE) {
+	else if (sel.items[0].type == T_NODE) {
 		ImGui::Text("Wire Node selected");
 	}
-	else if (sel.items[0].ptr.type == T_PART) {
-		auto& part = *sel.items[0].ptr.part;
-	
-		ImGui::Separator();
-		ImGui::Spacing();
-
+	else if (sel.items[0].type == T_PART) {
+		auto& part = *sel.items[0].part;
+		
 		ImGui::Text("First Selected: %s Instance", part.chip->name.c_str());
 
 		ImGui::InputText("name",          &part.name);
@@ -821,7 +817,7 @@ void Editor::imgui (LogicSim& sim, Camera2D& cam) {
 			ImGui::Indent(10);
 			
 			// Child region so that window contents don't shift around when selection changes
-			if (ImGui::BeginChild("SelectionRegion", ImVec2(0, TEXT_BASE_HEIGHT * 10))) {
+			if (ImGui::BeginChild("SelectionRegion", ImVec2(0, TEXT_BASE_HEIGHT * 9))) {
 				if (!in_mode<EditMode>()) {
 					ImGui::Text("Not in Edit Mode");
 				}
@@ -847,55 +843,63 @@ void Editor::imgui (LogicSim& sim, Camera2D& cam) {
 		}
 
 		if (imgui_Header("Parts", true)) {
-			ImGui::Indent(10);
+			//ImGui::Indent(10);
 			
-			struct Entry {
-				const char* name = nullptr;
-				Chip*       gate;
-			};
-			constexpr Entry entries[] = {
-				{ "INP"    , &gates[INP_PIN   ] },
-				{},
-				{ "OUT"    , &gates[OUT_PIN   ] },
-				{},
-						     
-				{ "BUF"    , &gates[BUF_GATE  ] },
-				{},
-				{ "NOT"    , &gates[NOT_GATE  ] },
-				{},
-
-				{ "AND"    , &gates[AND_GATE  ] },
-				{ "AND-3"  , &gates[AND3_GATE ] },
-				{ "NAND"   , &gates[NAND_GATE ] },
-				{ "NAND-3" , &gates[NAND3_GATE] },
-
-				{ "OR"     , &gates[OR_GATE   ] },
-				{ "OR-3"   , &gates[OR3_GATE  ] },
-				{ "NOR"    , &gates[NOR_GATE  ] },
-				{ "NOR-3"  , &gates[NOR3_GATE ] },
+			if (ImGui::TreeNodeEx("Primitive Parts", ImGuiTreeNodeFlags_DefaultOpen)) {
+				ImGui::TextDisabled("Click to Place");
+				if (ImGui::BeginTable("TableGates", 4, ImGuiTableFlags_Borders)) {
 					
-				{ "XOR"    , &gates[XOR_GATE  ] },
-				{},
-				{},
-				{},
-			};
+					struct Entry {
+						const char* name = nullptr;
+						Chip*       gate;
+					};
+					constexpr Entry entries[] = {
+						{ "INP"    , &gates[INP_PIN   ] },
+						{},
+						{ "OUT"    , &gates[OUT_PIN   ] },
+						{},
+						     
+						{ "BUF"    , &gates[BUF_GATE  ] },
+						{},
+						{ "NOT"    , &gates[NOT_GATE  ] },
+						{},
 
-			if (ImGui::BeginTable("TableGates", 4, ImGuiTableFlags_Borders)) {
-				
-				for (auto& entry : entries) {
-					ImGui::TableNextColumn();
-					if (entry.name)
-						select_gate_imgui(sim, entry.name, entry.gate);
+						{ "AND"    , &gates[AND_GATE  ] },
+						{ "AND-3"  , &gates[AND3_GATE ] },
+						{ "NAND"   , &gates[NAND_GATE ] },
+						{ "NAND-3" , &gates[NAND3_GATE] },
+
+						{ "OR"     , &gates[OR_GATE   ] },
+						{ "OR-3"   , &gates[OR3_GATE  ] },
+						{ "NOR"    , &gates[NOR_GATE  ] },
+						{ "NOR-3"  , &gates[NOR3_GATE ] },
+					
+						{ "XOR"    , &gates[XOR_GATE  ] },
+						{},
+						{},
+						{},
+					};
+
+					for (auto& entry : entries) {
+						ImGui::TableNextColumn();
+						if (entry.name)
+							select_gate_imgui(sim, entry.name, entry.gate);
+					}
+
+					ImGui::EndTable();
 				}
-
-				ImGui::EndTable();
+				ImGui::TreePop();
 			}
 
 			ImGui::Separator();
-
-			saved_chips_imgui(sim, cam);
 			
-			ImGui::Unindent(10);
+			if (ImGui::TreeNodeEx("Custom Chips", ImGuiTreeNodeFlags_DefaultOpen)) {
+				ImGui::TextDisabled("Click to Place, Double Click to View, Drag to reorder");
+				saved_chips_imgui(sim, cam);
+				ImGui::TreePop();
+			}
+
+			//ImGui::Unindent(10);
 			ImGui::PopID();
 		}
 		
@@ -914,15 +918,24 @@ void edit_placement (LogicSim& sim, Input& I, Placement& p, float2 center=0) {
 		sim.unsaved_changes = true;
 	}
 }
+// Edit placement wrapper that works on just position (for WireNode)
+// uses Dummy Placement struct
+void edit_placement (LogicSim& sim, Input& I, float2& p, float2 center=0) {
+	Placement dummy;
+	dummy.pos = p;
+	edit_placement(sim, I, dummy, center);
+	p = dummy.pos;
+}
 
 constexpr float part_text_sz = 20;
-constexpr float pin_text_sz = 14;
+constexpr float pin_text_sz  = 14;
 
-constexpr lrgba hover_col       = lrgba(.4f, 1, .4f, 1);
-constexpr lrgba sel_col         = lrgba(1, 1, 1, 1);
-constexpr lrgba multisel_col    = lrgba(.7f, 1, 1, .5f);
+constexpr lrgba boxsel_box_col  = lrgba(1,1,1, 1);
 
-constexpr lrgba preview_box_col = lrgba(1, 1, 1, 0.5f);
+constexpr lrgba hover_col       = lrgba(1,1,1, 1);
+constexpr lrgba sel_col         = lrgba(0.3f, 0.9f, 0.3f, 1);
+
+constexpr lrgba preview_box_col = hover_col * lrgba(1,1,1, 0.5f);
 constexpr lrgba pin_col         = lrgba(1, 1, 0, 1);
 constexpr lrgba named_part_col  = lrgba(.3f, .2f, 1, 1);
 
@@ -940,9 +953,9 @@ void highlight (ogl::Renderer& r, float2 size, float2x3 mat, lrgba col, std::str
 	if (!text.empty())
 		r.draw_highlight_text(size, mat, text, part_text_sz, col);
 }
-void highlight_part (ogl::Renderer& r, Part& part, float2x3 const& part2world, lrgba col, bool show_text=true) {
+void highlight_part (ogl::Renderer& r, Part& part, float2x3 const& part2world, lrgba col, bool show_text=true, float shrink=0.0f) {
 	std::string buf;
-	highlight(r, part.chip->size, part2world, col,
+	highlight(r, part.chip->size - shrink*2.0f, part2world, col,
 		show_text ? part_name(part, buf) : std::string_view{});
 }
 void highlight_chip_names (ogl::Renderer& r, Chip& chip, float2x3 const& chip2world) {
@@ -965,23 +978,23 @@ void highlight_chip_names (ogl::Renderer& r, Chip& chip, float2x3 const& chip2wo
 	}
 }
 
-void highlight (ogl::Renderer& r, ThingPtr ptr, lrgba col, bool show_text) {
+void highlight (ogl::Renderer& r, ThingPtr ptr, lrgba col, bool show_text, float shrink=0.0f) {
 	switch (ptr.type) {
 		case T_PART: {
 			auto part2world = ptr.part->pos.calc_matrix();
 			
-			highlight_part(r, *ptr.part, part2world, col, show_text);
+			highlight_part(r, *ptr.part, part2world, col, show_text, shrink);
 		} break;
 		case T_NODE: {
-			highlight(r, PIN_SIZE, translate(ptr.node->pos), col * pin_col,
+			highlight(r, PIN_SIZE - shrink*2.0f, translate(ptr.node->pos), col * pin_col,
 				show_text ? "<wire_node>" : std::string_view{});
 		} break;
 
 		case T_PIN_INP:
 		case T_PIN_OUT: {
 			auto part2world = ptr.part->pos.calc_matrix();
-			highlight_part(r, *ptr.part, part2world, col);
-					
+			highlight_part(r, *ptr.part, part2world, col, shrink);
+			
 			bool is_inp = ptr.type == T_PIN_INP;
 					
 			auto& pin = is_inp ? *ptr.part->chip->inputs [ptr.pin] :
@@ -990,26 +1003,11 @@ void highlight (ogl::Renderer& r, ThingPtr ptr, lrgba col, bool show_text) {
 			auto pos = is_inp ? get_inp_pos(pin) : get_out_pos(pin);
 			auto mat = ptr.part->pos.calc_matrix() * translate(pos);
 					
-			r.draw_highlight_box(PIN_SIZE, mat, pin_col * col);
-			r.draw_highlight_text(PIN_SIZE, mat,
+			r.draw_highlight_box(PIN_SIZE - shrink*2.0f, mat, pin_col * col);
+			r.draw_highlight_text(PIN_SIZE - shrink*2.0f, mat,
 				show_text ? pin.name : std::string_view{},
 				part_text_sz, pin_col * col);
 		} break;
-	}
-}
-
-AABB get_aabb (ThingPtr ptr) {
-	switch (ptr.type) {
-		case T_PART: return ptr.part->get_aabb(); break;
-		case T_NODE: return ptr.node->get_aabb(); break;
-		INVALID_DEFAULT;
-	}
-}
-float2& get_pos (ThingPtr ptr) {
-	switch (ptr.type) {
-		case T_PART: return ptr.part->pos.pos; break;
-		case T_NODE: return ptr.node->pos;     break;
-		INVALID_DEFAULT;
 	}
 }
 
@@ -1022,7 +1020,30 @@ bool hitbox (float2 cursor_pos, float2 box_size, float2x3 const& world2chip) {
 	return p.x >= -0.5f && p.x < 0.5f &&
 			p.y >= -0.5f && p.y < 0.5f;
 }
-		
+
+AABB ThingPtr::get_aabb () const {
+	switch (type) {
+		case T_PART: return part->get_aabb(); break;
+		case T_NODE: return node->get_aabb(); break;
+		INVALID_DEFAULT;
+	}
+}
+float2& ThingPtr::get_pos () {
+	switch (type) {
+		case T_PART:    return part->pos.pos; break;
+		case T_NODE:    return node->pos;     break;
+		INVALID_DEFAULT;
+	}
+}
+float2 ThingPtr::get_wire_pos () const {
+	switch (type) {
+		case T_NODE:    return node->pos;     break;
+		case T_PIN_INP: return part->pos.calc_matrix() * get_inp_pos(*part->chip->inputs [pin]); break;
+		case T_PIN_OUT: return part->pos.calc_matrix() * get_out_pos(*part->chip->outputs[pin]); break;
+		INVALID_DEFAULT;
+	}
+}
+
 // TODO: eliminate somehow
 template <typename FUNC>
 void for_each_part (Chip& chip, FUNC func) {
@@ -1056,13 +1077,13 @@ void Editor::ViewMode::find_hover (float2 cursor_pos, Chip& chip,
 		sid += part->chip->state_count;
 	});
 }
-void find_edit_hover (float2 cursor_pos, Chip& chip, ThingPtr& hover) {
+void find_edit_hover (float2 cursor_pos, Chip& chip, bool allow_parts, ThingPtr& hover) {
 
 	for_each_part(chip, [&] (Part* part) {
 		auto part2world = part->pos.calc_matrix();
 		auto world2part = part->pos.calc_inv_matrix();
 		
-		if (hitbox(cursor_pos, part->chip->size, world2part))
+		if (allow_parts && hitbox(cursor_pos, part->chip->size, world2part))
 			hover = part;
 
 		if (part->chip != &gates[OUT_PIN]) {
@@ -1090,11 +1111,11 @@ void find_edit_hover (float2 cursor_pos, Chip& chip, ThingPtr& hover) {
 void find_boxsel (Chip& chip, bool remove, AABB box, Editor::PartSelection& sel) {
 	
 	auto for_item = [&] (ThingPtr ptr) {
-		if (box.is_inside(get_pos(ptr))) {
+		if (box.is_inside(ptr.get_pos())) {
 			if (remove)
 				sel.items.try_remove(ptr);
 			else
-				sel.items.try_add(Editor::PartSelection::Item{ ptr });
+				sel.items.try_add(ptr);
 		}
 	};
 
@@ -1104,6 +1125,8 @@ void find_boxsel (Chip& chip, bool remove, AABB box, Editor::PartSelection& sel)
 		for_item(node.get());
 	}
 }
+
+template<class> inline constexpr bool always_false_v = false;
 
 void Editor::update (Input& I, LogicSim& sim, ogl::Renderer& r) {
 	
@@ -1163,10 +1186,12 @@ void Editor::update (Input& I, LogicSim& sim, ogl::Renderer& r) {
 	else if (in_mode<EditMode>()) {
 		auto& e = std::get<EditMode>(mode);
 		
-		// Find hover
+	//// Find hovered item
 		ThingPtr hover = {};
-		find_edit_hover(_cursor_pos, *sim.viewed_chip, hover);
+		find_edit_hover(_cursor_pos, *sim.viewed_chip, true, hover);
 
+	//// Item selection logic + box selection start
+		
 		// LMB selection logic
 		if (!_cursor_valid) {
 			e.dragging = false;
@@ -1181,18 +1206,18 @@ void Editor::update (Input& I, LogicSim& sim, ogl::Renderer& r) {
 			if (hover.type == T_PART || hover.type == T_NODE) {
 				if (shift && e.sel) {
 					// shift click toggles selection
-					e.sel.toggle(hover);
+					e.sel.items.toggle(hover);
 				}
 				else if (ctrl && e.sel) {
 					// ignore
 				}
 				else {
-					if (e.sel.contains(hover)) {
+					if (e.sel.items.contains(hover)) {
 						// keep multiselect if clicked on already selected item
 					}
 					// non-shift click on non-selected part, replace selection
 					else {
-						e.sel = { { PartSelection::Item{ hover } } };
+						e.sel = {{ hover }};
 					}
 				}
 			}
@@ -1208,6 +1233,7 @@ void Editor::update (Input& I, LogicSim& sim, ogl::Renderer& r) {
 			}
 		}
 		
+	//// Find box selection
 		PartSelection boxsel = {};
 
 		if (e.box_selecting) {
@@ -1234,7 +1260,7 @@ void Editor::update (Input& I, LogicSim& sim, ogl::Renderer& r) {
 			
 			find_boxsel(*sim.viewed_chip, remove, AABB{lo,hi}, boxsel);
 			
-			r.dbgdraw.wire_quad(float3(lo, 0), size, multisel_col);
+			r.dbgdraw.wire_quad(float3(lo, 0), size, boxsel_box_col);
 		
 			if (lmb.went_up) {
 				e.sel = boxsel;
@@ -1242,7 +1268,101 @@ void Editor::update (Input& I, LogicSim& sim, ogl::Renderer& r) {
 				e.box_selecting = false;
 			}
 		}
+
+	//// Move selected parts and wire nodes
+		if (e.sel) { // still in edit mode? else e becomes invalid
 		
+			float2 snapped_cursor = snap(_cursor_pos);
+			
+			float2 bounds_center;
+			{
+				AABB bounds = AABB::inf();
+		
+				for (auto& item : e.sel.items) {
+					bounds.add(item.get_aabb());
+				}
+				
+				bounds_center = (bounds.lo + bounds.hi) * 0.5f;
+				// need to snap this right here (before item.ptr.get_pos() - bounds_center)
+				// so that all computations are in snapped space, or when dragging and or rotation selections they can end up out of alignment
+				bounds_center = snap(bounds_center);
+			}
+			
+			// Rotate and mirror selection via keys
+			// TODO: rotate around mouse cursor when dragging?
+			// TODO: add some way of scaling? Scale as box or would you more commonly want to scale indivdual items?
+			{
+				float2 edit_center = e.dragging ? snapped_cursor : bounds_center;
+
+				if (e.dragging) {
+					// do confusing computation to correctly rotate/mirror around mouse cursor while dragging
+					float2 orig_snapped_cursor = bounds_center + e.drag_offset;
+					edit_placement(sim, I, bounds_center, snapped_cursor); // rotate/mirror bounds center around snapped_cursor
+					e.drag_offset = orig_snapped_cursor - bounds_center;
+				}
+
+				for (auto& i : e.sel.items) {
+					switch (i.type) {
+						case T_PART: edit_placement(sim, I, i.part->pos, edit_center); break;
+						case T_NODE: edit_placement(sim, I, i.node->pos, edit_center); break;
+						INVALID_DEFAULT;
+					}
+				}
+			}
+			
+			std::vector<float2> bounds_offsets;
+			{
+				bounds_offsets.resize(e.sel.items.size());
+				for (int i=0; i<e.sel.items.size(); ++i) {
+					bounds_offsets[i] = e.sel.items[i].get_pos() - bounds_center;
+				}
+			}
+
+			// Drag with lmb 
+			if (shift || ctrl) {
+				e.dragging = false;
+			}
+			else {
+				
+				// Cursor is snapped, which is then used to move items as a group, thus unaligned items stay unaligned
+				// snapping items individually is also possible
+		
+				if (!e.dragging && !shift) {
+						// begin dragging gate
+					if (I.buttons[MOUSE_BUTTON_LEFT].went_down) {
+						e.drag_start  = snapped_cursor;
+						e.drag_offset = snapped_cursor - bounds_center;
+						e.dragging = true;
+					}
+				}
+				if (e.dragging) {
+					// move selection to cursor
+					bounds_center = snapped_cursor - e.drag_offset;
+					
+					// drag gate
+					if (I.buttons[MOUSE_BUTTON_LEFT].is_down) {
+						if (length_sqr(snapped_cursor - e.drag_start) > 0) {
+							sim.unsaved_changes = true;
+						}
+						
+						for (int i=0; i<e.sel.items.size(); ++i) {
+							e.sel.items[i].get_pos() = bounds_offsets[i] + bounds_center;
+						}
+
+						if (e.sel.items.size() == 1) {
+							auto& pos = e.sel.items[0].get_pos();
+							pos = snap(pos);
+						}
+					}
+					// stop dragging gate
+					else {
+						e.dragging = false;
+					}
+				}
+			}
+		}
+
+	//// Draw highlights after dragging / rotating / mirroring to avoid 1-frame jumps
 		// Selection highlight
 		{
 			PartSelection& sel = e.box_selecting ? boxsel : e.sel;
@@ -1253,21 +1373,14 @@ void Editor::update (Input& I, LogicSim& sim, ogl::Renderer& r) {
 				// only show text for single-part selections as to not spam too much text
 				if (sel.items.size() == 1) {
 					auto& item = sel.items[0];
-					highlight(r, item.ptr, sel_col, true);
+					highlight(r, item, sel_col,
+						item != hover, // only show text if not already hovered to avoid duplicate text at same spot
+						SEL_HIGHL_SHRINK);
 				}
 				else {
 					for (auto& item : sel.items) {
-						highlight(r, item.ptr, sel_col, false);
+						highlight(r, item, sel_col, false, SEL_HIGHL_SHRINK);
 					}
-				
-					//if (!e.box_selecting) {
-					//	float2 sz     =  sel.bounds.hi - sel.bounds.lo;
-					//	float2 center = (sel.bounds.hi + sel.bounds.lo) * 0.5f;
-					//
-					//	auto part2world = sel.chip2world * translate(center);
-					//
-					//	r.draw_highlight_box(sz, part2world, multisel_col);
-					//}
 				}
 			}
 		}
@@ -1278,101 +1391,16 @@ void Editor::update (Input& I, LogicSim& sim, ogl::Renderer& r) {
 				highlight_chip_names(r, *hover.part->chip, hover.part->pos.calc_matrix());
 			highlight(r, hover, hover_col, true);
 		}
-		// Edit selected parts and wire nodes
-		if (e.sel) { // still in edit mode? else e becomes invalid
-		
-			float2 bounds_center;
-			{
-				e.sel.bounds = AABB::inf();
-		
-				for (auto& item : e.sel.items) {
-					e.sel.bounds.add(get_aabb(item.ptr));
-				}
-		
-				bounds_center = (e.sel.bounds.lo + e.sel.bounds.hi) * 0.5f;
-				
-				for (auto& item : e.sel.items) {
-					item.bounds_offs = get_pos(item.ptr) - bounds_center;
-				}
-			}
 
-			bounds_center = snap(bounds_center);
-			
-			// Drag with lmb 
-			if (shift || ctrl) {
-				e.dragging = false;
-			}
-			else {
-		
-				// convert cursor position to chip space and _then_ snap that later
-				// this makes it so that we always snap in the space of the chip
-				float2 pos = snap(_cursor_pos);
-			
-				// Cursor is snapped, which is then used to move items as a group, thus unaligned items stay unaligned
-				// snapping items individually is also possible
-		
-				if (!e.dragging && !shift) {
-						// begin dragging gate
-					if (I.buttons[MOUSE_BUTTON_LEFT].went_down) {
-						e.drag_start = pos;
-						e.drag_offset = pos - bounds_center;
-						e.dragging = true;
-					}
-				}
-				if (e.dragging) {
-					// move selection to cursor
-					bounds_center = pos - e.drag_offset;
-		
-					// drag gate
-					if (I.buttons[MOUSE_BUTTON_LEFT].is_down) {
-						if (length_sqr(pos - e.drag_start) > 0) {
-							sim.unsaved_changes = true;
-						}
-
-						for (auto& item : e.sel.items) {
-							get_pos(item.ptr) = item.bounds_offs + bounds_center;
-						}
-
-						if (e.sel.items.size() == 1) {
-							auto& pos = get_pos(e.sel.items[0].ptr);
-							pos = snap(pos);
-						}
-					}
-					// stop dragging gate
-					else {
-						e.dragging = false;
-					}
-				}
-			}
-			
-			// Rotate and mirror selection via keys
-			// TODO: rotate around mouse cursor when dragging?
-			// TODO: add some way of scaling? Scale as box or would you more commonly want to scale indivdual items?
-			for (auto& i : e.sel.items) {
-				Placement _buf;
-				Placement* placement = &_buf;
-				
-				switch (i.ptr.type) {
-					case T_PART: placement = &i.ptr.part->pos; break;
-					case T_NODE: placement->pos = i.ptr.node->pos; break;
-					INVALID_DEFAULT;
-				}
-				
-				edit_placement(sim, I, *placement, bounds_center);
-				
-				switch (i.ptr.type) {
-					case T_PART: break;
-					case T_NODE: i.ptr.node->pos = placement->pos; break;
-					INVALID_DEFAULT;
-				}
-			}
+	//// Delete items after highlighting to avoid stale pointer access in hover/e.sel
+		if (e.sel) {
 			
 			// remove gates via DELETE key
 			if (I.buttons[KEY_DELETE].went_down) {
 
 				for (auto& i : e.sel.items) {
-					switch (i.ptr.type) {
-						case T_PART: sim.remove_part(*sim.viewed_chip, i.ptr.part); break;
+					switch (i.type) {
+						case T_PART: sim.remove_part(*sim.viewed_chip, i.part); break;
 						case T_NODE: break;
 						INVALID_DEFAULT;
 					}
@@ -1391,26 +1419,52 @@ void Editor::update (Input& I, LogicSim& sim, ogl::Renderer& r) {
 	else if (in_mode<WireMode>()) {
 		auto& w = std::get<WireMode>(mode);
 		
+		// Find hover
+		ThingPtr hover = {};
+		find_edit_hover(_cursor_pos, *sim.viewed_chip, false, hover);
+		assert(hover.type == T_NONE || hover.type == T_NODE || hover.type == T_PIN_INP || hover.type == T_PIN_OUT);
+
 		float2 snapped_pos = snap(_cursor_pos);
 		
-		if (I.buttons[MOUSE_BUTTON_LEFT].went_down) {
-			sim.viewed_chip->wire_nodes.add(std::make_unique<WireNode>( snapped_pos ));
-		}
-
 		w.node = { snapped_pos };
 		w.cur = &w.node;
 
-		//if (hover) {
-		//	 // enforced by find_hover()
-		//	assert(hover.type == Hover::PIN_INP || hover.type == Hover::PIN_OUT);
-		//	assert(hover.chip == ChipInstanceID( sim.viewed_chip.get(), 0 ));
-		//	
-		//	//w.cur = hover.part.pin // ??
-		//}
-		//
-		
+		if (hover) {
+			w.cur = hover;
+
+			highlight(r, hover, hover_col, true);
+		}
+
+		if (I.buttons[MOUSE_BUTTON_LEFT].went_down) {
+			if (w.cur == &w.node) {
+				// copy out the node struct into a real heap-alloced node
+				w.cur = new WireNode(std::move(w.node));
+				sim.viewed_chip->wire_nodes.add(std::unique_ptr<WireNode>(w.cur.node));
+			}
+
+			if (w.prev) {
+				sim.viewed_chip->wire_edges.add(std::make_unique<WireEdge>(w.prev, w.cur));
+
+				if (w.prev.type == T_NODE) w.prev.node->edges.add(w.cur );
+				if (w.cur .type == T_NODE) w.cur .node->edges.add(w.prev);
+			}
+
+			//
+			w.prev = w.cur;
+
+			//w.node = { snapped_pos };
+			//w.cur = &w.node;
+		}
+
 		if (I.buttons[MOUSE_BUTTON_RIGHT].went_down) {
-			mode = EditMode();
+			// 1. RMB click with a line currently being drawn -> go back to adding first node
+			if (w.prev) {
+				w.prev = {};
+			}
+			// 2. RMB click or still in first node -> exit wire mode
+			else {
+				mode = EditMode();
+			}
 		}
 		
 		//if (hover) assert(hover.chip == w.chip); // enforced by find_hover()
