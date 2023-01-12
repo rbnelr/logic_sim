@@ -11,111 +11,6 @@ namespace ogl { struct Renderer; }
 // Use vector like a set
 // because std::unordered_set< std::unique_ptr<T> > does not work before C++20 (cannot lookup via T*)
 
-template <typename T>
-struct _equal {
-	inline bool operator() (T const& l, T const& r) const {
-		return l == r;
-	};
-};
-
-template <typename U>
-struct _equal<std::unique_ptr<U>> {
-	inline bool operator() (std::unique_ptr<U> const& l, U const* r) const {
-		return l.get() == r;
-	}
-	inline bool operator() (std::unique_ptr<U> const& l, std::unique_ptr<U> const& r) const {
-		return l == r;
-	};
-};
-
-// Acts like a set in that add/remove is O(1)
-// but implemented as a vector so elements are ordered
-// but order is unstable, ie changes on remove (implemented as a swap with last)
-template <typename T, typename EQUAL=_equal<T>>
-struct VectorSet {
-	std::vector<T> vec;
-
-	typedef std::vector<T>::iterator       it_t;
-	typedef std::vector<T>::const_iterator cit_t;
-
-	VectorSet () {}
-
-	VectorSet (int size, T const& val): vec{(size_t)size, val} {}
-	VectorSet (int size): vec{(size_t)size} {}
-
-	VectorSet (std::initializer_list<T> list): vec{list} {}
-
-	VectorSet (VectorSet&& v): vec{std::move(v.vec)} {}
-	VectorSet& operator= (VectorSet&& v) { vec = std::move(v.vec); return *this; }
-
-	VectorSet (VectorSet const& v): vec{v.vec} {}
-	VectorSet& operator= (VectorSet const& v) { vec = v.vec; return *this; }
-
-	it_t begin () { return vec.begin(); }
-	it_t end () { return vec.end(); }
-	cit_t begin () const { return vec.begin(); }
-	cit_t end () const { return vec.end(); }
-
-	int size () const { return (int)vec.size(); }
-	bool empty () const { return vec.empty(); }
-
-	void clear () { vec.clear(); }
-	void reserve (int size) { vec.reserve(size); }
-
-	T& operator[] (int i) {
-		assert(i >= 0 && i < (int)vec.size());
-		return vec[i];
-	}
-	T const& operator[] (int i) const {
-		assert(i >= 0 && i < (int)vec.size());
-		return vec[i];
-	}
-
-	template <typename U>
-	bool contains (U const& val) {
-		return ::indexof(vec, val, EQUAL()) >= 0;
-	}
-
-	template <typename U>
-	void add (U&& val) {
-		assert(!contains(val));
-		vec.emplace_back(std::move(val));
-	}
-	//void add (T const& val) {
-	//	add(val);
-	//}
-
-	template <typename U>
-	bool try_add (U&& val) {
-		if (contains(val))
-			return false;
-		vec.emplace_back(std::move(val));
-		return true;
-	}
-	template <typename U>
-	bool try_remove (U const& val) {
-		int idx = indexof(vec, val, EQUAL());
-		if (idx < 0)
-			return false;
-		
-		vec[idx] = std::move(vec[(int)vec.size()-1]);
-		vec.pop_back();
-		return true;
-	}
-	
-	template <typename U>
-	bool toggle (U const& val) {
-		int idx = indexof(vec, val, EQUAL());
-		if (idx < 0)
-			vec.emplace_back(std::move(val));
-		else {
-			vec[idx] = std::move(vec[(int)vec.size()-1]);
-			vec.pop_back();
-		}
-		return idx < 0; // if was added
-	}
-};
-
 namespace logic_sim {
 	
 	inline constexpr float SEL_HIGHL_SHRINK = 1.0f/64;
@@ -207,7 +102,7 @@ namespace logic_sim {
 		float2 pos;
 		
 		Part* parent_part = nullptr;
-		VectorSet<WireNode*> edges = {}; // TODO: small vec opt to 4 entries
+		vector_set<WireNode*> edges = {}; // TODO: small vec opt to 4 entries
 
 		int num_wires () {
 			return edges.size() + (parent_part ? 1 : 0);
@@ -260,15 +155,15 @@ namespace logic_sim {
 		std::vector< std::unique_ptr<Part> > inputs = {};
 		
 		//std::unordered_set< std::unique_ptr<Part> > parts = {};
-		VectorSet< std::unique_ptr<Part> > parts = {};
+		vector_set< std::unique_ptr<Part> > parts = {};
 
-		VectorSet< std::unique_ptr<WireNode> > wire_nodes = {};
-		VectorSet< std::unique_ptr<WireEdge> > wire_edges = {};
+		vector_set< std::unique_ptr<WireNode> > wire_nodes = {};
+		vector_set< std::unique_ptr<WireEdge> > wire_edges = {};
 
 		int _recurs = 0;
 
 		
-		VectorSet<Chip*> users;
+		vector_set<Chip*> users;
 		
 		// TODO: store set of direct users of chip as chip* -> usecount hashmap
 		// adding a chip a as a part inside a chip c is a->users[c]++
@@ -358,6 +253,7 @@ namespace logic_sim {
 		T_PART,
 		T_NODE,
 		T_PIN,
+		T_WIRE,
 	};
 	struct ThingPtr {
 		ThingType type;
@@ -366,6 +262,7 @@ namespace logic_sim {
 			Part*      part;
 			WireNode*  node;
 			Part::Pin* pin;
+			WireEdge*  wire;
 		};
 
 		ThingPtr ()                                   : type{T_NONE}, part{nullptr} {}
@@ -375,10 +272,13 @@ namespace logic_sim {
 		ThingPtr (WireNode* node)                     : type{T_NODE}, node{node} {
 			assert(node != nullptr);
 		}
-		ThingPtr (Part::Pin* pin)                    : type{T_PIN}, pin{pin} {
+		ThingPtr (Part::Pin* pin)                     : type{T_PIN}, pin{pin} {
 			assert(pin != nullptr);
 		}
-		
+		ThingPtr (WireEdge* wire)                     : type{T_WIRE}, wire{wire} {
+			assert(wire != nullptr);
+		}
+
 		operator bool () const { return type != T_NONE; }
 
 		bool operator== (ThingPtr const& r) const {
@@ -613,6 +513,26 @@ namespace logic_sim {
 		void add_wire (Chip& chip, WireConn src, WireConn dst, std::vector<float2>&& wire_points);
 		void remove_wire (Chip& chip, WireConn dst);
 
+		void disconnect_wire_node (Chip& chip, WireNode* node) {
+			int count = node->edges.size();
+
+			for (WireNode* n : node->edges) {
+				bool removed = n->edges.try_remove(node);
+				assert(removed);
+			}
+
+			int removed_edges = chip.wire_edges.remove_if(
+				[&] (std::unique_ptr<WireEdge>& edge) {
+					return edge->a == node || edge->b == node;
+				});
+			assert(count == removed_edges);
+		}
+		void remove_wire_node (Chip& chip, WireNode* node) {
+			disconnect_wire_node(chip, node);
+
+			bool removed = chip.wire_nodes.try_remove(node);
+			assert(removed);
+		}
 
 		void simulate (Input& I);
 	};
@@ -620,7 +540,7 @@ namespace logic_sim {
 	struct Editor {
 		
 		struct PartSelection {
-			VectorSet<ThingPtr> items;
+			vector_set<ThingPtr> items;
 			
 			operator bool () {
 				return !items.empty();

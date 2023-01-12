@@ -267,6 +267,32 @@ struct Renderer {
 		return x / scale;
 	}
 
+	void draw_quad (float2x3 const& mat, float2 size, float4 col) {
+		constexpr int indices[] = { 0,1,  1,2,  2,3,  3,0, };
+		constexpr float2 vertices[] = {
+			float2(-0.5f, -0.5f),
+			float2(+0.5f, -0.5f),
+			float2(+0.5f, +0.5f),
+			float2(-0.5f, +0.5f),
+		};
+
+		auto* out = kiss::push_back(dbgdraw.lines, ARRLEN(indices));
+
+		for (auto& idx : indices) {
+			auto& v = vertices[idx];
+
+			float2 pos = mat * (v * size);
+			
+			out->pos.x = pos.x;
+			out->pos.y = pos.y;
+			out->pos.z = 0;
+
+			out->col = col;
+
+			out++;
+		}
+	}
+
 	void draw_text (std::string_view text, float2 pos, float font_size, lrgba col,
 			float2 align=float2(0,1), float max_sz=0) {
 		float sz = clamp_font_size(font_size*text_scale, 0.15f, max_sz);
@@ -274,10 +300,12 @@ struct Renderer {
 	}
 	
 	void draw_highlight_box (float2 size, float2x3 const& mat, lrgba col) {
-		size  = abs((float2x2)mat * size);
-		float2 center = mat * float2(0);
-		
-		dbgdraw.wire_quad(float3(center - size*0.5f, 5.0f), size, col);
+		//size  = abs((float2x2)mat * size);
+		//float2 center = mat * float2(0);
+		//
+		//dbgdraw.wire_quad(float3(center - size*0.5f, 5.0f), size, col);
+
+		draw_quad(mat, size, col);
 	}
 	void draw_highlight_text (float2 size, float2x3 const& mat, std::string_view name, float font_size, lrgba col=1,
 			float2 align=float2(0,1)) {

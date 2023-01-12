@@ -268,6 +268,9 @@ void LogicSim::remove_part (Chip& chip, Part* part) {
 		}
 	}
 
+	for (auto& pin : part->pins)
+		disconnect_wire_node(chip, pin.node.get());
+
 	if (part->chip == &gates[OUT_PIN]) {
 		int idx = indexof(chip.outputs, part, _partptr_equal());
 		assert(idx >= 0);
@@ -947,6 +950,7 @@ constexpr lrgba sel_col         = lrgba(0.3f, 0.9f, 0.3f, 1);
 
 constexpr lrgba preview_box_col = hover_col * lrgba(1,1,1, 0.5f);
 constexpr lrgba pin_col         = lrgba(1, 1, 0, 1);
+constexpr lrgba wire_col        = lrgba(1, 1, 0.5f, 1);
 constexpr lrgba named_part_col  = lrgba(.3f, .2f, 1, 1);
 
 std::string_view part_name (Part& part, std::string& buf) {
@@ -956,6 +960,15 @@ std::string_view part_name (Part& part, std::string& buf) {
 		return part.chip->name;
 	buf = prints("%s (%s)", part.chip->name.c_str(), part.name.c_str());
 	return buf;
+}
+
+bool hitbox (float2 cursor_pos, float2 box_size, float2x3 const& world2chip) {
+	// cursor in space of chip normalized to size
+	float2 p = world2chip * cursor_pos;
+	p /= box_size;
+	// chip is a [-0.5, 0.5] box in this space
+	return p.x >= -0.5f && p.x < 0.5f &&
+		p.y >= -0.5f && p.y < 0.5f;
 }
 
 void highlight (ogl::Renderer& r, float2 size, float2x3 mat, lrgba col, std::string_view text={}) {
@@ -986,6 +999,29 @@ void highlight_chip_names (ogl::Renderer& r, Chip& chip, float2x3 const& chip2wo
 		if (!part->name.empty())
 			r.draw_text(part->name, chip2world * part->pos.pos, part_text_sz, named_part_col, 0.5f, 0.4f);
 	}
+}
+
+bool wire_hitbox (float2 cursor_pos, WireEdge& wire) {
+	float2 center = (wire.a->pos + wire.b->pos) * 0.5f;
+	float2 dir    = wire.b->pos - wire.a->pos;
+	float2 size   = float2(length(dir), WIRE_RADIUS*2);
+
+	float ang = atan2f(dir.y, dir.x);
+
+	float2x3 mat = rotate2(-ang) * translate(-center);
+
+	return hitbox(cursor_pos, size, mat);
+}
+void highlight_wire (ogl::Renderer& r, WireEdge& wire, lrgba col, float shrink=0.0f) {
+	float2 center = (wire.a->pos + wire.b->pos) * 0.5f;
+	float2 dir    = wire.b->pos - wire.a->pos;
+	float2 size   = float2(length(dir), WIRE_RADIUS*2);
+
+	float ang = atan2f(dir.y, dir.x);
+
+	float2x3 mat = translate(center) * rotate2(ang);
+
+	r.draw_highlight_box(size, mat, wire_col * col);
 }
 
 void highlight (ogl::Renderer& r, ThingPtr ptr, lrgba col, bool show_text, float shrink=0.0f) {
@@ -1022,17 +1058,11 @@ void highlight (ogl::Renderer& r, ThingPtr ptr, lrgba col, bool show_text, float
 			//	show_text ? pin.name : std::string_view{},
 			//	part_text_sz, pin_col * col);
 		} break;
-	}
-}
 
-// check mouse cursor against chip hitbox
-bool hitbox (float2 cursor_pos, float2 box_size, float2x3 const& world2chip) {
-	// cursor in space of chip normalized to size
-	float2 p = world2chip * cursor_pos;
-	p /= box_size;
-	// chip is a [-0.5, 0.5] box in this space
-	return p.x >= -0.5f && p.x < 0.5f &&
-			p.y >= -0.5f && p.y < 0.5f;
+		case T_WIRE: {
+			highlight_wire(r, *ptr.wire, wire_col * col, shrink);
+		} break;
+	}
 }
 
 AABB ThingPtr::get_aabb () const {
@@ -1111,6 +1141,12 @@ void find_edit_hover (float2 cursor_pos, Chip& chip, bool allow_parts, ThingPtr&
 	for (auto& node : chip.wire_nodes) {
 		if (hitbox(cursor_pos, PIN_SIZE, translate(-node->pos))) {
 			hover = node.get();
+		}
+	}
+
+	for (auto& wire : chip.wire_edges) {
+		if (wire_hitbox(cursor_pos, *wire)) {
+			hover = wire.get();
 		}
 	}
 }
@@ -1416,7 +1452,7 @@ void Editor::update (Input& I, LogicSim& sim, ogl::Renderer& r) {
 				for (auto& i : e.sel.items) {
 					switch (i.type) {
 						case T_PART: sim.remove_part(*sim.viewed_chip, i.part); break;
-						case T_NODE: break;
+						case T_NODE: sim.remove_wire_node(*sim.viewed_chip, i.node); break;
 						INVALID_DEFAULT;
 					}
 				}
@@ -1437,7 +1473,7 @@ void Editor::update (Input& I, LogicSim& sim, ogl::Renderer& r) {
 		// Find hover
 		ThingPtr hover = {};
 		find_edit_hover(_cursor_pos, *sim.viewed_chip, false, hover);
-		assert(hover.type == T_NONE || hover.type == T_NODE || hover.type == T_PIN);
+		assert(hover.type == T_NONE || hover.type == T_NODE || hover.type == T_PIN || hover.type == T_WIRE);
 
 		float2 snapped_pos = snap(_cursor_pos);
 		

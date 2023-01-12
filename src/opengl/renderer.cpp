@@ -203,15 +203,10 @@ void Renderer::draw_chip (Game& g, Chip* chip, float2x3 const& chip2world, int c
 			for (auto& pin : part->pins) {
 				draw_wire_point(chip2world, pin.node->pos, WIRE_RADIUS*1.1f, pin.node->num_wires(), 0, line_col);
 			}
+
+			wire_id++;
 		};
 		
-		for (auto& n : chip->wire_nodes) {
-			draw_wire_point(chip2world, n->pos, WIRE_RADIUS*1.1f, n->num_wires(), 0, line_col);
-		}
-		for (auto& e : chip->wire_edges) {
-			build_line(chip2world, e->a->pos, e->b->pos, 0, line_col);
-		}
-
 		for (auto& part : chip->inputs) {
 			draw_part(part.get());
 		}
@@ -222,36 +217,14 @@ void Renderer::draw_chip (Game& g, Chip* chip, float2x3 const& chip2world, int c
 			draw_part(part.get());
 		}
 
-		//if (g.editor.in_mode<Editor::WireMode>()) { // Wire preview
-		//	auto& w = std::get<Editor::WireMode>(g.editor.mode);
-		//	
-		//	if ((w.dst.part || w.src.part) && w.chip.ptr == chip) {
-		//		ZoneScopedN("push wire_preview");
-		//			
-		//		auto& out = w.dir ? w.dst : w.src;
-		//		auto& inp = w.dir ? w.src : w.dst;
-		//
-		//		float2 out0 = w.unconn_pos, out1 = w.unconn_pos;
-		//		float2 inp0 = w.unconn_pos, inp1 = w.unconn_pos;
-		//	
-		//		if (out.part) {
-		//			auto  mat  = out.part->pos.calc_matrix();
-		//			auto& part = *out.part->chip->outputs[out.pin];
-		//			out0 = mat * part.pos.pos;
-		//			out1 = mat * get_out_pos(part);
-		//		}
-		//		if (inp.part) {
-		//			auto  mat  = inp.part->pos.calc_matrix();
-		//			auto& part = *inp.part->chip->inputs[inp.pin];
-		//			inp0 = mat * get_inp_pos(part);
-		//			inp1 = mat * part.pos.pos;
-		//		}
-		//	
-		//		build_line(chip2world, out0, out1, w.points, inp0, inp1, 3, lrgba(0.8f, 0.01f, 0.025f, 0.75f));
-		//		
-		//		wire_id++;
-		//	}
-		//}
+		for (auto& n : chip->wire_nodes) {
+			draw_wire_point(chip2world, n->pos, WIRE_RADIUS*1.1f, n->num_wires(), 0, line_col);
+		}
+		for (auto& e : chip->wire_edges) {
+			build_line(chip2world, e->a->pos, e->b->pos, 0, line_col);
+		}
+
+		wire_id++;
 	}
 
 }
@@ -327,6 +300,8 @@ void Renderer::end (Window& window, Game& g, int2 window_size) {
 			if (w.cur && w.prev) {
 				build_line(float2x3::identity(), w.prev->pos, w.cur->pos, 0, col);
 			}
+
+			wire_id++;
 		}
 	}
 		
@@ -346,7 +321,6 @@ void Renderer::end (Window& window, Game& g, int2 window_size) {
 				float2 dst1 = part2chip * inp->pos.pos;
 
 				build_line(float2x3::identity(), dst0, dst1, 0, col);
-					
 				wire_id++;
 			}
 		}
