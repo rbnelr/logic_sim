@@ -8,44 +8,30 @@
 
 namespace ogl { struct Renderer; }
 
-template<typename T>
-inline std::unique_ptr<T[]> insert (std::unique_ptr<T[]>& old, int old_size, int idx, T&& val) {
-	assert(idx >= 0 && idx <= old_size);
-
-	auto ptr = std::make_unique<T[]>(old_size + 1);
-
-	for (int i=0; i<idx; ++i)
-		ptr[i] = std::move(old[i]);
-
-	ptr[idx] = std::move(val);
-
-	for (int i=idx; i<old_size; ++i)
-		ptr[i+1] = std::move(old[i]);
-
-	return ptr;
-}
-template<typename T>
-inline std::unique_ptr<T[]> erase (std::unique_ptr<T[]>& old, int old_size, int idx) {
-	assert(old_size > 0 && idx < old_size);
-		
-	auto ptr = std::make_unique<T[]>(old_size - 1);
-
-	for (int i=0; i<idx; ++i)
-		ptr[i] = std::move(old[i]);
-
-	for (int i=idx+1; i<old_size; ++i)
-		ptr[i-1] = std::move(old[i]);
-
-	return ptr;
-}
-
 // Use vector like a set
 // because std::unordered_set< std::unique_ptr<T> > does not work before C++20 (cannot lookup via T*)
+
+template <typename T>
+struct _equal {
+	inline bool operator() (T const& l, T const& r) const {
+		return l == r;
+	};
+};
+
+template <typename U>
+struct _equal<std::unique_ptr<U>> {
+	inline bool operator() (std::unique_ptr<U> const& l, U const* r) const {
+		return l.get() == r;
+	}
+	inline bool operator() (std::unique_ptr<U> const& l, std::unique_ptr<U> const& r) const {
+		return l == r;
+	};
+};
 
 // Acts like a set in that add/remove is O(1)
 // but implemented as a vector so elements are ordered
 // but order is unstable, ie changes on remove (implemented as a swap with last)
-template <typename T, typename EQUAL=std::equal_to<T>>
+template <typename T, typename EQUAL=_equal<T>>
 struct VectorSet {
 	std::vector<T> vec;
 
@@ -215,56 +201,17 @@ namespace logic_sim {
 	struct Part;
 	struct WireNode;
 
-	struct Partptr_equal {
-		inline bool operator() (std::unique_ptr<Part> const& l, Part const* r) {
-			return l.get() == r;
-		}
-		inline bool operator() (std::unique_ptr<Part> const& l, std::unique_ptr<Part> const& r) {
-			return l == r;
-		};
-	};
-	
-	enum ThingType {
-		T_NONE=0,
-		T_PART,
-		T_NODE,
-		T_PIN_INP,
-		T_PIN_OUT,
-	};
-	struct ThingPtr {
-		ThingType type;
-		int       pin;
-		union {
-			Part*     part;
-			WireNode* node;
-		};
-
-		ThingPtr ()                                   : type{T_NONE}, pin{0}, part{nullptr} {}
-		ThingPtr (Part* part)                         : type{T_PART}, pin{0}, part{part} {
-			assert(part != nullptr);
-		}
-		ThingPtr (WireNode* node)                     : type{T_NODE}, pin{0}, node{node} {
-			assert(node != nullptr);
-		}
-		ThingPtr (ThingType type, Part* part, int pin): type{type}, pin{pin}, part{part} {
-			assert(part != nullptr);
-		}
-		
-		operator bool () const { return type != T_NONE; }
-
-		bool operator== (ThingPtr const& r) const {
-			return memcmp(this, &r, sizeof(ThingPtr)) == 0;
-		}
-		
-		AABB get_aabb () const;
-		float2& get_pos ();
-		float2 get_wire_pos () const;
-	};
+	using _partptr_equal = _equal< std::unique_ptr<Part> >;
 
 	struct WireNode {
 		float2 pos;
 		
-		VectorSet<ThingPtr> edges; // TODO: small vec opt to 4 entries
+		Part* parent_part = nullptr;
+		VectorSet<WireNode*> edges = {}; // TODO: small vec opt to 4 entries
+
+		int num_wires () {
+			return edges.size() + (parent_part ? 1 : 0);
+		}
 
 		AABB get_aabb () const {
 			return AABB{ pos - PIN_SIZE*0.5f,
@@ -272,8 +219,8 @@ namespace logic_sim {
 		}
 	};
 	struct WireEdge {
-		ThingPtr a; // WireNode* or T_PIN_INP or T_PIN_OUT
-		ThingPtr b;
+		WireNode* a;
+		WireNode* b;
 	};
 	//struct WireGraph {
 	//	VectorSet<WireNode*> nodes; // free nodes and part nodes
@@ -313,7 +260,7 @@ namespace logic_sim {
 		std::vector< std::unique_ptr<Part> > inputs = {};
 		
 		//std::unordered_set< std::unique_ptr<Part> > parts = {};
-		VectorSet< std::unique_ptr<Part>, Partptr_equal > parts = {};
+		VectorSet< std::unique_ptr<Part> > parts = {};
 
 		VectorSet< std::unique_ptr<WireNode> > wire_nodes = {};
 		VectorSet< std::unique_ptr<WireEdge> > wire_edges = {};
@@ -330,15 +277,16 @@ namespace logic_sim {
 
 		bool contains_part (Part* part) {
 			return parts.contains(part) ||
-				contains(outputs, part, Partptr_equal()) ||
-				contains(inputs, part, Partptr_equal());
+				contains(outputs, part, _partptr_equal()) ||
+				contains(inputs, part,  _partptr_equal());
 		}
 
 		Chip () = default;
 
+		// move needed for  Chip gates[GATE_COUNT]  be careful not to move a chip after init, because we need stable pointers for parts
 		Chip (Chip&&) = default;
 		Chip& operator= (Chip&&) = default;
-
+		// can't copy, use deep_copy()
 		Chip (Chip const&) = delete;
 		Chip& operator= (Chip const&) = delete;
 		
@@ -368,11 +316,29 @@ namespace logic_sim {
 
 			std::vector<float2> wire_points;
 		};
-		std::unique_ptr<InputWire[]> inputs;
+		std::vector<InputWire> inputs;
+
+		struct Pin {
+			std::unique_ptr<WireNode> node = nullptr;
+		};
+		std::vector<Pin> pins;
 		
-		Part (Chip* chip, std::string&& name, Placement pos): chip{chip}, pos{pos}, name{name},
-			inputs {std::make_unique<InputWire []>(chip ? chip->inputs .size() : 0)} {}
+		Part (Chip* chip, std::string&& name, Placement pos): chip{chip}, pos{pos}, name{name} {
+			if (chip) {
+				inputs.resize(chip->inputs.size());
+				pins.resize(chip->inputs.size() + chip->outputs.size());
+
+				for (auto& pin : pins)
+					pin.node = std::make_unique<WireNode>(float2(0), this);
+			}
+		}
 		
+		// cannot more or copy part because pointer needs to be stable for wire nodes
+		Part (Part const& p) = delete;
+		Part& operator= (Part const& p) = delete;
+		Part (Part&& p) = delete;
+		Part& operator= (Part&& p) = delete;
+
 		AABB get_aabb () const {
 			// mirror does not matter
 			float2 size = chip->size * pos.scale;
@@ -383,12 +349,71 @@ namespace logic_sim {
 			return AABB{ pos.pos - size*0.5f,
 			             pos.pos + size*0.5f };
 		}
+
+		void update_pins_pos ();
 	};
+
+	enum ThingType {
+		T_NONE=0,
+		T_PART,
+		T_NODE,
+		T_PIN,
+	};
+	struct ThingPtr {
+		ThingType type;
+		union {
+			void*      _ptr;
+			Part*      part;
+			WireNode*  node;
+			Part::Pin* pin;
+		};
+
+		ThingPtr ()                                   : type{T_NONE}, part{nullptr} {}
+		ThingPtr (Part* part)                         : type{T_PART}, part{part} {
+			assert(part != nullptr);
+		}
+		ThingPtr (WireNode* node)                     : type{T_NODE}, node{node} {
+			assert(node != nullptr);
+		}
+		ThingPtr (Part::Pin* pin)                    : type{T_PIN}, pin{pin} {
+			assert(pin != nullptr);
+		}
+		
+		operator bool () const { return type != T_NONE; }
+
+		bool operator== (ThingPtr const& r) const {
+			// TODO: using _ptr safe?
+			return type == r.type && _ptr == r._ptr;
+		}
+		
+		AABB get_aabb () const;
+		float2& get_pos ();
+	};
+
+
+	inline float2 get_inp_pos (Part& pin_part) {
+		return pin_part.pos.calc_matrix() * float2(-PIN_LENGTH/2, 0);
+	}
+	inline float2 get_out_pos (Part& pin_part) {
+		return pin_part.pos.calc_matrix() * float2(+PIN_LENGTH/2, 0);
+	}
 	
-	struct WireConn {
-		Part* part = nullptr;
-		int   pin = 0;
-	};
+	inline float2x3 get_inp_pos_invmat (Part& pin_part) {
+		return translate(float2(+PIN_LENGTH/2, 0)) * pin_part.pos.calc_inv_matrix();
+	}
+	inline float2x3 get_out_pos_invmat (Part& pin_part) {
+		return translate(float2(-PIN_LENGTH/2, 0)) * pin_part.pos.calc_inv_matrix();
+	}
+	
+	inline void Part::update_pins_pos () {
+		auto mat = pos.calc_matrix();
+
+		int i = 0;
+		for (auto& pin : chip->inputs)
+			pins[i++].node->pos = mat * get_inp_pos(*pin);
+		for (auto& pin : chip->outputs)
+			pins[i++].node->pos = mat * get_out_pos(*pin);
+	}
 
 ////
 	enum GateType {
@@ -461,20 +486,6 @@ namespace logic_sim {
 		return (GateType)(chip - gates);
 	}
 	
-	inline float2 get_inp_pos (Part& pin_part) {
-		return pin_part.pos.calc_matrix() * float2(-PIN_LENGTH/2, 0);
-	}
-	inline float2 get_out_pos (Part& pin_part) {
-		return pin_part.pos.calc_matrix() * float2(+PIN_LENGTH/2, 0);
-	}
-	
-	inline float2x3 get_inp_pos_invmat (Part& pin_part) {
-		return translate(float2(+PIN_LENGTH/2, 0)) * pin_part.pos.calc_inv_matrix();
-	}
-	inline float2x3 get_out_pos_invmat (Part& pin_part) {
-		return translate(float2(-PIN_LENGTH/2, 0)) * pin_part.pos.calc_inv_matrix();
-	}
-
 ////
 	inline int indexof_chip (std::vector<std::shared_ptr<Chip>> const& vec, Chip* chip) {
 		int idx = indexof(vec, chip, [] (std::shared_ptr<Chip> const& l, Chip* r) { return l.get() == r; });
@@ -594,6 +605,11 @@ namespace logic_sim {
 		void add_part (Chip& chip, Chip* part_chip, Placement part_pos);
 		void remove_part (Chip& chip, Part* part);
 		
+		struct WireConn {
+			Part* part = nullptr;
+			int   pin = 0;
+		};
+
 		void add_wire (Chip& chip, WireConn src, WireConn dst, std::vector<float2>&& wire_points);
 		void remove_wire (Chip& chip, WireConn dst);
 
@@ -654,8 +670,8 @@ namespace logic_sim {
 			float2 box_sel_start;
 		};
 		struct WireMode {
-			ThingPtr prev = {};
-			ThingPtr cur;
+			WireNode* prev = nullptr;
+			WireNode* cur;
 
 			// buf for new node, cur points to this if new node will be created
 			WireNode  node;

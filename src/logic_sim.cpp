@@ -212,17 +212,18 @@ void LogicSim::add_part (Chip& chip, Chip* part_chip, Placement part_pos) {
 	else if (part_chip == &gates[INP_PIN]) {
 		// insert input at end of inputs list
 		
-		// resize input array of every part of this chip type
 		int count = (int)chip.inputs.size();
+		chip.inputs.emplace_back(ptr);
+		
+		// resize input array of every part of this chip type
 		for (auto& schip : saved_chips) {
 			for (auto& part : schip->parts) {
 				if (part->chip == &chip) {
-					part->inputs = insert(part->inputs, count, count, {});
+					part->inputs.push_back({});
+					assert(part->inputs.size() == chip.inputs.size());
 				}
 			}
 		}
-
-		chip.inputs.emplace_back(ptr);
 	}
 	else {
 		// insert part at end of parts list
@@ -241,6 +242,8 @@ void LogicSim::add_part (Chip& chip, Chip* part_chip, Placement part_pos) {
 	// TODO
 	for (int i=0; i<2; ++i)
 		state[i].assign(viewed_chip->state_count, 0);
+
+	ptr->update_pins_pos();
 
 	recompute_chip_users();
 
@@ -266,7 +269,7 @@ void LogicSim::remove_part (Chip& chip, Part* part) {
 	}
 
 	if (part->chip == &gates[OUT_PIN]) {
-		int idx = indexof(chip.outputs, part, Partptr_equal());
+		int idx = indexof(chip.outputs, part, _partptr_equal());
 		assert(idx >= 0);
 		
 		// remove wires to this chip output pin in all chips using this chip as a part
@@ -283,20 +286,21 @@ void LogicSim::remove_part (Chip& chip, Part* part) {
 		chip.outputs.erase(chip.outputs.begin() + idx);
 	}
 	else if (part->chip == &gates[INP_PIN]) {
-		int idx = indexof(chip.inputs, part, Partptr_equal());
+		int idx = indexof(chip.inputs, part, _partptr_equal());
 		assert(idx >= 0);
+
+		chip.inputs.erase(chip.inputs.begin() + idx);
 	
 		// resize input array of every part of this chip type
 		int count = (int)chip.inputs.size();
 		for (auto& schip : saved_chips) {
 			for (auto& part : schip->parts) {
 				if (part->chip == &chip) {
-					part->inputs = erase(part->inputs, count, idx);
+					part->inputs.erase(part->inputs.begin() + idx);
+					assert(part->inputs.size() == chip.inputs.size());
 				}
 			}
 		}
-
-		chip.inputs.erase(chip.inputs.begin() + idx);
 	}
 	else {
 		chip.parts.try_remove(part);
@@ -517,6 +521,12 @@ void from_json (const json& j, LogicSim& sim) {
 	auto cur = sim.saved_chips.begin();
 	for (auto& jchip : j["chips"]) {
 		json2chip(jchip, *(*cur++), sim);
+	}
+	
+	for (auto& chip : sim.saved_chips) {
+		for (auto& part : chip->parts) {
+			part->update_pins_pos();
+		}
 	}
 
 	sim.recompute_chip_users();
@@ -959,16 +969,16 @@ void highlight_part (ogl::Renderer& r, Part& part, float2x3 const& part2world, l
 		show_text ? part_name(part, buf) : std::string_view{});
 }
 void highlight_chip_names (ogl::Renderer& r, Chip& chip, float2x3 const& chip2world) {
-	if (&chip != &gates[OUT_PIN]) {
-		for (int i=0; i<(int)chip.outputs.size(); ++i) {
-			auto& pin = *chip.outputs[i];
-			r.draw_text(pin.name, chip2world * get_out_pos(pin), pin_text_sz, pin_col, 0.5f, 0.4f);
-		}
-	}
 	if (&chip != &gates[INP_PIN]) {
 		for (int i=0; i<(int)chip.inputs.size(); ++i) {
 			auto& pin = *chip.inputs[i];
 			r.draw_text(pin.name, chip2world * get_inp_pos(pin), pin_text_sz, pin_col, 0.5f, 0.4f);
+		}
+	}
+	if (&chip != &gates[OUT_PIN]) {
+		for (int i=0; i<(int)chip.outputs.size(); ++i) {
+			auto& pin = *chip.outputs[i];
+			r.draw_text(pin.name, chip2world * get_out_pos(pin), pin_text_sz, pin_col, 0.5f, 0.4f);
 		}
 	}
 			
@@ -990,23 +1000,27 @@ void highlight (ogl::Renderer& r, ThingPtr ptr, lrgba col, bool show_text, float
 				show_text ? "<wire_node>" : std::string_view{});
 		} break;
 
-		case T_PIN_INP:
-		case T_PIN_OUT: {
-			auto part2world = ptr.part->pos.calc_matrix();
-			highlight_part(r, *ptr.part, part2world, col, shrink);
+		case T_PIN: {
+			//auto part2world = ptr.part->pos.calc_matrix();
+			//highlight_part(r, *ptr.part, part2world, col, shrink);
+			//
+			//auto& pin = is_inp ? *ptr.part->chip->inputs [ptr.pin] :
+			//		             *ptr.part->chip->outputs[ptr.pin];
+			//
+			//auto pos = is_inp ? get_inp_pos(pin) : get_out_pos(pin);
+			//auto mat = ptr.part->pos.calc_matrix() * translate(pos);
+			//		
+			//r.draw_highlight_box(PIN_SIZE - shrink*2.0f, mat, pin_col * col);
+			//r.draw_highlight_text(PIN_SIZE - shrink*2.0f, mat,
+			//	show_text ? pin.name : std::string_view{},
+			//	part_text_sz, pin_col * col);
 			
-			bool is_inp = ptr.type == T_PIN_INP;
-					
-			auto& pin = is_inp ? *ptr.part->chip->inputs [ptr.pin] :
-					             *ptr.part->chip->outputs[ptr.pin];
-
-			auto pos = is_inp ? get_inp_pos(pin) : get_out_pos(pin);
-			auto mat = ptr.part->pos.calc_matrix() * translate(pos);
-					
+			auto mat = translate(ptr.pin->node->pos);
+			
 			r.draw_highlight_box(PIN_SIZE - shrink*2.0f, mat, pin_col * col);
-			r.draw_highlight_text(PIN_SIZE - shrink*2.0f, mat,
-				show_text ? pin.name : std::string_view{},
-				part_text_sz, pin_col * col);
+			//r.draw_highlight_text(PIN_SIZE - shrink*2.0f, mat,
+			//	show_text ? pin.name : std::string_view{},
+			//	part_text_sz, pin_col * col);
 		} break;
 	}
 }
@@ -1032,14 +1046,6 @@ float2& ThingPtr::get_pos () {
 	switch (type) {
 		case T_PART:    return part->pos.pos; break;
 		case T_NODE:    return node->pos;     break;
-		INVALID_DEFAULT;
-	}
-}
-float2 ThingPtr::get_wire_pos () const {
-	switch (type) {
-		case T_NODE:    return node->pos;     break;
-		case T_PIN_INP: return part->pos.calc_matrix() * get_inp_pos(*part->chip->inputs [pin]); break;
-		case T_PIN_OUT: return part->pos.calc_matrix() * get_out_pos(*part->chip->outputs[pin]); break;
 		INVALID_DEFAULT;
 	}
 }
@@ -1086,17 +1092,17 @@ void find_edit_hover (float2 cursor_pos, Chip& chip, bool allow_parts, ThingPtr&
 		if (allow_parts && hitbox(cursor_pos, part->chip->size, world2part))
 			hover = part;
 
-		if (part->chip != &gates[OUT_PIN]) {
-			for (int i=0; i<(int)part->chip->outputs.size(); ++i) {
-				if (hitbox(cursor_pos, PIN_SIZE, get_out_pos_invmat(*part->chip->outputs[i]) * world2part)) {
-					hover = { T_PIN_OUT, part, i };
-				}
-			}
-		}
 		if (part->chip != &gates[INP_PIN]) {
 			for (int i=0; i<(int)part->chip->inputs.size(); ++i) {
 				if (hitbox(cursor_pos, PIN_SIZE, get_inp_pos_invmat(*part->chip->inputs[i]) * world2part)) {
-					hover = { T_PIN_INP, part, i };
+					hover = { &part->pins[i] };
+				}
+			}
+		}
+		if (part->chip != &gates[OUT_PIN]) {
+			for (int i=0; i<(int)part->chip->outputs.size(); ++i) {
+				if (hitbox(cursor_pos, PIN_SIZE, get_out_pos_invmat(*part->chip->outputs[i]) * world2part)) {
+					hover = { &part->pins[(int)part->chip->inputs.size() + i] };
 				}
 			}
 		}
@@ -1125,8 +1131,6 @@ void find_boxsel (Chip& chip, bool remove, AABB box, Editor::PartSelection& sel)
 		for_item(node.get());
 	}
 }
-
-template<class> inline constexpr bool always_false_v = false;
 
 void Editor::update (Input& I, LogicSim& sim, ogl::Renderer& r) {
 	
@@ -1303,8 +1307,13 @@ void Editor::update (Input& I, LogicSim& sim, ogl::Renderer& r) {
 
 				for (auto& i : e.sel.items) {
 					switch (i.type) {
-						case T_PART: edit_placement(sim, I, i.part->pos, edit_center); break;
-						case T_NODE: edit_placement(sim, I, i.node->pos, edit_center); break;
+						case T_PART: {
+							edit_placement(sim, I, i.part->pos, edit_center);
+							i.part->update_pins_pos();
+						} break;
+						case T_NODE: {
+							edit_placement(sim, I, i.node->pos, edit_center);
+						} break;
 						INVALID_DEFAULT;
 					}
 				}
@@ -1347,11 +1356,17 @@ void Editor::update (Input& I, LogicSim& sim, ogl::Renderer& r) {
 						
 						for (int i=0; i<e.sel.items.size(); ++i) {
 							e.sel.items[i].get_pos() = bounds_offsets[i] + bounds_center;
+
+							if (e.sel.items[i].type == T_PART)
+								e.sel.items[i].part->update_pins_pos();
 						}
 
 						if (e.sel.items.size() == 1) {
 							auto& pos = e.sel.items[0].get_pos();
 							pos = snap(pos);
+
+							if (e.sel.items[0].type == T_PART)
+								e.sel.items[0].part->update_pins_pos();
 						}
 					}
 					// stop dragging gate
@@ -1422,7 +1437,7 @@ void Editor::update (Input& I, LogicSim& sim, ogl::Renderer& r) {
 		// Find hover
 		ThingPtr hover = {};
 		find_edit_hover(_cursor_pos, *sim.viewed_chip, false, hover);
-		assert(hover.type == T_NONE || hover.type == T_NODE || hover.type == T_PIN_INP || hover.type == T_PIN_OUT);
+		assert(hover.type == T_NONE || hover.type == T_NODE || hover.type == T_PIN);
 
 		float2 snapped_pos = snap(_cursor_pos);
 		
@@ -1430,7 +1445,10 @@ void Editor::update (Input& I, LogicSim& sim, ogl::Renderer& r) {
 		w.cur = &w.node;
 
 		if (hover) {
-			w.cur = hover;
+			if (hover.type == T_NODE)
+				w.cur = hover.node;
+			else if (hover.type == T_PIN)
+				w.cur = hover.pin->node.get();
 
 			highlight(r, hover, hover_col, true);
 		}
@@ -1438,15 +1456,20 @@ void Editor::update (Input& I, LogicSim& sim, ogl::Renderer& r) {
 		if (I.buttons[MOUSE_BUTTON_LEFT].went_down) {
 			if (w.cur == &w.node) {
 				// copy out the node struct into a real heap-alloced node
-				w.cur = new WireNode(std::move(w.node));
-				sim.viewed_chip->wire_nodes.add(std::unique_ptr<WireNode>(w.cur.node));
+				auto ptr = std::make_unique<WireNode>(std::move(w.node));
+				w.cur = ptr.get();
+				sim.viewed_chip->wire_nodes.add(std::move(ptr));
 			}
 
-			if (w.prev) {
-				sim.viewed_chip->wire_edges.add(std::make_unique<WireEdge>(w.prev, w.cur));
+			if (w.prev && w.cur) {
+				bool existing = w.prev->edges.contains(w.cur);
+				assert(existing == w.cur->edges.contains(w.prev));
+				if (!existing) {
+					w.prev->edges.add(w.cur );
+					w.cur ->edges.add(w.prev);
 
-				if (w.prev.type == T_NODE) w.prev.node->edges.add(w.cur );
-				if (w.cur .type == T_NODE) w.cur .node->edges.add(w.prev);
+					sim.viewed_chip->wire_edges.add(std::make_unique<WireEdge>(w.prev, w.cur));
+				}
 			}
 
 			//

@@ -295,6 +295,7 @@ struct Renderer {
 	void build_line (float2x3 const& chip2world, float2 a, float2 b, int states, lrgba col);
 
 	void draw_wire_point (float2x3 const& chip2world, float2 pos, float radius, int states, lrgba col);
+	void draw_wire_point (float2x3 const& chip2world, float2 pos, float radius, int num_wires, int states, lrgba col);
 
 	void draw_gate (float2x3 const& mat, float2 size, int type, int state, lrgba col);
 	
