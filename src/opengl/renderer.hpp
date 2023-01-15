@@ -69,25 +69,23 @@ struct TriRenderer {
 	}
 };
 struct LineRenderer {
-	Shader* shad  = g_shaders.compile("wires");
+	Shader* shad = g_shaders.compile("wires");
 
 	struct LineInstance {
 		float2 pos0;
 		float2 pos1;
-		float2 t; // t0 t1
 		float  radius;
+		int    type; // 0: wire segment BG  1: wire segment   2: wire node BG  3: wire node
 		int    states;
 		float4 col;
-		int    wire_id;
 
 		ATTRIBUTES {
 			ATTRIB_INSTANCED( idx++, GL_FLOAT,2, LineInstance, pos0);
 			ATTRIB_INSTANCED( idx++, GL_FLOAT,2, LineInstance, pos1);
-			ATTRIB_INSTANCED( idx++, GL_FLOAT,2, LineInstance, t);
 			ATTRIB_INSTANCED( idx++, GL_FLOAT,1, LineInstance, radius);
+			ATTRIBI_INSTANCED(idx++, GL_INT  ,1, LineInstance, type);
 			ATTRIBI_INSTANCED(idx++, GL_INT  ,1, LineInstance, states);
 			ATTRIB_INSTANCED( idx++, GL_FLOAT,4, LineInstance, col);
-			ATTRIBI_INSTANCED(idx++, GL_INT  ,1, LineInstance, wire_id);
 		}
 	};
 
@@ -100,11 +98,11 @@ struct LineRenderer {
 		lines.shrink_to_fit();
 	}
 
-	void render (StateManager& state, float sim_t, int num_wires) {
+	void render (StateManager& state, float sim_t) {
 		ZoneScoped;
 
 		if (shad->prog) {
-			OGL_TRACE("LineRenderer");
+			OGL_TRACE("WireRenderer");
 
 			vbo_lines.stream(lines);
 
@@ -112,17 +110,16 @@ struct LineRenderer {
 				glUseProgram(shad->prog);
 
 				shad->set_uniform("sim_t", sim_t);
-				shad->set_uniform("num_wires", (float)num_wires);
 
 				PipelineState s;
-				s.depth_test = true;
-				s.depth_write = true;
+				s.depth_test = false;
+				s.depth_write = false;
 				s.blend_enable = true;
 				s.cull_face = false;
 				state.set(s);
 
 				glBindVertexArray(vbo_lines.vao);
-				glDrawArraysInstanced(GL_TRIANGLES, 0, 6*2, (GLsizei)lines.size());
+				glDrawArraysInstanced(GL_TRIANGLES, 0, 6, (GLsizei)lines.size());
 			}
 		}
 
@@ -314,16 +311,6 @@ struct Renderer {
 		
 		draw_text(name, center + size*(align - 0.5f), font_size, col, align);
 	}
-
-	int cur_wire_id;
-
-	void build_line (float2x3 const& chip2world,
-			float2 start0, float2 start1, std::vector<float2> const& points, float2 end0, float2 end1,
-			int states, lrgba col, int wire_id);
-	void build_line (float2x3 const& chip2world, float2 a, float2 b, int states, lrgba col, int wire_id);
-
-	void draw_wire_point (float2x3 const& chip2world, float2 pos, float radius, int states, lrgba col, int wire_id);
-	void draw_wire_point (float2x3 const& chip2world, float2 pos, float radius, int num_wires, int states, lrgba col, int wire_id);
 
 	void draw_gate (float2x3 const& mat, float2 size, int type, int state, lrgba col);
 	

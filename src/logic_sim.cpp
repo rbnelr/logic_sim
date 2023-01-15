@@ -1053,21 +1053,6 @@ float2& ThingPtr::get_pos () {
 	}
 }
 
-// TODO: eliminate somehow
-template <typename FUNC>
-void for_each_part (Chip& chip, FUNC func) {
-	for (auto& part : chip.outputs) {
-		func(part.get());
-	}
-	for (auto& part : chip.inputs) {
-		func(part.get());
-	}
-
-	for (auto& part : chip.parts) {
-		func(part.get());
-	}
-}
-
 void Editor::ViewMode::find_hover (float2 cursor_pos, Chip& chip,
 		float2x3 chip2world, float2x3 world2chip, int sid) {
 	
@@ -1086,7 +1071,8 @@ void Editor::ViewMode::find_hover (float2 cursor_pos, Chip& chip,
 		sid += part->chip->state_count;
 	});
 }
-void find_edit_hover (float2 cursor_pos, Chip& chip, bool allow_parts, ThingPtr& hover) {
+
+void find_edit_hover (float2 cursor_pos, Chip& chip, bool allow_parts, bool allow_wires, ThingPtr& hover) {
 	float pin_size = wire_radius*wire_node_radius_fac*2;
 
 	for_each_part(chip, [&] (Part* part) {
@@ -1112,9 +1098,11 @@ void find_edit_hover (float2 cursor_pos, Chip& chip, bool allow_parts, ThingPtr&
 		}
 	});
 
-	for (auto& wire : chip.wire_edges) {
-		if (wire_hitbox(cursor_pos, *wire)) {
-			hover = wire.get();
+	if (allow_wires) {
+		for (auto& wire : chip.wire_edges) {
+			if (wire_hitbox(cursor_pos, *wire)) {
+				hover = wire.get();
+			}
 		}
 	}
 	
@@ -1202,7 +1190,7 @@ void Editor::update (Input& I, LogicSim& sim, ogl::Renderer& r) {
 		
 	//// Find hovered item
 		ThingPtr hover = {};
-		find_edit_hover(_cursor_pos, *sim.viewed_chip, true, hover);
+		find_edit_hover(_cursor_pos, *sim.viewed_chip, true, false, hover);
 
 	//// Item selection logic + box selection start
 		
@@ -1446,7 +1434,7 @@ void Editor::update (Input& I, LogicSim& sim, ogl::Renderer& r) {
 		
 		// Find hover
 		ThingPtr hover = {};
-		find_edit_hover(_cursor_pos, *sim.viewed_chip, false, hover);
+		find_edit_hover(_cursor_pos, *sim.viewed_chip, false, true, hover);
 		assert(hover.type == T_NONE || hover.type == T_NODE || hover.type == T_WIRE);
 
 		float2 snapped_pos = snap(_cursor_pos);
@@ -1459,6 +1447,9 @@ void Editor::update (Input& I, LogicSim& sim, ogl::Renderer& r) {
 				w.cur = hover.node;
 
 			highlight(r, hover, hover_col, true);
+
+			if (hover.type == T_WIRE && I.buttons['X'].went_down)
+				sim.remove_wire_edge(*sim.viewed_chip, hover.wire);
 		}
 
 		if (I.buttons[MOUSE_BUTTON_LEFT].went_down) {
@@ -1497,53 +1488,6 @@ void Editor::update (Input& I, LogicSim& sim, ogl::Renderer& r) {
 				mode = EditMode();
 			}
 		}
-		
-		//if (hover) assert(hover.chip == w.chip); // enforced by find_hover()
-		//
-		//// connect other end of wire to appropriate pin when hovered
-		//w.dst = {};
-		//if (hover.type == Hover::PIN_INP || hover.type == Hover::PIN_OUT)
-		//	if (w.dir == (hover.type == Hover::PIN_OUT))
-		//		w.dst = { hover.part, hover.pin };
-		//
-		//// remember temprary end point for wire if not hovered over pin
-		// convert cursor position to chip space and _then_ snap
-		// this makes it so that we always snap in the space of the chip
-		//w.unconn_pos = snap(w.world2chip * _cursor_pos);
-		//
-		//// establish wire connection or add wire point
-		//if (I.buttons[MOUSE_BUTTON_LEFT].went_down) {
-		//	if (w.src.part && w.dst.part) {
-		//		// clicked correct pin, connect wire
-		//		WireConn src=w.src, dst=w.dst;
-		//		if (w.dir) std::swap(src, dst);
-		//
-		//		add_wire(sim, w.chip.ptr,
-		//			w.dir ? w.dst : w.src,
-		//			w.dir ? w.src : w.dst,
-		//			std::move(w.points));
-		//		
-		//		mode = EditMode();
-		//	}
-		//	else {
-		//		// add cur cursor position to list of wire points
-		//		if (w.dir) w.points.insert(w.points.begin(), w.unconn_pos);
-		//		else       w.points.push_back(w.unconn_pos);
-		//	}
-		//}
-		//// remove wire point or cancel rewiring
-		//else if (I.buttons[MOUSE_BUTTON_RIGHT].went_down) {
-		//	// undo one wire point or cancel wire
-		//	if (w.points.empty()) {
-		//		// cancel whole wire edit
-		//		mode = EditMode();
-		//	}
-		//	else {
-		//		// just remove last added point
-		//		if (w.dir) w.points.erase(w.points.begin());
-		//		else       w.points.pop_back();
-		//	}
-		//}
 	}
 
 	highlight_chip_names(r, *sim.viewed_chip, float2x3::identity());

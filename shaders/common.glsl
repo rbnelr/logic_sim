@@ -3,6 +3,15 @@
 	#define VS2FS out
 #elif defined(_FRAGMENT)
 	#define VS2FS in
+	
+	out vec4 _frag_col;
+	
+	void FRAG_COL (vec4 col) {
+	#ifdef _WIREFRAME
+		col.a = 1.0;
+	#endif
+		_frag_col = col;
+	}
 #endif
 
 float map (float x, float a, float b) {

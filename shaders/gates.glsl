@@ -37,8 +37,6 @@ flat VS2FS int v_gate_state;
 	}
 #endif
 #ifdef _FRAGMENT
-	out vec4 frag_col;
-	
 	// with help from (those are 3d) https://iquilezles.org/articles/distfunctions/
 	
 	float SDF_line (vec2 p, vec2 a, vec2 b) {
@@ -153,6 +151,7 @@ flat VS2FS int v_gate_state;
 		float outline = clamp(du * 4.0, 0.02, 0.06);
 		float aa = du * 1.0;
 		
+		vec4 frag_col;
 		{ // draw base gate symbol
 			float d;
 			
@@ -188,5 +187,7 @@ flat VS2FS int v_gate_state;
 			
 			frag_col = alpha_blend(frag_col, c);
 		}
+		
+		FRAG_COL(frag_col);
 	}
 #endif

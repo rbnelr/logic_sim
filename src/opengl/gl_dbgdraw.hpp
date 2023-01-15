@@ -183,7 +183,9 @@ struct glDebugDraw {
 	void imgui () {
 		if (ImGui::TreeNode("Debug Draw")) {
 
-			ImGui::Checkbox("wireframe", &wireframe);
+			if (ImGui::Checkbox("wireframe", &wireframe))
+				g_shaders.set_wireframe(wireframe);
+
 			ImGui::SameLine();
 			ImGui::Checkbox("no cull", &wireframe_no_cull);
 			ImGui::SameLine();

@@ -162,6 +162,21 @@ namespace logic_sim {
 		Chip deep_copy () const;
 	};
 
+	// TODO: eliminate somehow
+	template <typename FUNC>
+	void for_each_part (Chip& chip, FUNC func) {
+		for (auto& part : chip.outputs) {
+			func(part.get());
+		}
+		for (auto& part : chip.inputs) {
+			func(part.get());
+		}
+
+		for (auto& part : chip.parts) {
+			func(part.get());
+		}
+	}
+
 	// An instance of a chip placed down in a chip
 	// (Primitive gates are also implemented as chips)
 	struct Part {
@@ -436,8 +451,9 @@ namespace logic_sim {
 		
 		void imgui (Input& I) {
 			if (ImGui::TreeNode("settings")) {
-				ImGui::DragFloat("wire_radius", &wire_radius, 0.01f);
+				ImGui::DragFloat("wire_radius", &wire_radius, 0.0001f);
 				ImGui::DragFloat("wire_node_radius_fac", &wire_node_radius_fac, 0.01f);
+				ImGui::TreePop();
 			}
 
 			if (unsaved_changes) {
