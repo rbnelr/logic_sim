@@ -315,15 +315,15 @@ struct Renderer {
 		draw_text(name, center + size*(align - 0.5f), font_size, col, align);
 	}
 
-	int wire_id;
+	int cur_wire_id;
 
 	void build_line (float2x3 const& chip2world,
 			float2 start0, float2 start1, std::vector<float2> const& points, float2 end0, float2 end1,
-			int states, lrgba col);
-	void build_line (float2x3 const& chip2world, float2 a, float2 b, int states, lrgba col);
+			int states, lrgba col, int wire_id);
+	void build_line (float2x3 const& chip2world, float2 a, float2 b, int states, lrgba col, int wire_id);
 
-	void draw_wire_point (float2x3 const& chip2world, float2 pos, float radius, int states, lrgba col);
-	void draw_wire_point (float2x3 const& chip2world, float2 pos, float radius, int num_wires, int states, lrgba col);
+	void draw_wire_point (float2x3 const& chip2world, float2 pos, float radius, int states, lrgba col, int wire_id);
+	void draw_wire_point (float2x3 const& chip2world, float2 pos, float radius, int num_wires, int states, lrgba col, int wire_id);
 
 	void draw_gate (float2x3 const& mat, float2 size, int type, int state, lrgba col);
 	

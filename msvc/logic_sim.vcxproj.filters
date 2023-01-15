@@ -84,7 +84,9 @@
     <ClCompile Include="..\src\engine\common.cpp">
       <Filter>engine</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\opengl\renderer.cpp" />
+    <ClCompile Include="..\src\opengl\renderer.cpp">
+      <Filter>opengl</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="engine">

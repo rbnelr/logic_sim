@@ -15,10 +15,9 @@ namespace logic_sim {
 	
 	inline constexpr float SEL_HIGHL_SHRINK = 1.0f/64;
 
-	inline constexpr float WIRE_RADIUS = 0.04f;
-	inline constexpr float WIRE_NODE_RADIUS_FAC = 2.25f;
+	inline float wire_radius = 0.04f;
+	inline float wire_node_radius_fac = 2.0f;
 
-	inline constexpr float PIN_SIZE   = 0.2f; // IO Pin hitbox size
 	inline constexpr float PIN_LENGTH = 0.5f; // IO Pin base wire length
 
 	constexpr float2x2 ROT[] = {
@@ -108,33 +107,14 @@ namespace logic_sim {
 		}
 
 		AABB get_aabb () const {
-			return AABB{ pos - PIN_SIZE*0.5f,
-			             pos + PIN_SIZE*0.5f };
+			return AABB{ pos - wire_radius*wire_node_radius_fac,
+			             pos + wire_radius*wire_node_radius_fac };
 		}
 	};
 	struct WireEdge {
 		WireNode* a;
 		WireNode* b;
 	};
-	//struct WireGraph {
-	//	VectorSet<WireNode*> nodes; // free nodes and part nodes
-	//	VectorSet<WireEdge*> edges; // can be generated from nodes, should this even be cached at all?
-	//
-	//	int state_id = -1;
-	//};
-	//struct Part {
-	//	struct IO {
-	//		WireNode node;
-	//		int state_id = -1;
-	//	};
-	//	vector<IO> ios;
-	//};
-	//struct LogicGraph {
-	//	VectorSet<WireGraph> graphs;
-	//
-	//
-	//};
-
 
 	// A chip design that can be edited or simulated if viewed as the "global" chip
 	// Uses other chips as parts, which are instanced into it's own editing or simulation
@@ -164,11 +144,6 @@ namespace logic_sim {
 		
 		vector_set<Chip*> users;
 		
-		// TODO: store set of direct users of chip as chip* -> usecount hashmap
-		// adding a chip a as a part inside a chip c is a->users[c]++
-		// this can be iterated to find if chip can be placed
-		// this also can be iterated to recompute state indices on chip modification
-
 		bool contains_part (Part* part) {
 			return parts.contains(part) ||
 				contains(outputs, part, _partptr_equal()) ||
@@ -201,26 +176,14 @@ namespace logic_sim {
 		// ie. any chip being placed itself is a part with a state_idx, it's subparts then each have a state_idx relative to it
 		int sid = -1; // check parent chip for state state_count, then this is also stale
 
-		struct InputWire {
-			Part* part = nullptr;
-			// which output pin of the part is connected to
-			int pin = 0;
-			
-			//int state_idx = 0;
-
-			std::vector<float2> wire_points;
-		};
-		std::vector<InputWire> inputs;
-
 		struct Pin {
-			std::unique_ptr<WireNode> node = nullptr;
+			std::unique_ptr<WireNode> node;
 		};
 		std::vector<Pin> pins;
 		
 		Part (Chip* chip, std::string&& name, Placement pos): chip{chip}, pos{pos}, name{name} {
 			if (chip) {
-				inputs.resize(chip->inputs.size());
-				pins.resize(chip->inputs.size() + chip->outputs.size());
+				pins.resize(chip->outputs.size() + chip->inputs.size());
 
 				for (auto& pin : pins)
 					pin.node = std::make_unique<WireNode>(float2(0), this);
@@ -251,7 +214,6 @@ namespace logic_sim {
 		T_NONE=0,
 		T_PART,
 		T_NODE,
-		T_PIN,
 		T_WIRE,
 	};
 	struct ThingPtr {
@@ -260,7 +222,6 @@ namespace logic_sim {
 			void*      _ptr;
 			Part*      part;
 			WireNode*  node;
-			Part::Pin* pin;
 			WireEdge*  wire;
 		};
 
@@ -270,9 +231,6 @@ namespace logic_sim {
 		}
 		ThingPtr (WireNode* node)                     : type{T_NODE}, node{node} {
 			assert(node != nullptr);
-		}
-		ThingPtr (Part::Pin* pin)                     : type{T_PIN}, pin{pin} {
-			assert(pin != nullptr);
 		}
 		ThingPtr (WireEdge* wire)                     : type{T_WIRE}, wire{wire} {
 			assert(wire != nullptr);
@@ -398,7 +356,7 @@ namespace logic_sim {
 		friend void to_json (json& j, const Chip& chip, const LogicSim& sim);
 		friend void from_json (const json& j, Chip& chip, LogicSim& sim);
 
-		// (de)serialize all saved chips (if the viewed_chip is not saved as a new chip it will be deleted, TODO: add warning?)
+		// (de)serialize all saved chips
 		// simulation state is never (de)serialized
 		// editor state is never (de)serialized
 		friend void to_json (json& j, const LogicSim& sim);
@@ -477,6 +435,11 @@ namespace logic_sim {
 		
 		
 		void imgui (Input& I) {
+			if (ImGui::TreeNode("settings")) {
+				ImGui::DragFloat("wire_radius", &wire_radius, 0.01f);
+				ImGui::DragFloat("wire_node_radius_fac", &wire_node_radius_fac, 0.01f);
+			}
+
 			if (unsaved_changes) {
 				ImGui::TextColored(ImVec4(1.00f, 0.67f, 0.00f, 1), "Unsaved changes");
 			}
@@ -503,14 +466,6 @@ namespace logic_sim {
 		
 		void add_part (Chip& chip, Chip* part_chip, Placement part_pos);
 		void remove_part (Chip& chip, Part* part);
-		
-		struct WireConn {
-			Part* part = nullptr;
-			int   pin = 0;
-		};
-
-		void add_wire (Chip& chip, WireConn src, WireConn dst, std::vector<float2>&& wire_points);
-		void remove_wire (Chip& chip, WireConn dst);
 		
 		WireNode* add_wire_node (Chip& chip, float2 pos) {
 			auto ptr = new WireNode(pos);
