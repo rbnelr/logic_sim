@@ -378,20 +378,58 @@ json chip2json (const Chip& chip, LogicSim const& sim) {
 	std::unordered_map<Part*, int> part2idx;
 	part2idx.reserve(chip.inputs.size() + chip.outputs.size() + chip.parts.size());
 	
+	std::unordered_map<WireNode*, int> node2idx;
+	node2idx.reserve(chip.wire_nodes.size() + chip.parts.size()*4); // estimate
+
 	int idx = 0;
+	int node_idx = 0;
+
+	for (auto& wire : chip.wire_nodes) {
+		node2idx[wire.get()] = node_idx++;
+	}
+
 	for (auto& part : chip.outputs) {
 		part2idx[part.get()] = idx++;
+
+		for (auto& pin : part->pins) {
+			node2idx[pin.node.get()] = node_idx++;
+		}
 	}
 	for (auto& part : chip.inputs) {
 		part2idx[part.get()] = idx++;
+
+		for (auto& pin : part->pins) {
+			node2idx[pin.node.get()] = node_idx++;
+		}
 	}
 	for (auto& part : chip.parts) {
 		part2idx[part.get()] = idx++;
+
+		for (auto& pin : part->pins) {
+			node2idx[pin.node.get()] = node_idx++;
+		}
 	}
-	
+
 	json jouts  = json::array();
 	json jinps  = json::array();
 	json jparts = json::array();
+	json jnodes = json::array();
+	json jedges = json::array();
+	
+	// just serialize the free node positions
+	for (auto& node : chip.wire_nodes) {
+		jnodes.emplace_back(json{
+			{"pos", node->pos}
+		});
+	}
+	// instead of serializing the nodes with their connections
+	// serialize just the edges, because it's simpler and avoids the doubly linked graph
+	for (auto& edge : chip.wire_edges) {
+		jedges.emplace_back(json{
+			{"a", node2idx[edge->a]},
+			{"b", node2idx[edge->b]},
+		});
+	}
 
 	for (auto& part : chip.outputs) {
 		jouts.emplace_back( part2json(sim, *part, part2idx) );
@@ -406,12 +444,14 @@ json chip2json (const Chip& chip, LogicSim const& sim) {
 	}
 	
 	json j = {
-		{"name",     chip.name},
-		{"col",      chip.col},
-		{"size",     chip.size},
-		{"inputs",   std::move(jinps)},
-		{"outputs",  std::move(jouts)},
-		{"parts",    std::move(jparts)},
+		{"name",       chip.name},
+		{"col",        chip.col},
+		{"size",       chip.size},
+		{"inputs",     std::move(jinps)},
+		{"outputs",    std::move(jouts)},
+		{"parts",      std::move(jparts)},
+		{"wire_nodes", std::move(jnodes)},
+		{"wire_edges", std::move(jedges)},
 	};
 	return j;
 }
@@ -429,7 +469,7 @@ void to_json (json& j, LogicSim const& sim) {
 	((LogicSim&)sim).unsaved_changes = false;
 }
 
-Part* json2part (const json& j, LogicSim const& sim) {
+Part* json2part (const json& j, LogicSim const& sim, std::vector<WireNode*>& idx2node) {
 	
 	int chip_id      = j.at("chip");
 	std::string name = j.contains("name") ? j.at("name") : "";
@@ -444,7 +484,11 @@ Part* json2part (const json& j, LogicSim const& sim) {
 			part_chip = sim.saved_chips[chip_id - GATE_COUNT].get();
 	}
 
-	return new Part(part_chip, std::move(name), pos);
+	auto* ptr = new Part(part_chip, std::move(name), pos);
+	for (auto& pin : ptr->pins) {
+		idx2node.emplace_back(pin.node.get());
+	}
+	return ptr;
 }
 void json2links (const json& j, Part& part, std::vector<Part*>& idx2part) {
 	if (j.contains("inputs")) {
@@ -473,27 +517,56 @@ void json2chip (const json& j, Chip& chip, LogicSim& sim) {
 	auto& jouts = j.at("outputs");
 	auto& jinps = j.at("inputs");
 	auto& jparts = j.at("parts");
+	auto& jnodes = j.at("wire_nodes");
+	auto& jedges = j.at("wire_edges");
 	size_t total = jouts.size() + jinps.size() + jparts.size();
 	
-	chip.parts = {};
 	chip.parts.reserve((int)jparts.size());
-	
-	// first pass to create part pointers
+
+	chip.wire_nodes.reserve((int)jnodes.size());
+	chip.wire_edges.reserve((int)jedges.size());
+
+	// first pass to create pointers
 	std::vector<Part*> idx2part(total, nullptr);
 	
+	std::vector<WireNode*> idx2node;
+	idx2node.reserve(chip.wire_nodes.size() + chip.parts.size()*4);
+
+	for (auto& j : jnodes) {
+		float2 pos = j.at("pos");
+		auto node = std::make_unique<WireNode>(pos, nullptr);
+		idx2node.emplace_back(node.get());
+		chip.wire_nodes.add(std::move(node));
+	}
+
 	int idx = 0;
 	int out_idx = 0, inp_idx = 0;
 	for (auto& j : jouts) {
-		auto* ptr = idx2part[idx++] = json2part(j, sim);
+		auto* ptr = idx2part[idx++] = json2part(j, sim, idx2node);
 		chip.outputs[out_idx++] = std::unique_ptr<Part>(ptr);
 	}
 	for (auto& j : jinps) {
-		auto* ptr = idx2part[idx++] = json2part(j, sim);
+		auto* ptr = idx2part[idx++] = json2part(j, sim, idx2node);
 		chip.inputs[inp_idx++] = std::unique_ptr<Part>(ptr);
 	}
 	for (auto& j : jparts) {
-		auto* ptr = idx2part[idx++] = json2part(j, sim);
+		auto* ptr = idx2part[idx++] = json2part(j, sim, idx2node);
 		chip.parts.add(ptr);
+	}
+
+	for (auto& j : jedges) {
+		auto get = [&] (int idx) -> WireNode* {
+			assert(idx >= 0 && idx < (int)idx2node.size());
+			return idx2node[idx];
+		};
+		auto* a = get(j.at("a"));
+		auto* b = get(j.at("b"));
+		auto edge = std::make_unique<WireEdge>(a, b);
+	
+		a->edges.add(b);
+		b->edges.add(a);
+		
+		chip.wire_edges.add(std::move(edge));
 	}
 
 	// second pass to link parts via existing pointers
@@ -527,6 +600,12 @@ void from_json (const json& j, LogicSim& sim) {
 	}
 	
 	for (auto& chip : sim.saved_chips) {
+		for (auto& part : chip->inputs) {
+			part->update_pins_pos();
+		}
+		for (auto& part : chip->outputs) {
+			part->update_pins_pos();
+		}
 		for (auto& part : chip->parts) {
 			part->update_pins_pos();
 		}
@@ -1137,16 +1216,16 @@ void find_edit_hover (float2 cursor_pos, Chip& chip, bool allow_parts, ThingPtr&
 			}
 		}
 	});
-	
-	for (auto& node : chip.wire_nodes) {
-		if (hitbox(cursor_pos, PIN_SIZE, translate(-node->pos))) {
-			hover = node.get();
-		}
-	}
 
 	for (auto& wire : chip.wire_edges) {
 		if (wire_hitbox(cursor_pos, *wire)) {
 			hover = wire.get();
+		}
+	}
+	
+	for (auto& node : chip.wire_nodes) {
+		if (hitbox(cursor_pos, PIN_SIZE, translate(-node->pos))) {
+			hover = node.get();
 		}
 	}
 }
@@ -1492,27 +1571,27 @@ void Editor::update (Input& I, LogicSim& sim, ogl::Renderer& r) {
 		if (I.buttons[MOUSE_BUTTON_LEFT].went_down) {
 			if (w.cur == &w.node) {
 				// copy out the node struct into a real heap-alloced node
-				auto ptr = std::make_unique<WireNode>(std::move(w.node));
-				w.cur = ptr.get();
-				sim.viewed_chip->wire_nodes.add(std::move(ptr));
+				w.cur = sim.add_wire_node(*sim.viewed_chip, w.node.pos);
 			}
 
-			if (w.prev && w.cur) {
-				bool existing = w.prev->edges.contains(w.cur);
-				assert(existing == w.cur->edges.contains(w.prev));
-				if (!existing) {
-					w.prev->edges.add(w.cur );
-					w.cur ->edges.add(w.prev);
+			if (hover.type == T_WIRE) {
+				// insert node on existig wire by splitting wire
 
-					sim.viewed_chip->wire_edges.add(std::make_unique<WireEdge>(w.prev, w.cur));
-				}
+				auto* a = hover.wire->a;
+				auto* b = hover.wire->b;
+
+				sim.remove_wire_edge(*sim.viewed_chip, hover.wire);
+
+				sim.connect_wire_nodes(*sim.viewed_chip, a, w.cur);
+				sim.connect_wire_nodes(*sim.viewed_chip, w.cur, b);
+			}
+
+			if (w.prev && w.cur && w.prev != w.cur) {
+				sim.connect_wire_nodes(*sim.viewed_chip, w.prev, w.cur);
 			}
 
 			//
 			w.prev = w.cur;
-
-			//w.node = { snapped_pos };
-			//w.cur = &w.node;
 		}
 
 		if (I.buttons[MOUSE_BUTTON_RIGHT].went_down) {

@@ -6,6 +6,8 @@ using namespace logic_sim;
 
 namespace ogl {
 
+	bool _draw_old_wires = true;
+
 void Renderer::build_line (float2x3 const& chip2world,
 		float2 start0, float2 start1, std::vector<float2> const& points, float2 end0, float2 end1,
 		int states, lrgba col) {
@@ -135,6 +137,7 @@ void Renderer::draw_chip (Game& g, Chip* chip, float2x3 const& chip2world, int c
 
 			draw_chip(g, part->chip, part2world, chip_state >= 0 ? chip_state + part->sid : -1, col);
 		
+			if (_draw_old_wires)
 			for (int i=0; i<(int)part->chip->inputs.size(); ++i) {
 				auto& inp = part->chip->inputs[i];
 					
@@ -142,9 +145,11 @@ void Renderer::draw_chip (Game& g, Chip* chip, float2x3 const& chip2world, int c
 				float2 dst0 = part2chip * get_inp_pos(*inp);
 				float2 dst1 = part2chip * inp->pos.pos;
 
+				lrgba col = lrgba(0,1,0,1);
+
 				auto& inp_wire = part->inputs[i];
 				if (!inp_wire.part) {
-					build_line(chip2world, dst0, dst1, 0, line_col);
+					build_line(chip2world, dst0, dst1, 0, col);
 				}
 				else {
 					// get connected part
@@ -162,26 +167,11 @@ void Renderer::draw_chip (Game& g, Chip* chip, float2x3 const& chip2world, int c
 					
 					build_line(chip2world,
 						src0, src1, inp_wire.wire_points, dst0, dst1,
-						state, line_col);
+						state, col);
 				}
 
 				wire_id++;
 			}
-				
-			//for (int i=0; i<(int)part.chip->outputs.size(); ++i) {
-			//	{ // TODO: always draw output wire for now
-			//		// center position output
-			//		auto& spart = part.chip->get_output(i);
-			//		float2 dst0 = part2chip * spart.pos.pos;
-			//		float2 dst1 = part2chip * get_out_pos(spart);
-			//	
-			//		uint8_t prev_state = chip_state >= 0 ? prev[chip_state + part.state_idx + i] : 1;
-			//		uint8_t  cur_state = chip_state >= 0 ? cur [chip_state + part.state_idx + i] : 1;
-			//		int state = (prev_state << 1) | cur_state;
-			//	
-			//		build_line(chip2world, dst0, dst1, state, col);
-			//	}
-			//}
 
 			for (int i=0; i<(int)part->chip->inputs.size(); ++i) {
 				auto& inp = part->chip->inputs[i];
@@ -304,7 +294,9 @@ void Renderer::end (Window& window, Game& g, int2 window_size) {
 			wire_id++;
 		}
 	}
-		
+	
+	ImGui::Checkbox("_draw_old_wires", &_draw_old_wires);
+
 	{ // Gate preview
 		if (g.editor.in_mode<Editor::PlaceMode>() && g.editor._cursor_valid) {
 			auto& pl = std::get<Editor::PlaceMode>(g.editor.mode);

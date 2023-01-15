@@ -60,7 +60,6 @@ namespace logic_sim {
 			       point.y >= lo.y && point.y < hi.y;
 		}
 	};
-	
 	struct Placement {
 		SERIALIZE(Placement, pos, rot, mirror, scale)
 
@@ -512,13 +511,17 @@ namespace logic_sim {
 
 		void add_wire (Chip& chip, WireConn src, WireConn dst, std::vector<float2>&& wire_points);
 		void remove_wire (Chip& chip, WireConn dst);
-
+		
+		WireNode* add_wire_node (Chip& chip, float2 pos) {
+			auto ptr = new WireNode(pos);
+			chip.wire_nodes.add(std::unique_ptr<WireNode>(ptr));
+			return ptr;
+		}
 		void disconnect_wire_node (Chip& chip, WireNode* node) {
 			int count = node->edges.size();
 
 			for (WireNode* n : node->edges) {
-				bool removed = n->edges.try_remove(node);
-				assert(removed);
+				n->edges.remove(node);
 			}
 
 			int removed_edges = chip.wire_edges.remove_if(
@@ -532,6 +535,24 @@ namespace logic_sim {
 
 			bool removed = chip.wire_nodes.try_remove(node);
 			assert(removed);
+		}
+		// existing connections are allowed as inputs but will be ignored
+		void connect_wire_nodes (Chip& chip, WireNode* a, WireNode* b) {
+			bool existing = a->edges.contains(b);
+			assert(existing == b->edges.contains(a));
+			if (existing) return;
+
+			a->edges.add(b);
+			b->edges.add(a);
+
+			chip.wire_edges.add(std::make_unique<WireEdge>(a, b));
+		}
+		void remove_wire_edge (Chip& chip, WireEdge* edge) {
+			
+			edge->a->edges.remove(edge->b);
+			edge->b->edges.remove(edge->a);
+
+			chip.wire_edges.remove(edge);
 		}
 
 		void simulate (Input& I);
