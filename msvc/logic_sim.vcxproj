@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\src\editor.cpp" />
     <ClCompile Include="..\src\engine\common.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">common.hpp</PrecompiledHeaderFile>
@@ -78,6 +79,7 @@
     <ClCompile Include="..\src\opengl\renderer.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\src\editor.hpp" />
     <ClInclude Include="..\src\engine\camera.hpp" />
     <ClInclude Include="..\src\engine\common.hpp" />
     <ClInclude Include="..\src\engine\dbgdraw.hpp" />

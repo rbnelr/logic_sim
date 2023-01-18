@@ -14,6 +14,8 @@ VS2FS Vertex v;
 
 uniform float num_wires;
 
+uniform float sim_t;
+
 #ifdef _VERTEX
 	layout(location = 0) in vec2  pos0;
 	layout(location = 1) in vec2  pos1;
@@ -49,7 +51,7 @@ uniform float num_wires;
 		col_a.rgb = mix(0.0 * col.rgb, col_a.rgb, layer);
 		col_b.rgb = mix(0.0 * col.rgb, col_b.rgb, layer);
 		
-		v.col = col_a;
+		v.col = mix(col_a, col_b, sim_t);
 		
 		// compute line coord space
 		vec2 dir = pos1 - pos0;
@@ -79,9 +81,8 @@ uniform float num_wires;
 	}
 #endif
 #ifdef _FRAGMENT
-	uniform float sim_t;
-	uniform float anim_fade = 0.5;
-	
+	//uniform float anim_fade = 0.5;
+	//
 	//float slider_anim (float x) {
 	//	//return clamp((x - sim_t) * 4.0 + 0.5, 0.0, 1.0);
 	//	//return clamp((x - sim_t) * 4.0 + (1.0 - x), 0.0, 1.0);

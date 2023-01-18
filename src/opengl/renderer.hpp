@@ -314,7 +314,7 @@ struct Renderer {
 
 	void draw_gate (float2x3 const& mat, float2 size, int type, int state, lrgba col);
 	
-	void draw_chip (Game& g, logic_sim::Chip* chip, float2x3 const& chip2world, int chip_state, lrgba col);
+	void draw_chip (Game& g, logic_sim::Chip* chip, float2x3 const& chip2world, int state_base, lrgba col);
 	
 	void begin (Window& window, Game& g, int2 window_size);
 	void end (Window& window, Game& g, int2 window_size);

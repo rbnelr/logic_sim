@@ -3,6 +3,7 @@
 #include "camera.hpp"
 #include "engine/dbgdraw.hpp"
 #include "logic_sim.hpp"
+#include "editor.hpp"
 #include "opengl/renderer.hpp"
 
 struct Game {
