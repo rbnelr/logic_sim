@@ -8,27 +8,33 @@ namespace logic_sim {
 ////
 void simulate_chip (Chip& chip, int state_base, uint8_t* cur, uint8_t* next) {
 	
-	int sid = state_base;
+	int parts_sid = state_base + chip.wire_states;
+
+	auto get = [&] (Part::Pin& pin) -> uint8_t* {
+		// Note: in this case sid is still valid, could just read it anyway
+		// TODO: How should gate toggling work?
+		if (pin.node->edges.empty())
+			return nullptr;
+		return &cur[state_base + pin.node->sid];
+	};
+
+	for (auto& part : chip.outputs) {
+		assert(part->chip == &gates[OUT_PIN]);
+		assert(part->pins.size() == 2);
+		
+		uint8_t* pa = get(part->pins[0]);
 	
-	//for (auto& part : chip.outputs) {
-	//	assert(part->chip == &gates[OUT_PIN]);
-	//	assert(part->chip->state_count == 1);
-	//	
-	//	Part* src_a = part->inputs[0].part;
-	//
-	//	if (!src_a) {
-	//		// keep prev state (needed to toggle gates via LMB)
-	//		next[sid] = cur[sid];
-	//	}
-	//	else {
-	//		bool new_state = src_a && cur[state_base + src_a->sid + part->inputs[0].pin] != 0;
-	//		
-	//		next[sid] = new_state;
-	//	}
-	//
-	//	sid += 1;
-	//}
-	//
+		uint8_t* res0 = &next[state_base + part->pins.back().node->sid];
+	
+		if (!pa) {
+			// keep prev state (needed to toggle gates via LMB)
+			*res0 = cur[state_base + part->pins.back().node->sid];
+		}
+		else {
+			*res0 = *pa;
+		}
+	}
+	
 	//// skip inputs which were updated by caller
 	//sid += (int)chip.inputs.size();
 	//
@@ -113,8 +119,8 @@ void simulate_chip (Chip& chip, int state_base, uint8_t* cur, uint8_t* next) {
 	for (auto& part : chip.parts) {
 
 		if (!is_gate(part->chip)) {
-			simulate_chip(*part->chip, sid, cur, next);
-			sid += part->chip->state_count;
+			simulate_chip(*part->chip, parts_sid, cur, next);
+			parts_sid += part->chip->state_count;
 			continue;
 		}
 
@@ -126,12 +132,6 @@ void simulate_chip (Chip& chip, int state_base, uint8_t* cur, uint8_t* next) {
 		int num_pins = (int)part->pins.size();
 		assert(num_pins == (int)part->chip->inputs.size() + (int)part->chip->outputs.size());
 		
-		auto get = [&] (Part::Pin& pin) -> uint8_t* {
-			if (pin.node->edges.empty())
-				return nullptr;
-			return &cur[state_base + pin.node->sid];
-		};
-
 		uint8_t* pa = num_pins >= 2 ? get(part->pins[0]) : nullptr;
 		uint8_t* pb = num_pins >= 3 ? get(part->pins[1]) : nullptr;
 		uint8_t* pc = num_pins >= 4 ? get(part->pins[2]) : nullptr;
@@ -174,7 +174,7 @@ void simulate_chip (Chip& chip, int state_base, uint8_t* cur, uint8_t* next) {
 	}
 
 	assert(chip.state_count >= 0); // state_count stale!
-	//assert(sid - state_base == chip.state_count); // state_count invalid!
+	assert(parts_sid - state_base == chip.state_count); // state_count invalid!
 }
 
 void LogicSim::simulate (Input& I) {
@@ -305,6 +305,7 @@ int update_state_indices (Chip& chip) {
 			}
 		}
 	});
+	chip.wire_states = sid;
 
 	for_each_part(chip, [&] (Part* part) {
 		sid += update_state_indices(*part->chip);
@@ -316,8 +317,11 @@ int update_state_indices (Chip& chip) {
 void update_all_chip_state_indices (LogicSim& sim) {
 
 	// invalidate all chips and recompute state_counts
-	for (auto& c : sim.saved_chips)
+	for (auto& c : sim.saved_chips) {
+		c->wire_states = -1;
 		c->state_count = -1;
+	}
+	sim.viewed_chip->wire_states = -1;
 	sim.viewed_chip->state_count = -1;
 
 	for (auto& c : sim.saved_chips)

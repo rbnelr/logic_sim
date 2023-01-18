@@ -137,6 +137,7 @@ struct Chip {
 	vector_set< std::unique_ptr<WireNode> > wire_nodes = {};
 	vector_set< std::unique_ptr<WireEdge> > wire_edges = {};
 
+	int wire_states = -1;
 	int state_count = -1;
 	
 	vector_set<Chip*> users;

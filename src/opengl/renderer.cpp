@@ -173,16 +173,17 @@ void Renderer::draw_chip (Game& g, Chip* chip, float2x3 const& chip2world, int s
 		
 		add_line_group(line_renderer, lines);
 
-		int sid = state_base;
+		int parts_sid = state_base >= 0 ? state_base + chip->wire_states : -1;
 
 		//
 		auto draw_part = [&] (Part* part) {
 			auto part2chip = part->pos.calc_matrix();
 			auto part2world = chip2world * part2chip;
 
-			draw_chip(g, part->chip, part2world, sid, col);
+			draw_chip(g, part->chip, part2world, parts_sid, col);
 
-			sid += part->chip->state_count;
+			if (state_base >= 0)
+				parts_sid += part->chip->state_count;
 		};
 		for_each_part(*chip, draw_part);
 	}

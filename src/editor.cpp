@@ -527,24 +527,25 @@ float2& ThingPtr::get_pos () {
 }
 
 void Editor::ViewMode::find_hover (float2 cursor_pos, Chip& chip,
-		float2x3 chip2world, float2x3 world2chip, int sid) {
-	
+		float2x3 chip2world, float2x3 world2chip, int state_base) {
+
+	int parts_sid = state_base + chip.wire_states;
+
 	for_each_part(chip, [&] (Part* part) {
 		auto part2world = chip2world * part->pos.calc_matrix();
 		auto world2part = part->pos.calc_inv_matrix() * world2chip;
 		
 		if (hitbox(cursor_pos, part->chip->size, world2part)) {
-			// TODO:
-			int _sid = part->pins.back().node->sid;
+			int output_sid = state_base + part->pins.back().node->sid;
 
-			hover_part = { part, _sid, part2world };
+			hover_part = { part, output_sid, part2world };
 
 			if (!is_gate(part->chip)) {
-				//find_hover(cursor_pos, *part->chip, part2world, world2part, sid);
+				find_hover(cursor_pos, *part->chip, part2world, world2part, parts_sid);
 			}
 		}
 
-		sid += part->chip->state_count;
+		parts_sid += part->chip->state_count;
 	});
 }
 
