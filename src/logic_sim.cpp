@@ -1,41 +1,228 @@
 #include "common.hpp"
 #include "logic_sim.hpp"
-#include "game.hpp"
+#include "app.hpp"
 #include "opengl/renderer.hpp"
 
 namespace logic_sim {
 	
 ////
-void simulate_chip (Chip& chip, int state_base, uint8_t* cur, uint8_t* next) {
-	
-	int parts_sid = state_base + chip.wire_states;
 
-	auto get = [&] (Part::Pin& pin) -> uint8_t* {
-		// Note: in this case sid is still valid, could just read it anyway
-		// TODO: How should gate toggling work?
-		if (pin.node->edges.empty())
-			return nullptr;
-		return &cur[state_base + pin.node->sid];
+// TODO: eliminate somehow
+template <typename FUNC>
+void for_each_wire_node (Chip& chip, FUNC func) {
+	for_each_part(chip, [&] (Part* part) {
+		for (auto& pin : part->pins) {
+			func(pin.node.get());
+		}
+	});
+
+	for (auto& node : chip.wire_nodes) {
+		func(node.get());
+	}
+}
+
+struct BuildSim {
+	Simulator& sim;
+	ogl::Renderer& r;
+
+	struct FlatNode {
+		std::vector<int> edges;
 	};
 
-	for (auto& part : chip.outputs) {
-		assert(part->chip == &gates[OUT_PIN]);
-		assert(part->pins.size() == 2);
+	std::vector<FlatNode> flat_nodes;
+	
+	int collect_nodes (Chip* chip, int base_id, float2x3 const& chip2world) {
 		
-		uint8_t* pa = get(part->pins[0]);
-	
-		uint8_t* res0 = &next[state_base + part->pins.back().node->sid];
-	
-		if (!pa) {
-			// keep prev state (needed to toggle gates via LMB)
-			*res0 = cur[state_base + part->pins.back().node->sid];
+		ogl::LineGroup lines;
+		lrgba lcol = line_col * lrgba(1);
+		
+		for (auto& e : chip->wire_edges) {
+			int state = 0;
+
+			lines.draw_wire_segment(chip2world, e->a->pos, e->b->pos, state, lcol);
 		}
-		else {
-			*res0 = *pa;
+
+		// collect all nodes recursively
+		int local_ids = 0;
+		for (auto& node : chip->wire_nodes) {
+			node->local_id = local_ids++;
+			//node_grid.add(chip2world, local_ids++);
+			flat_nodes.emplace_back();
 		}
+		for (auto& part : chip->parts) {
+			auto part2chip = part->pos.calc_matrix();
+			auto part2world = chip2world * part2chip;
+
+			part->local_id = local_ids;
+			local_ids += collect_nodes(part->chip, local_ids, part2world);
+
+			
+			for (int i=0; i<(int)part->chip->inputs.size(); ++i) {
+				auto& inp = part->chip->inputs[i];
+				
+				float2 a = part2chip * get_inp_pos(*inp);
+				float2 b = part2chip * inp->pos.pos;
+					
+				auto& pin = part->pins[i];
+				//auto& spin = gate.pins[i];
+				
+				int state = 0;
+
+				lines.draw_wire_segment(chip2world, a,b, state, lcol);
+
+				r.draw_text(prints("%d", base_id + pin.node->local_id), chip2world * pin.node->pos, 10, 1);
+				lines.draw_wire_point(chip2world, pin.node->pos, wire_radius, pin.node->num_wires(), state, lcol);
+			}
+			for (int i=0; i<(int)part->chip->outputs.size(); ++i) {
+				auto& out = part->chip->outputs[i];
+				
+				float2 a = part2chip * get_out_pos(*out);
+				float2 b = part2chip * out->pos.pos;
+					
+				auto& pin = part->pins[i + (int)part->chip->inputs.size()];
+				//auto& spin = gate.pins[i + (int)part->chip->inputs.size()];
+				
+				int state = 0;
+
+				lines.draw_wire_segment(chip2world, a,b, state, lcol);
+				
+				r.draw_text(prints("%d", base_id + pin.node->local_id), chip2world * pin.node->pos, 10, 1);
+				lines.draw_wire_point(chip2world, pin.node->pos, wire_radius, pin.node->num_wires(), state, lcol);
+			}
+		}
+
+		for (auto& n : chip->wire_nodes) {
+			int state = 0;
+
+			r.draw_text(prints("%d", base_id + n->local_id), chip2world * n->pos, 10, 1);
+			lines.draw_wire_point(chip2world, n->pos, wire_radius, n->num_wires(), state, lcol);
+		}
+		
+		ogl::add_line_group(r.line_renderer, lines);
+
+		if (is_gate(chip)) {
+			auto type = gate_type(chip);
+			uint8_t state = 0;
+		
+			r.draw_gate(chip2world, chip->size, type, state, lrgba(chip->col, 1) * lrgba(1));
+		}
+		
+		//// link up all nodes between our chip and any direct children parts
+		//for (auto& e : chip->wire_edges) {
+		//	auto get_node_sid = [&] (WireNode* node) {
+		//		Part* part = node->parent_part;
+		//		if (!part)
+		//			return node->local_id;
+		//
+		//		// TODO: expensive indexof, optimize via cached indices or similar
+		//		int idx = indexof(part->pins, node, [] (Part::Pin const& pin, WireNode* node) {
+		//			return pin.node.get() == node;
+		//		});
+		//		int sid_in_part = part->chip->wire_nodes[idx]->local_id;
+		//		//int sid_in_part = part->chip.wire_nodes[ part.pins.indexof(node) ].local_id;
+		//		return part->local_id + sid_in_part;
+		//	};
+		//	
+		//	int a = base_id + get_node_sid(e->a);
+		//	int b = base_id + get_node_sid(e->b);
+		//	
+		//	// link sim nodes
+		//	flat_nodes[a].edges.emplace_back(b);
+		//	flat_nodes[b].edges.emplace_back(a);
+		//}
+		
+		chip->local_ids = local_ids;
+		return local_ids;
 	}
+};
+
+void LogicSim::recreate_simulator (ogl::Renderer& r) {
 	
-	//// skip inputs which were updated by caller
+	sim.gates.clear();
+
+	BuildSim build{sim, r};
+
+	build.collect_nodes(viewed_chip.get(), 0, float2x3::identity());
+}
+
+#if 0
+int sim_ (Chip& chip) {
+	
+
+	for_each_wire_node(chip, [&] (WireNode* node) {
+		node->visited = false;
+	});
+	
+	int sid = 0;
+	
+	for_each_wire_node(chip, [&] (WireNode* node) {
+		if (node->visited)
+			return;
+		
+		int wire_sid = sid++;
+		
+		// could use a queue as well, but order does not matter
+		// TODO: profile difference
+		std::vector<WireNode*> stk;
+		stk.push_back(node);
+		
+		while (!stk.empty()) {
+			WireNode* cur_node = stk.back();
+			stk.pop_back();
+				
+			cur_node->visited = true;
+			cur_node->sid = wire_sid;
+				
+			for (WireNode* link : cur_node->edges) {
+				if (!link->visited)
+					stk.push_back(link);
+			}
+
+			if (cur_node->parent_part) {
+				// ?
+
+			}
+		}
+	});
+	chip.wire_states = sid;
+
+	for_each_part(chip, [&] (Part* part) {
+		sid += update_state_indices(*part->chip);
+	});
+
+}
+#endif
+
+void simulate_chip (Chip& chip, int state_base, uint8_t* cur, uint8_t* next) {
+	
+	//int parts_sid = state_base + chip.wire_states;
+	//
+	//auto get = [&] (Part::Pin& pin) -> uint8_t* {
+	//	// Note: in this case sid is still valid, could just read it anyway
+		// TODO: How should gate toggling work?
+	//	if (pin.node->edges.empty())
+	//		return nullptr;
+	//	return &cur[state_base + pin.node->sid];
+	//};
+	//
+	//for (auto& part : chip.outputs) {
+	//	assert(part->chip == &gates[OUT_PIN]);
+	//	assert(part->pins.size() == 2);
+	//	
+	//	uint8_t* pa = get(part->pins[0]);
+	//
+	//	uint8_t* res0 = &next[state_base + part->pins.back().node->sid];
+	//
+	//	if (!pa) {
+	//		// keep prev state (needed to toggle gates via LMB)
+	//		*res0 = cur[state_base + part->pins.back().node->sid];
+	//	}
+	//	else {
+	//		*res0 = *pa;
+	//	}
+	//}
+	//
+	////// skip inputs which were updated by caller
 	//sid += (int)chip.inputs.size();
 	//
 	//for (auto& part : chip.parts) {
@@ -115,82 +302,82 @@ void simulate_chip (Chip& chip, int state_base, uint8_t* cur, uint8_t* next) {
 	//
 	//	sid += part->chip->state_count;
 	//}
-
-	for (auto& part : chip.parts) {
-
-		if (!is_gate(part->chip)) {
-			simulate_chip(*part->chip, parts_sid, cur, next);
-			parts_sid += part->chip->state_count;
-			continue;
-		}
-
-		auto type = gate_type(part->chip);
-		
-		if (type == INP_PIN || type == OUT_PIN)
-			continue;
-		
-		int num_pins = (int)part->pins.size();
-		assert(num_pins == (int)part->chip->inputs.size() + (int)part->chip->outputs.size());
-		
-		uint8_t* pa = num_pins >= 2 ? get(part->pins[0]) : nullptr;
-		uint8_t* pb = num_pins >= 3 ? get(part->pins[1]) : nullptr;
-		uint8_t* pc = num_pins >= 4 ? get(part->pins[2]) : nullptr;
-
-		uint8_t* res0 = &next[state_base + part->pins.back().node->sid];
-		
-		if (!pa && !pb && !pc) {
-			// keep state if input is not connected
+	//
+	//for (auto& part : chip.parts) {
+	//
+	//	if (!is_gate(part->chip)) {
+	//		simulate_chip(*part->chip, parts_sid, cur, next);
+	//		parts_sid += part->chip->state_count;
+	//		continue;
+	//	}
+	//
+	//	auto type = gate_type(part->chip);
+	//	
+	//	if (type == INP_PIN || type == OUT_PIN)
+	//		continue;
+	//	
+	//	int num_pins = (int)part->pins.size();
+	//	assert(num_pins == (int)part->chip->inputs.size() + (int)part->chip->outputs.size());
+	//	
+	//	uint8_t* pa = num_pins >= 2 ? get(part->pins[0]) : nullptr;
+	//	uint8_t* pb = num_pins >= 3 ? get(part->pins[1]) : nullptr;
+	//	uint8_t* pc = num_pins >= 4 ? get(part->pins[2]) : nullptr;
+	//
+	//	uint8_t* res0 = &next[state_base + part->pins.back().node->sid];
+	//	
+	//	if (!pa && !pb && !pc) {
+	//		// keep state if input is not connected
 			// TODO: does this make sense? maybe rather just create a 'button' gate?
-			*res0 = cur[state_base + part->pins.back().node->sid];
-			continue;
-		}
-
-		uint8_t a = pa ? *pa : 0;
-		uint8_t b = pb ? *pb : 0;
-		uint8_t c = pc ? *pc : 0;
-		
-		if (res0) {
-			switch (type) {
-				case BUF_GATE  : *res0 = (uint8_t)(  a );  break;
-				case NOT_GATE  : *res0 = (uint8_t)( !a );  break;
-			
-				case AND_GATE  : *res0 = (uint8_t)(   a && b  ); break;
-				case NAND_GATE : *res0 = (uint8_t)( !(a && b) ); break;
-			
-				case OR_GATE   : *res0 = (uint8_t)(   a || b  ); break;
-				case NOR_GATE  : *res0 = (uint8_t)( !(a || b) ); break;
-			
-				case XOR_GATE  : *res0 = (uint8_t)(   a != b ); break;
-			
-				case AND3_GATE : *res0 = (uint8_t)(   a && b && c  ); break;
-				case NAND3_GATE: *res0 = (uint8_t)( !(a && b && c) ); break;
-			
-				case OR3_GATE  : *res0 = (uint8_t)(   a || b || c  ); break;
-				case NOR3_GATE : *res0 = (uint8_t)( !(a || b || c) ); break;
-			
-				default: assert(false);
-			}
-		}
-	}
-
-	assert(chip.state_count >= 0); // state_count stale!
-	assert(parts_sid - state_base == chip.state_count); // state_count invalid!
+	//		*res0 = cur[state_base + part->pins.back().node->sid];
+	//		continue;
+	//	}
+	//
+	//	uint8_t a = pa ? *pa : 0;
+	//	uint8_t b = pb ? *pb : 0;
+	//	uint8_t c = pc ? *pc : 0;
+	//	
+	//	if (res0) {
+	//		switch (type) {
+	//			case BUF_GATE  : *res0 = (uint8_t)(  a );  break;
+	//			case NOT_GATE  : *res0 = (uint8_t)( !a );  break;
+	//		
+	//			case AND_GATE  : *res0 = (uint8_t)(   a && b  ); break;
+	//			case NAND_GATE : *res0 = (uint8_t)( !(a && b) ); break;
+	//		
+	//			case OR_GATE   : *res0 = (uint8_t)(   a || b  ); break;
+	//			case NOR_GATE  : *res0 = (uint8_t)( !(a || b) ); break;
+	//		
+	//			case XOR_GATE  : *res0 = (uint8_t)(   a != b ); break;
+	//		
+	//			case AND3_GATE : *res0 = (uint8_t)(   a && b && c  ); break;
+	//			case NAND3_GATE: *res0 = (uint8_t)( !(a && b && c) ); break;
+	//		
+	//			case OR3_GATE  : *res0 = (uint8_t)(   a || b || c  ); break;
+	//			case NOR3_GATE : *res0 = (uint8_t)( !(a || b || c) ); break;
+	//		
+	//			default: assert(false);
+	//		}
+	//	}
+	//}
+	//
+	//assert(chip.state_count >= 0); // state_count stale!
+	//assert(parts_sid - state_base == chip.state_count); // state_count invalid!
 }
 
 void LogicSim::simulate (Input& I) {
 	ZoneScoped;
-	
-	uint8_t* cur  = state[cur_state  ].data();
-	uint8_t* next = state[cur_state^1].data();
+
+	//uint8_t* cur  = state[cur_state  ].data();
+	//uint8_t* next = state[cur_state^1].data();
 
 	//for (int i=0; i<(int)viewed_chip->inputs.size(); ++i) {
 	//	// keep prev state (needed to toggle gates via LMB)
 	//	next[sid + output_count + i] = cur[sid + output_count + i] != 0;
 	//}
 
-	simulate_chip(*viewed_chip, 0, cur, next);
-
-	cur_state ^= 1;
+	//simulate_chip(*viewed_chip, 0, cur, next);
+	//
+	//cur_state ^= 1;
 }
 	
 Chip Chip::deep_copy () const {
@@ -260,6 +447,7 @@ void LogicSim::recompute_chip_users () {
 	}
 }
 
+/*
 // TODO: eliminate somehow
 template <typename FUNC>
 void for_each_wire_node (Chip& chip, FUNC func) {
@@ -288,7 +476,9 @@ int update_state_indices (Chip& chip) {
 			return;
 		
 		int wire_sid = sid++;
-			
+		
+		// could use a queue as well, but order does not matter
+		// TODO: profile difference
 		std::vector<WireNode*> stk;
 		stk.push_back(node);
 			
@@ -328,17 +518,18 @@ void update_all_chip_state_indices (LogicSim& sim) {
 		update_state_indices(*c);
 	update_state_indices(*sim.viewed_chip);
 }
+*/
 
 void LogicSim::update_chip_state () {
 	unsaved_changes = true;
 
 	recompute_chip_users();
 	
-	update_all_chip_state_indices(*this);
+	//update_all_chip_state_indices(*this);
 	
-	// TODO
-	for (int i=0; i<2; ++i)
-		state[i].assign(viewed_chip->state_count, 0);
+	//// TODO
+	//for (int i=0; i<2; ++i)
+	//	state[i].assign(viewed_chip->state_count, 0);
 }
 
 void LogicSim::add_part (Chip& chip, Chip* part_chip, Placement part_pos) {
@@ -379,8 +570,8 @@ void LogicSim::add_part (Chip& chip, Chip* part_chip, Placement part_pos) {
 	}
 	
 	ptr->update_pins_pos();
-
-	chip.state_count = -1;
+	
+	unsaved_changes = true;
 }
 void LogicSim::remove_part (Chip& chip, Part* part) {
 	assert(&chip == viewed_chip.get());
@@ -423,16 +614,14 @@ void LogicSim::remove_part (Chip& chip, Part* part) {
 	else {
 		chip.parts.try_remove(part);
 	}
-
-	chip.state_count = -1;
+	
+	unsaved_changes = true;
 }
 
 ////
 json part2json (LogicSim const& sim, Part& part, std::unordered_map<Part*, int>& part2idx) {
 	json j;
-	j["chip"] = is_gate(part.chip) ?
-			gate_type(part.chip) :
-			indexof_chip(sim.saved_chips, part.chip) + GATE_COUNT;
+	j["chip"] = is_gate(part.chip) ? gate_type(part.chip) : sim.indexof_chip(part.chip) + GATE_COUNT;
 	
 	if (!part.name.empty())
 		j["name"] = part.name;
@@ -524,7 +713,7 @@ json chip2json (const Chip& chip, LogicSim const& sim) {
 }
 void to_json (json& j, LogicSim const& sim) {
 
-	j["viewed_chip"] = indexof_chip(sim.saved_chips, sim.viewed_chip.get());
+	j["viewed_chip"] = sim.indexof_chip(sim.viewed_chip.get());
 
 	json& jchips = j["chips"];
 	for (auto& chip : sim.saved_chips) {

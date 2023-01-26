@@ -101,7 +101,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\src\game.hpp" />
+    <ClInclude Include="..\src\app.hpp" />
     <ClInclude Include="..\src\engine\dbgdraw.hpp">
       <Filter>engine</Filter>
     </ClInclude>

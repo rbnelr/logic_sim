@@ -6,9 +6,12 @@
 #include "editor.hpp"
 #include "opengl/renderer.hpp"
 
-struct Game {
-	friend SERIALIZE_TO_JSON(Game)   { SERIALIZE_TO_JSON_EXPAND(sim, cam) }
-	friend SERIALIZE_FROM_JSON(Game) {
+struct App : IApp {
+	friend SERIALIZE_TO_JSON(App)   { SERIALIZE_TO_JSON_EXPAND(cam, _window, sim) }
+	friend SERIALIZE_FROM_JSON(App) {
+
+		SERIALIZE_FROM_JSON_EXPAND(_window)
+
 		t.sim_t = 1;
 		t.tick_counter = 0;
 		
@@ -20,6 +23,29 @@ struct Game {
 
 		SERIALIZE_FROM_JSON_EXPAND(cam)
 	}
+
+	virtual ~App () {}
+	
+	virtual void json_load () { load("debug.json", this); }
+	virtual void json_save () { save("debug.json", *this); }
+	
+	virtual ShouldClose close_confirmation (IApp* app) {
+		if (sim.unsaved_changes) {
+			auto res = imgui_unsaved_changes_confirmation();
+			if (res == GuiUnsavedConfirm::PENDING) return ShouldClose::CLOSE_PENDING;
+			if (res == GuiUnsavedConfirm::CANCEL)  return ShouldClose::CLOSE_CANCEL;
+			if (res == GuiUnsavedConfirm::SAVE) {
+				app->json_save();
+				assert(!sim.unsaved_changes);
+			}
+		}
+		return ShouldClose::CLOSE_NOW;
+	}
+	
+	Window& _window; // for serialization even though window has to exist out of App instance (different lifetimes)
+	App (Window& w): _window{w} {}
+
+	ogl::Renderer renderer;
 
 	Camera2D cam = Camera2D(0, 12.5f); // init to 12.5f == max(10,6)*1.25 from reset_chip_view() to avoid anim on load
 	
@@ -39,12 +65,11 @@ struct Game {
 	// set to zero using imgui input field, let sim run via unpause and now you know how many ticks something takes
 	int tick_counter = 0;
 
-	Game () {
-		
-	}
-
-	void imgui (Input& I) {
+	virtual void imgui (Window& window) {
 		ZoneScoped;
+		auto& I = window.input;
+		
+		renderer.imgui(_window.input);
 
 		ImGui::Separator();
 			
@@ -82,30 +107,22 @@ struct Game {
 		editor.imgui(sim, cam);
 	}
 
-	IApp::ShouldClose close_confirmation (IApp* app) {
-		if (sim.unsaved_changes) {
-			auto res = imgui_unsaved_changes_confirmation();
-			if (res == GuiUnsavedConfirm::PENDING) return IApp::ShouldClose::CLOSE_PENDING;
-			if (res == GuiUnsavedConfirm::CANCEL)  return IApp::ShouldClose::CLOSE_CANCEL;
-			if (res == GuiUnsavedConfirm::SAVE) {
-				app->json_save();
-				assert(!sim.unsaved_changes);
-			}
-		}
-		return IApp::ShouldClose::CLOSE_NOW;
-	}
-
-	void update (Window& window, ogl::Renderer& r) {
+	virtual void frame (Window& window) {
 		ZoneScoped;
-
 		auto& I = window.input;
-
+		
+	////
+		renderer.begin(window, *this, window.input.window_size);
+		
+	////
 		manual_tick = I.buttons['T'].went_down || manual_tick;
 		if (I.buttons[' '].went_down) sim_paused = !sim_paused;
 
-		r.view = cam.update(I, (float2)I.window_size);
+		renderer.view = cam.update(I, (float2)I.window_size);
 		
-		editor.update(I, sim, r);
+		editor.update(I, sim, renderer);
+	
+		sim.recreate_simulator(renderer);
 
 		if (!sim_paused && sim_freq >= 0.1f) {
 			
@@ -130,6 +147,9 @@ struct Game {
 		
 		// toggle gate after simulate to overwrite simulated state for that gate
 		editor.update_toggle_gate(I, sim, window);
+
+	////
+		renderer.end(window, *this, window.input.window_size);
 	}
 };
 

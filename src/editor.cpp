@@ -1,6 +1,6 @@
 #include "common.hpp"
 #include "editor.hpp"
-#include "game.hpp"
+#include "app.hpp"
 #include "opengl/renderer.hpp"
 
 namespace logic_sim {
@@ -76,7 +76,7 @@ void Editor::saved_chips_imgui (LogicSim& sim, Camera2D& cam) {
 	}
 	ImGui::SameLine();
 	
-	int idx = indexof_chip(sim.saved_chips, sim.viewed_chip.get());
+	int idx = sim.indexof_chip(sim.viewed_chip.get());
 	bool dupl = idx >= 0;
 
 	if (ImGui::Button(dupl ? "Duplicate###_Save" : "Save as New###_Save")) {
@@ -529,24 +529,24 @@ float2& ThingPtr::get_pos () {
 void Editor::ViewMode::find_hover (float2 cursor_pos, Chip& chip,
 		float2x3 chip2world, float2x3 world2chip, int state_base) {
 
-	int parts_sid = state_base + chip.wire_states;
-
-	for_each_part(chip, [&] (Part* part) {
-		auto part2world = chip2world * part->pos.calc_matrix();
-		auto world2part = part->pos.calc_inv_matrix() * world2chip;
-		
-		if (hitbox(cursor_pos, part->chip->size, world2part)) {
-			int output_sid = state_base + part->pins.back().node->sid;
-
-			hover_part = { part, output_sid, part2world };
-
-			if (!is_gate(part->chip)) {
-				find_hover(cursor_pos, *part->chip, part2world, world2part, parts_sid);
-			}
-		}
-
-		parts_sid += part->chip->state_count;
-	});
+	//int parts_sid = state_base + chip.wire_states;
+	//
+	//for_each_part(chip, [&] (Part* part) {
+	//	auto part2world = chip2world * part->pos.calc_matrix();
+	//	auto world2part = part->pos.calc_inv_matrix() * world2chip;
+	//	
+	//	if (hitbox(cursor_pos, part->chip->size, world2part)) {
+	//		int output_sid = state_base + part->pins.back().node->sid;
+	//
+	//		hover_part = { part, output_sid, part2world };
+	//
+	//		if (!is_gate(part->chip)) {
+	//			find_hover(cursor_pos, *part->chip, part2world, world2part, parts_sid);
+	//		}
+	//	}
+	//
+	//	parts_sid += part->chip->state_count;
+	//});
 }
 
 void find_edit_hover (float2 cursor_pos, Chip& chip, bool allow_parts, bool allow_wires, ThingPtr& hover) {
@@ -966,35 +966,35 @@ void Editor::update (Input& I, LogicSim& sim, ogl::Renderer& r) {
 
 	highlight_chip_names(r, *sim.viewed_chip, float2x3::identity());
 
-	if (sim.viewed_chip->state_count < 0)
-		sim.update_chip_state();
+	//if (sim.viewed_chip->state_count < 0)
+	//	sim.update_chip_state();
 }
 
 void Editor::update_toggle_gate (Input& I, LogicSim& sim, Window& window) {
 	
-	bool can_toggle = false;
-
-	if (in_mode<ViewMode>()) {
-		auto& v = std::get<ViewMode>(mode);
-
-		can_toggle = v.hover_part.part && is_gate(v.hover_part.part->chip);
-		
-		if (v.toggle_sid < 0 && can_toggle && I.buttons[MOUSE_BUTTON_LEFT].went_down) {
-			v.toggle_sid = v.hover_part.sid;
-			v.state_toggle_value = !sim.state[sim.cur_state][v.toggle_sid];
-		}
-		if (v.toggle_sid >= 0) {
-			sim.state[sim.cur_state][v.toggle_sid] = v.state_toggle_value;
-	
-			if (I.buttons[MOUSE_BUTTON_LEFT].went_up)
-				v.toggle_sid = -1;
-		}
-	}
-	
-	static bool prev = false;
-	if (prev != can_toggle || can_toggle)
-		window.set_cursor(can_toggle ? Window::CURSOR_FINGER : Window::CURSOR_NORMAL);
-	prev = can_toggle;
+	//bool can_toggle = false;
+	//
+	//if (in_mode<ViewMode>()) {
+	//	auto& v = std::get<ViewMode>(mode);
+	//
+	//	can_toggle = v.hover_part.part && is_gate(v.hover_part.part->chip);
+	//	
+	//	if (v.toggle_sid < 0 && can_toggle && I.buttons[MOUSE_BUTTON_LEFT].went_down) {
+	//		v.toggle_sid = v.hover_part.sid;
+	//		v.state_toggle_value = !sim.state[sim.cur_state][v.toggle_sid];
+	//	}
+	//	if (v.toggle_sid >= 0) {
+	//		sim.state[sim.cur_state][v.toggle_sid] = v.state_toggle_value;
+	//
+	//		if (I.buttons[MOUSE_BUTTON_LEFT].went_up)
+	//			v.toggle_sid = -1;
+	//	}
+	//}
+	//
+	//static bool prev = false;
+	//if (prev != can_toggle || can_toggle)
+	//	window.set_cursor(can_toggle ? Window::CURSOR_FINGER : Window::CURSOR_NORMAL);
+	//prev = can_toggle;
 }
 
 } // namespace logic_sim

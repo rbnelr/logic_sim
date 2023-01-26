@@ -20,6 +20,9 @@ inline float wire_node_radius_fac = 2.0f;
 
 inline constexpr float PIN_LENGTH = 0.5f; // IO Pin base wire length
 
+constexpr lrgba line_col = lrgba(0.8f, 0.01f, 0.025f, 1);
+constexpr lrgba preview_line_col = line_col * lrgba(1,1,1, 0.75f);
+
 constexpr float2x2 ROT[] = {
 	float2x2(  1, 0,  0, 1 ),
 	float2x2(  0, 1, -1, 0 ),
@@ -102,8 +105,8 @@ struct WireNode {
 	Part* parent_part = nullptr;
 	vector_set<WireNode*> edges = {}; // TODO: small vec opt to 4 entries
 	
-	bool visited = false;
-	int  sid = -1;
+	//bool visited = false;
+	int  local_id = -1;
 
 	int num_wires () {
 		return edges.size() + (parent_part ? 1 : 0);
@@ -128,25 +131,26 @@ struct Chip {
 		
 	float2 size = float2(10, 6);
 	
-	std::vector< std::unique_ptr<Part> > outputs = {};
-	std::vector< std::unique_ptr<Part> > inputs = {};
-		
+	//std::vector< std::unique_ptr<Part> > outputs = {};
+	//std::vector< std::unique_ptr<Part> > inputs = {};
+	
 	//std::unordered_set< std::unique_ptr<Part> > parts = {};
 	vector_set< std::unique_ptr<Part> > parts = {};
 
 	vector_set< std::unique_ptr<WireNode> > wire_nodes = {};
 	vector_set< std::unique_ptr<WireEdge> > wire_edges = {};
 
-	int wire_states = -1;
-	int state_count = -1;
+	//int wire_states = -1;
+	//int state_count = -1;
+	int local_ids = -1;
 	
 	vector_set<Chip*> users;
 		
-	bool contains_part (Part* part) {
-		return parts.contains(part) ||
-			contains(outputs, part, _partptr_equal()) ||
-			contains(inputs, part,  _partptr_equal());
-	}
+	//bool contains_part (Part* part) {
+	//	return parts.contains(part) ||
+	//		contains(outputs, part, _partptr_equal()) ||
+	//		contains(inputs, part,  _partptr_equal());
+	//}
 
 	Chip () = default;
 
@@ -184,6 +188,8 @@ struct Part {
 	std::string name;
 
 	Placement pos = {};
+
+	int local_id = -1;
 
 	struct Pin {
 		std::unique_ptr<WireNode> node;
@@ -312,7 +318,7 @@ inline Chip _GATE (const char* name, lrgb col, float2 size, std::initializer_lis
 	c.name = name;
 	c.col = col;
 	c.size = size;
-	c.state_count = 0;
+	//c.state_count = 0;
 	
 	for (auto& i : inputs) {
 		c.inputs.emplace_back(std::make_unique<Part>( nullptr, i.name, Placement{ i.pos } ));
@@ -351,12 +357,20 @@ inline GateType gate_type (Chip* chip) {
 	assert(is_gate(chip));
 	return (GateType)(chip - gates);
 }
+
+struct Simulator {
 	
-////
-inline int indexof_chip (std::vector<std::shared_ptr<Chip>> const& vec, Chip* chip) {
-	int idx = indexof(vec, chip, [] (std::shared_ptr<Chip> const& l, Chip* r) { return l.get() == r; });
-	return idx;
-}
+	struct Gate {
+		Chip* chip;
+		int pins[4] = { -1, -1, -1, -1 };
+	};
+	std::vector<Gate> gates;
+	
+	
+	int cur_state = 0;
+
+	std::vector<uint8_t> state[2];
+};
 
 ////
 struct LogicSim {
@@ -375,13 +389,18 @@ struct LogicSim {
 	std::vector<std::shared_ptr<Chip>> saved_chips;
 
 	std::shared_ptr<Chip> viewed_chip;
-
-	std::vector<uint8_t> state[2];
-
-	int cur_state = 0;
+	
+	Simulator sim;
 
 	bool unsaved_changes = false;
 	
+	int indexof_chip (Chip* chip) const {
+		int idx = indexof(saved_chips, chip, [] (std::shared_ptr<Chip> const& l, Chip* r) { return l.get() == r; });
+		return idx;
+	}
+
+	void recreate_simulator (ogl::Renderer& r);
+
 	void recompute_chip_users ();
 
 	void switch_to_chip_view (std::shared_ptr<Chip> chip) {
@@ -390,7 +409,7 @@ struct LogicSim {
 
 		recompute_chip_users();
 
-		viewed_chip->state_count = -1; // TODO: needed?
+		//viewed_chip->state_count = -1; // TODO: needed?
 	}
 	void reset_chip_view (Camera2D& cam) {
 		switch_to_chip_view(std::make_shared<Chip>());
@@ -419,7 +438,8 @@ struct LogicSim {
 		else {
 			ImGui::Text("No unsaved changes");
 		}
-		ImGui::Text("Gates (# of states): %d", (int)state[0].size());
+
+		//ImGui::Text("Gates (# of states): %d", (int)state[0].size());
 	}
 		
 	// delete chip from saved_chips, and reset viewed chip such that chip will actually be deleted
@@ -427,7 +447,7 @@ struct LogicSim {
 	void delete_chip (Chip* chip, Camera2D& cam) {
 		assert(chip->users.empty()); // hopefully users is correct or we will crash
 			
-		int idx = indexof_chip(saved_chips, chip);
+		int idx = indexof_chip(chip);
 		if (idx >= 0)
 			saved_chips.erase(saved_chips.begin() + idx);
 			
@@ -446,7 +466,7 @@ struct LogicSim {
 		auto ptr = new WireNode(pos);
 		chip.wire_nodes.add(std::unique_ptr<WireNode>(ptr));
 		
-		chip.state_count = -1;
+		unsaved_changes = true;
 		return ptr;
 	}
 	void disconnect_wire_node (Chip& chip, WireNode* node) {
@@ -462,15 +482,15 @@ struct LogicSim {
 			});
 		assert(count == removed_edges);
 		
-		chip.state_count = -1;
+		unsaved_changes = true;
 	}
 	void remove_wire_node (Chip& chip, WireNode* node) {
 		disconnect_wire_node(chip, node);
 
 		bool removed = chip.wire_nodes.try_remove(node);
 		assert(removed);
-
-		chip.state_count = -1;
+		
+		unsaved_changes = true;
 	}
 	// existing connections are allowed as inputs but will be ignored
 	void connect_wire_nodes (Chip& chip, WireNode* a, WireNode* b) {
@@ -482,8 +502,8 @@ struct LogicSim {
 		b->edges.add(a);
 
 		chip.wire_edges.add(std::make_unique<WireEdge>(a, b));
-
-		chip.state_count = -1;
+		
+		unsaved_changes = true;
 	}
 	void remove_wire_edge (Chip& chip, WireEdge* edge) {
 			
@@ -492,7 +512,7 @@ struct LogicSim {
 
 		chip.wire_edges.remove(edge);
 
-		chip.state_count = -1;
+		unsaved_changes = true;
 	}
 
 	void simulate (Input& I);

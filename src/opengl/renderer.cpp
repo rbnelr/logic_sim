@@ -1,43 +1,34 @@
 #include "renderer.hpp"
-#include "../game.hpp"
+#include "../app.hpp"
 #include "../logic_sim.hpp"
 
 using namespace logic_sim;
 
 namespace ogl {
+	
+void LineGroup::draw_wire_segment (float2x3 const& chip2world, float2 a, float2 b, int states, lrgba col) {
+	auto* out = push_back(lines, 1);
 
-// Group of line segments and points that are drawn such that they appear connected (outlines appear behind all of the shapes)
-struct LineGroup {
-	std::vector<LineRenderer::LineInstance> lines;
+	float radius = abs(((float2x2)chip2world * float2(wire_radius)).x);
 
-	LineGroup () {
-		lines.reserve(1024);
-	}
-		
-	void draw_wire_segment (float2x3 const& chip2world, float2 a, float2 b, int states, lrgba col) {
-		auto* out = push_back(lines, 1);
+	float2 p0 = chip2world * a;
+	float2 p1 = chip2world * b;
 
-		float radius = abs(((float2x2)chip2world * float2(wire_radius)).x);
+	*out++ = { p0, p1, radius, 0, states, col };
+}
 
-		float2 p0 = chip2world * a;
-		float2 p1 = chip2world * b;
+void LineGroup::draw_wire_point (float2x3 const& chip2world, float2 pos, float radius, int num_wires, int states, lrgba col) {
+	if (num_wires == 0 || num_wires > 2)
+		radius *= wire_node_radius_fac;
 
-		*out++ = { p0, p1, radius, 0, states, col };
-	}
+	auto* out = push_back(lines, 1);
 
-	void draw_wire_point (float2x3 const& chip2world, float2 pos, float radius, int num_wires, int states, lrgba col) {
-		if (num_wires == 0 || num_wires > 2)
-			radius *= wire_node_radius_fac;
+	float r = abs(((float2x2)chip2world * float2(radius)).x);
 
-		auto* out = push_back(lines, 1);
+	float2 p = chip2world * pos;
 
-		float r = abs(((float2x2)chip2world * float2(radius)).x);
-
-		float2 p = chip2world * pos;
-
-		*out++ = { p, p, r, 2, states, col * lrgba(.8f,.8f,.8f, 1.0f) };
-	}
-};
+	*out++ = { p, p, r, 2, states, col * lrgba(.8f,.8f,.8f, 1.0f) };
+}
 
 void add_line_group (LineRenderer& lines, LineGroup& group) {
 	size_t count = group.lines.size();
@@ -82,21 +73,18 @@ void Renderer::draw_gate (float2x3 const& mat, float2 size, int type, int state,
 	ogl::push_quad(pi, idx+0, idx+1, idx+2, idx+3);
 }
 
-constexpr lrgba line_col = lrgba(0.8f, 0.01f, 0.025f, 1);
-constexpr lrgba preview_line_col = line_col * lrgba(1,1,1, 0.75f);
+//int make_state (uint8_t* prev, uint8_t* cur, int state_base, WireNode* node) {
+//	assert(node->sid >= 0);
+//	if (state_base < 0) return 0;
+//
+//	return prev[state_base + node->sid] | (cur[state_base + node->sid] << 1);
+//}
 
-int make_state (uint8_t* prev, uint8_t* cur, int state_base, WireNode* node) {
-	assert(node->sid >= 0);
-	if (state_base < 0) return 0;
+void Renderer::draw_chip (App& app, Chip* chip, float2x3 const& chip2world, int sim_idx, lrgba col) {
+	auto& editor = app.editor;
 
-	return prev[state_base + node->sid] | (cur[state_base + node->sid] << 1);
-}
-
-void Renderer::draw_chip (Game& g, Chip* chip, float2x3 const& chip2world, int state_base, lrgba col) {
-	auto& editor = g.editor;
-
-	uint8_t* prev = g.sim.state[g.sim.cur_state^1].data();
-	uint8_t* cur  = g.sim.state[g.sim.cur_state  ].data();
+	//uint8_t* prev = g.sim.state[g.sim.cur_state^1].data();
+	//uint8_t* cur  = g.sim.state[g.sim.cur_state  ].data();
 
 	lrgba lcol = line_col * col;
 
@@ -117,17 +105,23 @@ void Renderer::draw_chip (Game& g, Chip* chip, float2x3 const& chip2world, int s
 		}
 
 		for (auto& e : chip->wire_edges) {
-			assert(e->a->sid == e->b->sid);
+			//assert(e->a->sid == e->b->sid);
 
-			int state = make_state(prev, cur, state_base, e->a);
+			//int state = make_state(prev, cur, state_base, e->a);
+			int state = 0;
 			lines.draw_wire_segment(chip2world, e->a->pos, e->b->pos, state, lcol);
 		}
 		
+		int idx = sim_idx;
+
 		auto draw_part_wires = [&] (Part* part) {
-			uint8_t* prev = g.sim.state[g.sim.cur_state^1].data();
-			uint8_t* cur  = g.sim.state[g.sim.cur_state  ].data();
-		
 			auto part2chip = part->pos.calc_matrix();
+
+			Simulator::Gate gate;
+			//if (sim_idx >= 0 && is_gate(part->chip)) {
+			//	gate = g.sim.sim.gates[idx++];
+			//	assert(gate.type == gate_type(part->chip));
+			//}
 
 			if (part->chip != &gates[INP_PIN]) {
 				for (int i=0; i<(int)part->chip->inputs.size(); ++i) {
@@ -137,11 +131,13 @@ void Renderer::draw_chip (Game& g, Chip* chip, float2x3 const& chip2world, int s
 					float2 b = part2chip * inp->pos.pos;
 					
 					auto& pin = part->pins[i];
-					int state = make_state(prev, cur, state_base, pin.node.get());
+					auto& spin = gate.pins[i];
+					//int state = make_state(prev, cur, state_base, pin.node.get());
+					int state = 0;
 
 					lines.draw_wire_segment(chip2world, a,b, state, lcol);
 
-					draw_text(prints("%d", pin.node->sid), chip2world * pin.node->pos, 10, 1);
+					draw_text(prints("%d", spin), chip2world * pin.node->pos, 10, 1);
 					lines.draw_wire_point(chip2world, pin.node->pos, wire_radius, pin.node->num_wires(), state, lcol);
 				}
 			}
@@ -153,11 +149,13 @@ void Renderer::draw_chip (Game& g, Chip* chip, float2x3 const& chip2world, int s
 					float2 b = part2chip * out->pos.pos;
 
 					auto& pin = part->pins[i + (int)part->chip->inputs.size()];
-					int state = make_state(prev, cur, state_base, pin.node.get());
+					auto& spin = gate.pins[i + (int)part->chip->inputs.size()];
+					//int state = make_state(prev, cur, state_base, pin.node.get());
+					int state = 0;
 
 					lines.draw_wire_segment(chip2world, a,b, state, lcol);
 
-					draw_text(prints("%d", pin.node->sid), chip2world * pin.node->pos, 10, 1);
+					draw_text(prints("%d", spin), chip2world * pin.node->pos, 10, 1);
 					lines.draw_wire_point(chip2world, pin.node->pos, wire_radius, pin.node->num_wires(), state, lcol);
 				}
 			}
@@ -165,31 +163,42 @@ void Renderer::draw_chip (Game& g, Chip* chip, float2x3 const& chip2world, int s
 		for_each_part(*chip, draw_part_wires);
 
 		for (auto& n : chip->wire_nodes) {
-			int state = make_state(prev, cur, state_base, n.get());
+			//int state = make_state(prev, cur, state_base, n.get());
+			int state = 0;
 
-			draw_text(prints("%d", n->sid), chip2world * n->pos, 10, 1);
+			//draw_text(prints("%d", n->sid), chip2world * n->pos, 10, 1);
 			lines.draw_wire_point(chip2world, n->pos, wire_radius, n->num_wires(), state, lcol);
 		}
 		
 		add_line_group(line_renderer, lines);
 
-		int parts_sid = state_base >= 0 ? state_base + chip->wire_states : -1;
+		//int parts_sid = state_base >= 0 ? state_base + chip->wire_states : -1;
+		
+		idx = sim_idx;
 
 		//
 		auto draw_part = [&] (Part* part) {
 			auto part2chip = part->pos.calc_matrix();
 			auto part2world = chip2world * part2chip;
-
-			draw_chip(g, part->chip, part2world, parts_sid, col);
-
-			if (state_base >= 0)
-				parts_sid += part->chip->state_count;
+			
+			//Simulator::Gate gate;
+			//if (sim_idx >= 0 && is_gate(part->chip)) {
+			//	gate = app.sim.sim.gates[idx++];
+			//	assert(gate.type == gate_type(part->chip));
+			//}
+			
+			//draw_chip(app, part->chip, part2world, parts_sid, col);
+			draw_chip(app, part->chip, part2world, -1, col);
+			//draw_chip(g, part->chip, part2world, idx, col);
+			
+			//if (state_base >= 0)
+			//	parts_sid += part->chip->state_count;
 		};
 		for_each_part(*chip, draw_part);
 	}
 }
 	
-void Renderer::begin (Window& window, Game& g, int2 window_size) {
+void Renderer::begin (Window& window, App& app, int2 window_size) {
 	dbgdraw.clear();
 	text_renderer.begin();
 
@@ -197,7 +206,7 @@ void Renderer::begin (Window& window, Game& g, int2 window_size) {
 	line_renderer.update(window.input);
 }
 
-void Renderer::end (Window& window, Game& g, int2 window_size) {
+void Renderer::end (Window& window, App& app, int2 window_size) {
 	ZoneScoped;
 		
 	{
@@ -236,13 +245,13 @@ void Renderer::end (Window& window, Game& g, int2 window_size) {
 
 	{ // Gates and wires
 		ZoneScopedN("push gates");
-			
-		draw_chip(g, g.sim.viewed_chip.get(), float2x3::identity(), 0, lrgba(1));
+		
+		//draw_chip(app, app.sim.viewed_chip.get(), float2x3::identity(), 0, lrgba(1));
 	}
 
 	{
-		if (g.editor.in_mode<Editor::WireMode>()) {
-			auto& w = std::get<Editor::WireMode>(g.editor.mode);
+		if (app.editor.in_mode<Editor::WireMode>()) {
+			auto& w = std::get<Editor::WireMode>(app.editor.mode);
 			
 			LineGroup lines;
 			
@@ -262,13 +271,13 @@ void Renderer::end (Window& window, Game& g, int2 window_size) {
 	}
 
 	{ // Gate preview
-		if (g.editor.in_mode<Editor::PlaceMode>() && g.editor._cursor_valid) {
-			auto& pl = std::get<Editor::PlaceMode>(g.editor.mode);
+		if (app.editor.in_mode<Editor::PlaceMode>() && app.editor._cursor_valid) {
+			auto& pl = std::get<Editor::PlaceMode>(app.editor.mode);
 			
 			assert(pl.place_chip);
 			auto part2chip = pl.place_pos.calc_matrix();
 
-			draw_chip(g, pl.place_chip, part2chip, -1, lrgba(1,1,1,0.75f));
+			draw_chip(app, pl.place_chip, part2chip, -1, lrgba(1,1,1,0.75f));
 			
 			LineGroup lines;
 
@@ -291,12 +300,12 @@ void Renderer::end (Window& window, Game& g, int2 window_size) {
 		}
 	}
 		
-	line_renderer.render(state, g.sim_t);
+	line_renderer.render(state, app.sim_t);
 	tri_renderer.render(state);
 
 	gl_dbgdraw.render(state, dbgdraw);
 	
-	if (g.sim_paused) {
+	if (app.sim_paused) {
 		screen_outline.draw(state, lrgba(0.2f, 0.2f, 1, 1));
 	}
 	
