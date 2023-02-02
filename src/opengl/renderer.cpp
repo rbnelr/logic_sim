@@ -6,28 +6,21 @@ using namespace logic_sim;
 
 namespace ogl {
 	
-void LineGroup::draw_wire_segment (float2x3 const& chip2world, float2 a, float2 b, int states, lrgba col) {
+void LineGroup::draw_wire_segment (float2 a, float2 b, int states, lrgba col) {
 	auto* out = push_back(lines, 1);
 
-	float radius = abs(((float2x2)chip2world * float2(wire_radius)).x);
-
-	float2 p0 = chip2world * a;
-	float2 p1 = chip2world * b;
-
-	*out++ = { p0, p1, radius, 0, states, col };
+	*out++ = { a, b, wire_radius, 0, states, col };
 }
 
-void LineGroup::draw_wire_point (float2x3 const& chip2world, float2 pos, float radius, int num_wires, int states, lrgba col) {
-	if (num_wires == 0 || num_wires > 2)
-		radius *= wire_node_radius_fac;
+void LineGroup::draw_wire_point (float2 pos, float radius, int num_wires, int states, lrgba col) {
+	if (num_wires > 2)
+		radius *= wire_node_junction;
+	if (num_wires == 1)
+		radius *= wire_node_dead_end;
 
 	auto* out = push_back(lines, 1);
 
-	float r = abs(((float2x2)chip2world * float2(radius)).x);
-
-	float2 p = chip2world * pos;
-
-	*out++ = { p, p, r, 2, states, col * lrgba(.8f,.8f,.8f, 1.0f) };
+	*out++ = { pos, pos, radius, 2, states, col * lrgba(.8f,.8f,.8f, 1.0f) };
 }
 
 void add_line_group (LineRenderer& lines, LineGroup& group) {
@@ -80,6 +73,7 @@ void Renderer::draw_gate (float2x3 const& mat, float2 size, int type, int state,
 //	return prev[state_base + node->sid] | (cur[state_base + node->sid] << 1);
 //}
 
+#if 0
 void Renderer::draw_chip (App& app, Chip* chip, float2x3 const& chip2world, int sim_idx, lrgba col) {
 	auto& editor = app.editor;
 
@@ -114,53 +108,24 @@ void Renderer::draw_chip (App& app, Chip* chip, float2x3 const& chip2world, int 
 		
 		int idx = sim_idx;
 
-		auto draw_part_wires = [&] (Part* part) {
-			auto part2chip = part->pos.calc_matrix();
-
-			Simulator::Gate gate;
-			//if (sim_idx >= 0 && is_gate(part->chip)) {
-			//	gate = g.sim.sim.gates[idx++];
-			//	assert(gate.type == gate_type(part->chip));
-			//}
-
-			if (part->chip != &gates[INP_PIN]) {
-				for (int i=0; i<(int)part->chip->inputs.size(); ++i) {
-					auto& inp = part->chip->inputs[i];
-				
-					float2 a = part2chip * get_inp_pos(*inp);
-					float2 b = part2chip * inp->pos.pos;
-					
-					auto& pin = part->pins[i];
-					auto& spin = gate.pins[i];
-					//int state = make_state(prev, cur, state_base, pin.node.get());
-					int state = 0;
-
-					lines.draw_wire_segment(chip2world, a,b, state, lcol);
-
-					draw_text(prints("%d", spin), chip2world * pin.node->pos, 10, 1);
-					lines.draw_wire_point(chip2world, pin.node->pos, wire_radius, pin.node->num_wires(), state, lcol);
-				}
-			}
-			if (part->chip != &gates[OUT_PIN]) {
-				for (int i=0; i<(int)part->chip->outputs.size(); ++i) {
-					auto& out = part->chip->outputs[i];
-				
-					float2 a = part2chip * get_out_pos(*out);
-					float2 b = part2chip * out->pos.pos;
-
-					auto& pin = part->pins[i + (int)part->chip->inputs.size()];
-					auto& spin = gate.pins[i + (int)part->chip->inputs.size()];
-					//int state = make_state(prev, cur, state_base, pin.node.get());
-					int state = 0;
-
-					lines.draw_wire_segment(chip2world, a,b, state, lcol);
-
-					draw_text(prints("%d", spin), chip2world * pin.node->pos, 10, 1);
-					lines.draw_wire_point(chip2world, pin.node->pos, wire_radius, pin.node->num_wires(), state, lcol);
-				}
-			}
-		};
-		for_each_part(*chip, draw_part_wires);
+		//if (part->chip != &gates[INP_PIN]) {
+		//	for (int i=0; i<(int)part->chip->inputs.size(); ++i) {
+		//		auto& inp = part->chip->inputs[i];
+		//	
+		//		float2 a = part2chip * get_inp_pos(*inp);
+		//		float2 b = part2chip * inp->pos.pos;
+		//		
+		//		auto& pin = part->pins[i];
+		//		auto& spin = gate.pins[i];
+		//		//int state = make_state(prev, cur, state_base, pin.node.get());
+		//		int state = 0;
+		//
+		//		lines.draw_wire_segment(chip2world, a,b, state, lcol);
+		//
+		//		draw_text(prints("%d", spin), chip2world * pin.node->pos, 10, 1);
+		//		lines.draw_wire_point(chip2world, pin.node->pos, wire_radius, pin.node->num_wires(), state, lcol);
+		//	}
+		//}
 
 		for (auto& n : chip->wire_nodes) {
 			//int state = make_state(prev, cur, state_base, n.get());
@@ -177,7 +142,7 @@ void Renderer::draw_chip (App& app, Chip* chip, float2x3 const& chip2world, int 
 		idx = sim_idx;
 
 		//
-		auto draw_part = [&] (Part* part) {
+		for (auto& part : chip->parts) {
 			auto part2chip = part->pos.calc_matrix();
 			auto part2world = chip2world * part2chip;
 			
@@ -193,10 +158,10 @@ void Renderer::draw_chip (App& app, Chip* chip, float2x3 const& chip2world, int 
 			
 			//if (state_base >= 0)
 			//	parts_sid += part->chip->state_count;
-		};
-		for_each_part(*chip, draw_part);
+		}
 	}
 }
+#endif
 	
 void Renderer::begin (Window& window, App& app, int2 window_size) {
 	dbgdraw.clear();
@@ -259,11 +224,11 @@ void Renderer::end (Window& window, App& app, int2 window_size) {
 			// w.cur can be a real existing point unless it points to w.node
 			if (w.cur && w.cur == &w.node) {
 				int wires = w.cur->num_wires() + (!w.prev || w.cur->edges.contains(w.prev) ? 0 : 1);
-				lines.draw_wire_point(float2x3::identity(), w.cur->pos, wire_radius*1.12f, wires, 0, preview_line_col);
+				lines.draw_wire_point(w.cur->pos, wire_radius*1.12f, wires, 0, preview_line_col);
 			}
 			
 			if (w.cur && w.prev) {
-				lines.draw_wire_segment(float2x3::identity(), w.prev->pos, w.cur->pos, 0, preview_line_col);
+				lines.draw_wire_segment(w.prev->pos, w.cur->pos, 0, preview_line_col);
 			}
 
 			add_line_group(line_renderer, lines);
@@ -277,24 +242,17 @@ void Renderer::end (Window& window, App& app, int2 window_size) {
 			assert(pl.place_chip);
 			auto part2chip = pl.place_pos.calc_matrix();
 
-			draw_chip(app, pl.place_chip, part2chip, -1, lrgba(1,1,1,0.75f));
+			//draw_chip(app, pl.place_chip, part2chip, -1, lrgba(1,1,1,0.75f));
 			
 			LineGroup lines;
 
-			for (auto& pin : pl.place_chip->inputs) {
-				float2 a = part2chip * get_inp_pos(*pin);
-				float2 b = part2chip * pin->pos.pos;
-
-				lines.draw_wire_segment(float2x3::identity(), a, b, 0, preview_line_col);
-				lines.draw_wire_point(float2x3::identity(), a, wire_radius, 1, 0, preview_line_col);
-			}
-			for (auto& pin : pl.place_chip->outputs) {
-				float2 a = part2chip * pin->pos.pos;
-				float2 b = part2chip * get_out_pos(*pin);
-
-				lines.draw_wire_segment(float2x3::identity(), a, b, 0, preview_line_col);
-				lines.draw_wire_point(float2x3::identity(), b, wire_radius, 1, 0, preview_line_col);
-			}
+			//for (auto& pin : pl.place_chip->inputs) {
+			//	float2 a = part2chip * get_inp_pos(*pin);
+			//	float2 b = part2chip * pin->pos.pos;
+			//
+			//	lines.draw_wire_segment(float2x3::identity(), a, b, 0, preview_line_col);
+			//	lines.draw_wire_point(float2x3::identity(), a, wire_radius, 1, 0, preview_line_col);
+			//}
 
 			add_line_group(line_renderer, lines);
 		}

@@ -10,15 +10,13 @@ VS2FS Vertex v;
 flat VS2FS int v_gate_type;
 flat VS2FS int v_gate_state;
 
-#define INP_PIN   0
-#define OUT_PIN   1
-#define BUF_GATE  2
-#define NOT_GATE  3
-#define AND_GATE  4
-#define NAND_GATE 5
-#define OR_GATE   6
-#define NOR_GATE  7
-#define XOR_GATE  8
+#define BUF_GATE  0
+#define NOT_GATE  1
+#define AND_GATE  2
+#define NAND_GATE 3
+#define OR_GATE   4
+#define NOR_GATE  5
+#define XOR_GATE  6
 
 #ifdef _VERTEX
 	layout(location = 0) in vec2  pos;
@@ -64,16 +62,16 @@ flat VS2FS int v_gate_state;
 	//float d = SDF_ellipse(uv -0.5, vec2(0.2, 0.3));
 	//float d = SDF_line(uv -0.5, vec2(0,0.5), vec2(0.5,-0.2));
 	
-	float pin_gate (vec2 uv) {
-		vec2 uv_mirr = vec2(uv.x, abs(uv.y - 0.5));
-		
-		float d  = SDF_line(uv, vec2(0.375, 0.0), vec2(0.375, 1.0));
-		d = max(d, SDF_line(uv, vec2(0.625, 1.0), vec2(0.625, 0.0)));
-		
-		d = max(d, SDF_line(uv_mirr, vec2(0.375,0.10), vec2(0.625, 0.01)));
-		
-		return d;
-	}
+	//float pin_gate (vec2 uv) {
+	//	vec2 uv_mirr = vec2(uv.x, abs(uv.y - 0.5));
+	//	
+	//	float d  = SDF_line(uv, vec2(0.375, 0.0), vec2(0.375, 1.0));
+	//	d = max(d, SDF_line(uv, vec2(0.625, 1.0), vec2(0.625, 0.0)));
+	//	
+	//	d = max(d, SDF_line(uv_mirr, vec2(0.375,0.10), vec2(0.625, 0.01)));
+	//	
+	//	return d;
+	//}
 	float buf_gate (vec2 uv) {
 		vec2 uv_mirr = vec2(uv.x, abs(uv.y - 0.5));
 		
@@ -140,7 +138,7 @@ flat VS2FS int v_gate_state;
 	void main () {
 		
 		int ty  = v_gate_type/2;
-		bool inv = v_gate_type%2 != 0 && v_gate_type > OUT_PIN;
+		bool inv = v_gate_type%2 != 0;
 		
 		bool base_state = v_gate_state != 0;
 		bool inv_state  = v_gate_state != 0;
@@ -155,8 +153,8 @@ flat VS2FS int v_gate_state;
 		{ // draw base gate symbol
 			float d;
 			
-			if      (ty == INP_PIN /2) d =  pin_gate(v.uv);
-			else if (ty == BUF_GATE/2) d =  buf_gate(v.uv);
+			//if      (ty == INP_PIN /2) d =  pin_gate(v.uv);
+			if      (ty == BUF_GATE/2) d =  buf_gate(v.uv);
 			else if (ty == AND_GATE/2) d =  and_gate(v.uv);
 			else if (ty == OR_GATE /2) d =   or_gate(v.uv);
 			else /* ty == GT_XOR */ d =  xor_gate(v.uv);

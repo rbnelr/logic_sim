@@ -16,7 +16,8 @@ namespace logic_sim {
 inline constexpr float SEL_HIGHL_SHRINK = 1.0f/64;
 
 inline float wire_radius = 0.04f;
-inline float wire_node_radius_fac = 2.0f;
+inline float wire_node_junction = 2.0f;
+inline float wire_node_dead_end = 1.3f;
 
 inline constexpr float PIN_LENGTH = 0.5f; // IO Pin base wire length
 
@@ -62,6 +63,7 @@ struct AABB {
 			    point.y >= lo.y && point.y < hi.y;
 	}
 };
+
 struct Placement {
 	SERIALIZE(Placement, pos, rot, mirror, scale)
 
@@ -113,8 +115,8 @@ struct WireNode {
 	}
 
 	AABB get_aabb () const {
-		return AABB{ pos - wire_radius*wire_node_radius_fac,
-			         pos + wire_radius*wire_node_radius_fac };
+		return AABB{ pos - wire_radius*wire_node_junction,
+			         pos + wire_radius*wire_node_junction };
 	}
 };
 struct WireEdge {
@@ -130,29 +132,29 @@ struct Chip {
 	lrgb        col = lrgb(1);
 		
 	float2 size = float2(10, 6);
+
+	struct Pin {
+		std::string name;
+
+		float2    pos;
+		int       rot;
+		float     len;
+	};
+	std::vector<Pin> pins;
 	
-	//std::vector< std::unique_ptr<Part> > outputs = {};
-	//std::vector< std::unique_ptr<Part> > inputs = {};
-	
-	//std::unordered_set< std::unique_ptr<Part> > parts = {};
+	Chip () {
+		
+	}
+	Chip (std::string name, lrgb col, float2 size, std::vector<Pin> pins): name{name}, col{col}, size{size}, pins{pins} {
+		
+	}
+
 	vector_set< std::unique_ptr<Part> > parts = {};
 
 	vector_set< std::unique_ptr<WireNode> > wire_nodes = {};
 	vector_set< std::unique_ptr<WireEdge> > wire_edges = {};
-
-	//int wire_states = -1;
-	//int state_count = -1;
-	int local_ids = -1;
 	
 	vector_set<Chip*> users;
-		
-	//bool contains_part (Part* part) {
-	//	return parts.contains(part) ||
-	//		contains(outputs, part, _partptr_equal()) ||
-	//		contains(inputs, part,  _partptr_equal());
-	//}
-
-	Chip () = default;
 
 	// move needed for  Chip gates[GATE_COUNT]  be careful not to move a chip after init, because we need stable pointers for parts
 	Chip (Chip&&) = default;
@@ -164,21 +166,6 @@ struct Chip {
 	Chip deep_copy () const;
 };
 
-// TODO: eliminate somehow
-template <typename FUNC>
-void for_each_part (Chip& chip, FUNC func) {
-	for (auto& part : chip.outputs) {
-		func(part.get());
-	}
-	for (auto& part : chip.inputs) {
-		func(part.get());
-	}
-
-	for (auto& part : chip.parts) {
-		func(part.get());
-	}
-}
-
 // An instance of a chip placed down in a chip
 // (Primitive gates are also implemented as chips)
 struct Part {
@@ -188,21 +175,9 @@ struct Part {
 	std::string name;
 
 	Placement pos = {};
-
-	int local_id = -1;
-
-	struct Pin {
-		std::unique_ptr<WireNode> node;
-	};
-	std::vector<Pin> pins;
 		
 	Part (Chip* chip, std::string&& name, Placement pos): chip{chip}, pos{pos}, name{name} {
-		if (chip) {
-			pins.resize(chip->outputs.size() + chip->inputs.size());
-
-			for (auto& pin : pins)
-				pin.node = std::make_unique<WireNode>(float2(0), this);
-		}
+		
 	}
 		
 	// cannot more or copy part because pointer needs to be stable for wire nodes
@@ -219,10 +194,8 @@ struct Part {
 		size = abs(ROT[pos.rot] * size);
 
 		return AABB{ pos.pos - size*0.5f,
-			            pos.pos + size*0.5f };
+			         pos.pos + size*0.5f };
 	}
-
-	void update_pins_pos ();
 };
 
 enum ThingType {
@@ -276,24 +249,10 @@ inline float2x3 get_inp_pos_invmat (Part& pin_part) {
 inline float2x3 get_out_pos_invmat (Part& pin_part) {
 	return translate(float2(-PIN_LENGTH/2, 0)) * pin_part.pos.calc_inv_matrix();
 }
-	
-inline void Part::update_pins_pos () {
-	auto mat = pos.calc_matrix();
-
-	int i = 0;
-	for (auto& pin : chip->inputs)
-		pins[i++].node->pos = mat * get_inp_pos(*pin);
-	for (auto& pin : chip->outputs)
-		pins[i++].node->pos = mat * get_out_pos(*pin);
-}
 
 ////
 enum GateType {
-	//NULL_GATE =-1,
-	INP_PIN   =0,
-	OUT_PIN   ,
-
-	BUF_GATE  ,
+	BUF_GATE  =0,
 	NOT_GATE  ,
 	AND_GATE  ,
 	NAND_GATE ,
@@ -309,45 +268,21 @@ enum GateType {
 	GATE_COUNT,
 };
 
-struct _IO {
-	const char* name;
-	float2 pos;
-};
-inline Chip _GATE (const char* name, lrgb col, float2 size, std::initializer_list<_IO> inputs, std::initializer_list<_IO> outputs) {
-	Chip c;
-	c.name = name;
-	c.col = col;
-	c.size = size;
-	//c.state_count = 0;
-	
-	for (auto& i : inputs) {
-		c.inputs.emplace_back(std::make_unique<Part>( nullptr, i.name, Placement{ i.pos } ));
-	}
-	for (auto& o : outputs) {
-		c.outputs.emplace_back(std::make_unique<Part>( nullptr, o.name, Placement{ o.pos } ));
-	}
-
-	return c;
-}
-	
 // Not const because we use Chip* for both editable (user-defined) chips and primitve gates
 // alternatively just cast const away?
 inline Chip gates[GATE_COUNT] = {
-	_GATE("<input>",  srgb(190,255,  0), float2(PIN_LENGTH, 0.25f), {{"In", float2(0)}}, {{"Out", float2(0)}}),
-	_GATE("<output>", srgb(255, 10, 10), float2(PIN_LENGTH, 0.25f), {{"In", float2(0)}}, {{"Out", float2(0)}}),
-
-	_GATE("Buffer Gate", lrgb(0.5f, 0.5f,0.75f), float2(1,0.5f), {{"In", float2(-0.25f, +0)}}, {{"Out", float2(0.25f, 0)}}),
-	_GATE("NOT Gate",    lrgb(   0,    0,    1), float2(1,0.5f), {{"In", float2(-0.25f, +0)}}, {{"Out", float2(0.25f, 0)}}),
-	_GATE("AND Gate",    lrgb(   1,    0,    0), float2(1,   1), {{"A", float2(-0.25f, +0.25f)}, {"B", float2(-0.25f, -0.25f)}}, {{"Out", float2(0.25f, 0)}}),
-	_GATE("NAND Gate",   lrgb(0.5f,    1,    0), float2(1,   1), {{"A", float2(-0.25f, +0.25f)}, {"B", float2(-0.25f, -0.25f)}}, {{"Out", float2(0.25f, 0)}}),
-	_GATE("OR Gate",     lrgb(   1, 0.5f,    0), float2(1,   1), {{"A", float2(-0.25f, +0.25f)}, {"B", float2(-0.25f, -0.25f)}}, {{"Out", float2(0.25f, 0)}}),
-	_GATE("NOR Gate",    lrgb(   0,    1, 0.5f), float2(1,   1), {{"A", float2(-0.25f, +0.25f)}, {"B", float2(-0.25f, -0.25f)}}, {{"Out", float2(0.25f, 0)}}),
-	_GATE("XOR Gate",    lrgb(   0,    1,    0), float2(1,   1), {{"A", float2(-0.25f, +0.25f)}, {"B", float2(-0.25f, -0.25f)}}, {{"Out", float2(0.25f, 0)}}),
-
-	_GATE("AND-3 Gate",  lrgb(   1,    0,    0), float2(1,   1), {{"A", float2(-0.25f, +0.25f)}, {"B", float2(-0.25f, 0)}, {"C", float2(-0.25f, -0.25f)}}, {{"Out", float2(0.25f, 0)}}),
-	_GATE("NAND-3 Gate", lrgb(0.5f,    1,    0), float2(1,   1), {{"A", float2(-0.25f, +0.25f)}, {"B", float2(-0.25f, 0)}, {"C", float2(-0.25f, -0.25f)}}, {{"Out", float2(0.25f, 0)}}),
-	_GATE("OR-3 Gate",   lrgb(   1, 0.5f,    0), float2(1,   1), {{"A", float2(-0.25f, +0.25f)}, {"B", float2(-0.25f, 0)}, {"C", float2(-0.25f, -0.25f)}}, {{"Out", float2(0.25f, 0)}}),
-	_GATE("NOR-3 Gate",  lrgb(   0,    1, 0.5f), float2(1,   1), {{"A", float2(-0.25f, +0.25f)}, {"B", float2(-0.25f, 0)}, {"C", float2(-0.25f, -0.25f)}}, {{"Out", float2(0.25f, 0)}}),
+	Chip("Buffer Gate", lrgb(0.5f, 0.5f,0.75f), float2(1,0.5f), {{"In", float2(-0.5f, 0), 0, 0.25f}, {"Out", float2(0.5f, 0), 2, 0.5f}} ),
+	Chip("NOT Gate",    lrgb(   0,    0,    1), float2(1,0.5f), {{"In", float2(-0.5f, 0), 0, 0.25f}, {"Out", float2(0.5f, 0), 2, 0.125f}} ),
+	Chip("AND Gate",    lrgb(   1,    0,    0), float2(1,   1), {{"A", float2(-0.5f, +0.25f), 0, 0.25f}, {"B", float2(-0.5f, -0.25f), 0, 0.25f}, {"Out", float2(0.5f, 0), 2, 0.25f}} ),
+	Chip("NAND Gate",   lrgb(0.5f,    1,    0), float2(1,   1), {{"A", float2(-0.5f, +0.25f), 0, 0.25f}, {"B", float2(-0.5f, -0.25f), 0, 0.25f}, {"Out", float2(0.5f, 0), 2, 0.125f}} ),
+	Chip("OR Gate",     lrgb(   1, 0.5f,    0), float2(1,   1), {{"A", float2(-0.5f, +0.25f), 0, 0.25f}, {"B", float2(-0.5f, -0.25f), 0, 0.25f}, {"Out", float2(0.5f, 0), 2, 0.25f}} ),
+	Chip("NOR Gate",    lrgb(   0,    1, 0.5f), float2(1,   1), {{"A", float2(-0.5f, +0.25f), 0, 0.25f}, {"B", float2(-0.5f, -0.25f), 0, 0.25f}, {"Out", float2(0.5f, 0), 2, 0.125f}} ),
+	Chip("XOR Gate",    lrgb(   0,    1,    0), float2(1,   1), {{"A", float2(-0.5f, +0.25f), 0, 0.25f}, {"B", float2(-0.5f, -0.25f), 0, 0.25f}, {"Out", float2(0.5f, 0), 2, 0.25f}} ),
+	
+	Chip("AND-3 Gate",  lrgb(   1,    0,    0), float2(1,   1), {{"A", float2(-0.5f, +0.25f), 0, 0.25f}, {"B", float2(-0.5f, 0), 0, 0.25f}, {"C", float2(-0.5f, -0.25f), 0, 0.25f}, {"Out", float2(0.5f, 0), 2, 0.25f}} ),
+	Chip("NAND-3 Gate", lrgb(0.5f,    1,    0), float2(1,   1), {{"A", float2(-0.5f, +0.25f), 0, 0.25f}, {"B", float2(-0.5f, 0), 0, 0.25f}, {"C", float2(-0.5f, -0.25f), 0, 0.25f}, {"Out", float2(0.5f, 0), 2, 0.125f}} ),
+	Chip("OR-3 Gate",   lrgb(   1, 0.5f,    0), float2(1,   1), {{"A", float2(-0.5f, +0.25f), 0, 0.25f}, {"B", float2(-0.5f, 0), 0, 0.25f}, {"C", float2(-0.5f, -0.25f), 0, 0.25f}, {"Out", float2(0.5f, 0), 2, 0.25f}} ),
+	Chip("NOR-3 Gate",  lrgb(   0,    1, 0.5f), float2(1,   1), {{"A", float2(-0.5f, +0.25f), 0, 0.25f}, {"B", float2(-0.5f, 0), 0, 0.25f}, {"C", float2(-0.5f, -0.25f), 0, 0.25f}, {"Out", float2(0.5f, 0), 2, 0.125f}} ),
 };
 	
 inline bool is_gate (Chip* chip) {
@@ -358,15 +293,14 @@ inline GateType gate_type (Chip* chip) {
 	return (GateType)(chip - gates);
 }
 
-struct Simulator {
+struct Circuit {
 	
 	struct Gate {
-		Chip* chip;
+		GateType type;
 		int pins[4] = { -1, -1, -1, -1 };
 	};
 	std::vector<Gate> gates;
-	
-	
+
 	int cur_state = 0;
 
 	std::vector<uint8_t> state[2];
@@ -390,7 +324,7 @@ struct LogicSim {
 
 	std::shared_ptr<Chip> viewed_chip;
 	
-	Simulator sim;
+	Circuit circuit;
 
 	bool unsaved_changes = false;
 	
@@ -428,7 +362,8 @@ struct LogicSim {
 	void imgui (Input& I) {
 		if (ImGui::TreeNode("settings")) {
 			ImGui::DragFloat("wire_radius", &wire_radius, 0.0001f);
-			ImGui::DragFloat("wire_node_radius_fac", &wire_node_radius_fac, 0.01f);
+			ImGui::DragFloat("wire_node_junction", &wire_node_junction, 0.01f);
+			ImGui::DragFloat("wire_node_dead_end", &wire_node_dead_end, 0.01f);
 			ImGui::TreePop();
 		}
 
@@ -459,8 +394,23 @@ struct LogicSim {
 	
 	void update_chip_state ();
 
-	void add_part (Chip& chip, Chip* part_chip, Placement part_pos);
-	void remove_part (Chip& chip, Part* part);
+	void add_part (Chip& chip, Chip* part_chip, Placement part_pos) {
+		assert(&chip == viewed_chip.get());
+
+		auto* ptr = new Part(part_chip, "", part_pos);
+
+		// insert part at end of parts list
+		chip.parts.add(ptr);
+	
+		unsaved_changes = true;
+	}
+	void remove_part (Chip& chip, Part* part) {
+		assert(&chip == viewed_chip.get());
+
+		chip.parts.try_remove(part);
+	
+		unsaved_changes = true;
+	}
 		
 	WireNode* add_wire_node (Chip& chip, float2 pos) {
 		auto ptr = new WireNode(pos);

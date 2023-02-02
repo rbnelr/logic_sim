@@ -25,24 +25,16 @@ void Editor::viewed_chip_imgui (LogicSim& sim, Camera2D& cam) {
 	ImGui::ColorEdit3("col",  &sim.viewed_chip->col.x);
 	ImGui::DragFloat2("size", &sim.viewed_chip->size.x);
 
-	if (ImGui::TreeNodeEx("Inputs")) {
-		for (int i=0; i<(int)sim.viewed_chip->inputs.size(); ++i) {
-			ImGui::PushID(i);
-			ImGui::SetNextItemWidth(ImGui::CalcItemWidth() * 0.5f);
-			ImGui::InputText(prints("Input Pin #%d###name", i).c_str(), &sim.viewed_chip->inputs[i]->name);
-			ImGui::PopID();
-		}
-		ImGui::TreePop();
-	}
-	if (ImGui::TreeNodeEx("Outputs")) {
-		for (int i=0; i<(int)sim.viewed_chip->outputs.size(); ++i) {
-			ImGui::PushID(i);
-			ImGui::SetNextItemWidth(ImGui::CalcItemWidth() * 0.5f);
-			ImGui::InputText(prints("Output Pin #%d###name", i).c_str(), &sim.viewed_chip->outputs[i]->name);
-			ImGui::PopID();
-		}
-		ImGui::TreePop();
-	}
+	// TODO:
+	//if (ImGui::TreeNodeEx("Inputs")) {
+	//	for (int i=0; i<(int)sim.viewed_chip->inputs.size(); ++i) {
+	//		ImGui::PushID(i);
+	//		ImGui::SetNextItemWidth(ImGui::CalcItemWidth() * 0.5f);
+	//		ImGui::InputText(prints("Input Pin #%d###name", i).c_str(), &sim.viewed_chip->inputs[i]->name);
+	//		ImGui::PopID();
+	//	}
+	//	ImGui::TreePop();
+	//}
 
 	ImGui::Separator();
 	int users = sim.viewed_chip->users.size();
@@ -325,11 +317,11 @@ void Editor::imgui (LogicSim& sim, Camera2D& cam) {
 						Chip*       gate;
 					};
 					constexpr Entry entries[] = {
-						{ "INP"    , &gates[INP_PIN   ] },
-						{},
-						{ "OUT"    , &gates[OUT_PIN   ] },
-						{},
-						     
+						//{ "INP"    , &gates[INP_PIN   ] },
+						//{},
+						//{ "OUT"    , &gates[OUT_PIN   ] },
+						//{},
+						//     
 						{ "BUF"    , &gates[BUF_GATE  ] },
 						{},
 						{ "NOT"    , &gates[NOT_GATE  ] },
@@ -412,8 +404,8 @@ constexpr lrgba wire_col        = lrgba(1, 1, 0.5f, 1);
 constexpr lrgba named_part_col  = lrgba(.3f, .2f, 1, 1);
 
 std::string_view part_name (Part& part, std::string& buf) {
-	if (part.chip == &gates[OUT_PIN] || part.chip == &gates[INP_PIN])
-		return part.name;
+	//if (part.chip == &gates[OUT_PIN] || part.chip == &gates[INP_PIN])
+	//	return part.name;
 	if (part.name.empty())
 		return part.chip->name;
 	buf = prints("%s (%s)", part.chip->name.c_str(), part.name.c_str());
@@ -440,18 +432,13 @@ void highlight_part (ogl::Renderer& r, Part& part, float2x3 const& part2world, l
 		show_text ? part_name(part, buf) : std::string_view{});
 }
 void highlight_chip_names (ogl::Renderer& r, Chip& chip, float2x3 const& chip2world) {
-	if (&chip != &gates[INP_PIN]) {
-		for (int i=0; i<(int)chip.inputs.size(); ++i) {
-			auto& pin = *chip.inputs[i];
-			r.draw_text(pin.name, chip2world * get_inp_pos(pin), pin_text_sz, pin_col, 0.5f, 0.4f);
-		}
-	}
-	if (&chip != &gates[OUT_PIN]) {
-		for (int i=0; i<(int)chip.outputs.size(); ++i) {
-			auto& pin = *chip.outputs[i];
-			r.draw_text(pin.name, chip2world * get_out_pos(pin), pin_text_sz, pin_col, 0.5f, 0.4f);
-		}
-	}
+	// TODO: ?
+	//if (&chip != &gates[INP_PIN]) {
+	//	for (int i=0; i<(int)chip.inputs.size(); ++i) {
+	//		auto& pin = *chip.inputs[i];
+	//		r.draw_text(pin.name, chip2world * get_inp_pos(pin), pin_text_sz, pin_col, 0.5f, 0.4f);
+	//	}
+	//}
 			
 	for (auto& part : chip.parts) {
 		if (!part->name.empty())
@@ -483,7 +470,7 @@ void highlight_wire (ogl::Renderer& r, WireEdge& wire, lrgba col, float shrink=0
 }
 
 void highlight (ogl::Renderer& r, ThingPtr ptr, lrgba col, bool show_text, float shrink=0.0f) {
-	float pin_size = wire_radius*wire_node_radius_fac*2;
+	float pin_size = wire_radius*wire_node_junction*2;
 
 	switch (ptr.type) {
 		case T_PART: {
@@ -550,30 +537,15 @@ void Editor::ViewMode::find_hover (float2 cursor_pos, Chip& chip,
 }
 
 void find_edit_hover (float2 cursor_pos, Chip& chip, bool allow_parts, bool allow_wires, ThingPtr& hover) {
-	float pin_size = wire_radius*wire_node_radius_fac*2;
+	float pin_size = wire_radius*wire_node_junction*2;
 
-	for_each_part(chip, [&] (Part* part) {
+	for (auto& part : chip.parts) {
 		auto part2world = part->pos.calc_matrix();
 		auto world2part = part->pos.calc_inv_matrix();
 		
 		if (allow_parts && hitbox(cursor_pos, part->chip->size, world2part))
-			hover = part;
-
-		if (part->chip != &gates[INP_PIN]) {
-			for (int i=0; i<(int)part->chip->inputs.size(); ++i) {
-				if (hitbox(cursor_pos, pin_size, get_inp_pos_invmat(*part->chip->inputs[i]) * world2part)) {
-					hover = { part->pins[i].node.get() };
-				}
-			}
-		}
-		if (part->chip != &gates[OUT_PIN]) {
-			for (int i=0; i<(int)part->chip->outputs.size(); ++i) {
-				if (hitbox(cursor_pos, pin_size, get_out_pos_invmat(*part->chip->outputs[i]) * world2part)) {
-					hover = { part->pins[(int)part->chip->inputs.size() + i].node.get() };
-				}
-			}
-		}
-	});
+			hover = part.get();
+	}
 
 	if (allow_wires) {
 		for (auto& wire : chip.wire_edges) {
@@ -599,8 +571,10 @@ void find_boxsel (Chip& chip, bool remove, AABB box, Editor::PartSelection& sel)
 				sel.items.try_add(ptr);
 		}
 	};
-
-	for_each_part(chip, for_item);
+	
+	for (auto& part : chip.parts) {
+		for_item(part.get());
+	}
 
 	for (auto& node : chip.wire_nodes) {
 		for_item(node.get());
@@ -781,7 +755,6 @@ void Editor::update (Input& I, LogicSim& sim, ogl::Renderer& r) {
 					switch (i.type) {
 						case T_PART: {
 							edit_placement(sim, I, i.part->pos, edit_center);
-							i.part->update_pins_pos();
 						} break;
 						case T_NODE: {
 							edit_placement(sim, I, i.node->pos, edit_center);
@@ -828,17 +801,11 @@ void Editor::update (Input& I, LogicSim& sim, ogl::Renderer& r) {
 						
 						for (int i=0; i<e.sel.items.size(); ++i) {
 							e.sel.items[i].get_pos() = bounds_offsets[i] + bounds_center;
-
-							if (e.sel.items[i].type == T_PART)
-								e.sel.items[i].part->update_pins_pos();
 						}
 
 						if (e.sel.items.size() == 1) {
 							auto& pos = e.sel.items[0].get_pos();
 							pos = snap(pos);
-
-							if (e.sel.items[0].type == T_PART)
-								e.sel.items[0].part->update_pins_pos();
 						}
 					}
 					// stop dragging gate

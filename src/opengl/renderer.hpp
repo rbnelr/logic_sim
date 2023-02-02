@@ -189,8 +189,8 @@ struct LineGroup {
 		lines.reserve(1024);
 	}
 		
-	void draw_wire_segment (float2x3 const& chip2world, float2 a, float2 b, int states, lrgba col);
-	void draw_wire_point (float2x3 const& chip2world, float2 pos, float radius, int num_wires, int states, lrgba col);
+	void draw_wire_segment (float2 a, float2 b, int states, lrgba col);
+	void draw_wire_point (float2 pos, float radius, int num_wires, int states, lrgba col);
 };
 
 void add_line_group (LineRenderer& lines, LineGroup& group);
@@ -330,7 +330,7 @@ struct Renderer {
 
 	void draw_gate (float2x3 const& mat, float2 size, int type, int state, lrgba col);
 	
-	void draw_chip (App& app, logic_sim::Chip* chip, float2x3 const& chip2world, int sim_idx, lrgba col);
+	//void draw_chip (App& app, logic_sim::Chip* chip, float2x3 const& chip2world, int sim_idx, lrgba col);
 	
 	void begin (Window& window, App& app, int2 window_size);
 	void end (Window& window, App& app, int2 window_size);

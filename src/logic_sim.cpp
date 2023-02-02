@@ -7,191 +7,152 @@ namespace logic_sim {
 	
 ////
 
-// TODO: eliminate somehow
-template <typename FUNC>
-void for_each_wire_node (Chip& chip, FUNC func) {
-	for_each_part(chip, [&] (Part* part) {
-		for (auto& pin : part->pins) {
-			func(pin.node.get());
-		}
-	});
-
-	for (auto& node : chip.wire_nodes) {
-		func(node.get());
-	}
-}
-
 struct BuildSim {
-	Simulator& sim;
+	Circuit& circuit;
 	ogl::Renderer& r;
 
-	struct FlatNode {
+	struct WireNode {
+		int2             pos;
+		bool             visited = false;
 		std::vector<int> edges;
 	};
+	struct WireEdge {
+		int              a, b;
+	};
 
-	std::vector<FlatNode> flat_nodes;
+	// pos -> id map to merge wire edge end points into a graph
+	std::unordered_map<int2, int> node_map;
+	// flattened wire graph
+	std::vector<WireNode>         nodes;
+	std::vector<WireEdge>         edges;
+
+	std::vector<int> wire_ids;
 	
-	int collect_nodes (Chip* chip, int base_id, float2x3 const& chip2world) {
+	static constexpr float snapping_size = 0.125f;
+
+	static int2 snap (float2 pos) {
+		return roundi(pos / snapping_size);
+	};
+	int touch_node (float2 pos) {
+		int2 p = snap(pos);
+
+		auto res = node_map.try_emplace(p);
+		if (res.second) {
+			res.first->second = (int)nodes.size();
+			nodes.emplace_back(p);
+		}
+
+		return res.first->second;
+	}
+	
+	void flatten_graph (Chip* chip, float2x3 const& chip2world) {
 		
 		ogl::LineGroup lines;
 		lrgba lcol = line_col * lrgba(1);
-		
-		for (auto& e : chip->wire_edges) {
-			int state = 0;
-
-			lines.draw_wire_segment(chip2world, e->a->pos, e->b->pos, state, lcol);
-		}
-
-		// collect all nodes recursively
-		int local_ids = 0;
-		for (auto& node : chip->wire_nodes) {
-			node->local_id = local_ids++;
-			//node_grid.add(chip2world, local_ids++);
-			flat_nodes.emplace_back();
-		}
-		for (auto& part : chip->parts) {
-			auto part2chip = part->pos.calc_matrix();
-			auto part2world = chip2world * part2chip;
-
-			part->local_id = local_ids;
-			local_ids += collect_nodes(part->chip, local_ids, part2world);
-
-			
-			for (int i=0; i<(int)part->chip->inputs.size(); ++i) {
-				auto& inp = part->chip->inputs[i];
-				
-				float2 a = part2chip * get_inp_pos(*inp);
-				float2 b = part2chip * inp->pos.pos;
-					
-				auto& pin = part->pins[i];
-				//auto& spin = gate.pins[i];
-				
-				int state = 0;
-
-				lines.draw_wire_segment(chip2world, a,b, state, lcol);
-
-				r.draw_text(prints("%d", base_id + pin.node->local_id), chip2world * pin.node->pos, 10, 1);
-				lines.draw_wire_point(chip2world, pin.node->pos, wire_radius, pin.node->num_wires(), state, lcol);
-			}
-			for (int i=0; i<(int)part->chip->outputs.size(); ++i) {
-				auto& out = part->chip->outputs[i];
-				
-				float2 a = part2chip * get_out_pos(*out);
-				float2 b = part2chip * out->pos.pos;
-					
-				auto& pin = part->pins[i + (int)part->chip->inputs.size()];
-				//auto& spin = gate.pins[i + (int)part->chip->inputs.size()];
-				
-				int state = 0;
-
-				lines.draw_wire_segment(chip2world, a,b, state, lcol);
-				
-				r.draw_text(prints("%d", base_id + pin.node->local_id), chip2world * pin.node->pos, 10, 1);
-				lines.draw_wire_point(chip2world, pin.node->pos, wire_radius, pin.node->num_wires(), state, lcol);
-			}
-		}
-
-		for (auto& n : chip->wire_nodes) {
-			int state = 0;
-
-			r.draw_text(prints("%d", base_id + n->local_id), chip2world * n->pos, 10, 1);
-			lines.draw_wire_point(chip2world, n->pos, wire_radius, n->num_wires(), state, lcol);
-		}
-		
-		ogl::add_line_group(r.line_renderer, lines);
 
 		if (is_gate(chip)) {
 			auto type = gate_type(chip);
-			uint8_t state = 0;
+			r.draw_gate(chip2world, chip->size, type, 0, lrgba(chip->col, 1) * lrgba(1));
+			
+			for (auto& pin : chip->pins) {
+				touch_node(chip2world * pin.pos);
+
+				float2 a = chip2world * pin.pos;
+				float2 b = chip2world * (pin.pos + ROT[pin.rot] * float2(pin.len, 0));
+				
+				lines.draw_wire_segment(a, b, 0, lcol);
+			}
+
+			circuit.gates.emplace_back(type);
+		}
+		else {
+			{ // TODO: make this look nicer, rounded thick outline? color the background inside chip differently?
+				float2 center = chip2world * float2(0);
+				float2 size = abs( (float2x2)chip2world * chip->size ) - 1.0f/16;
+				r.dbgdraw.wire_quad(float3(center - size*0.5f, 0.0f), size, lrgba(0.001f, 0.001f, 0.001f, 1));
+			}
+		}
+
+		for (auto& e : chip->wire_edges) {
+			int a = touch_node(chip2world * e->a->pos);
+			int b = touch_node(chip2world * e->b->pos);
+			
+			edges.emplace_back(a, b);
+
+			nodes[a].edges.push_back(b);
+			nodes[b].edges.push_back(a);
+
+			lines.draw_wire_segment(chip2world * e->a->pos, chip2world * e->b->pos, 0, lcol);
+		}
+
+		for (auto& part : chip->parts) {
+			auto part2world = chip2world * part->pos.calc_matrix();
+
+			flatten_graph(part->chip, part2world);
+		}
+
+		ogl::add_line_group(r.line_renderer, lines);
+	}
+
+	void find_graphs () {
+
+		wire_ids.assign((int)nodes.size(), -1);
+
+		int wid = 0;
+
+		for (int i=0; i<(int)nodes.size(); ++i) {
+			if (!nodes[i].visited) {
+				int wire_id = wid++;
 		
-			r.draw_gate(chip2world, chip->size, type, state, lrgba(chip->col, 1) * lrgba(1));
+				// could use a queue as well, but order does not matter
+				// TODO: profile difference
+				std::vector<int> stk;
+				stk.push_back(i);
+		
+				while (!stk.empty()) {
+					int cur = stk.back();
+					stk.pop_back();
+				
+					nodes[cur].visited = true;
+					wire_ids[cur] = wire_id;
+				
+					for (int link : nodes[cur].edges) {
+						if (!nodes[link].visited)
+							stk.push_back(link);
+					}
+				}
+			}
+		}
+	}
+
+	void draw () {
+		ogl::LineGroup lines;
+		lrgba lcol = line_col * lrgba(1);
+
+		for (int i=0; i<(int)nodes.size(); ++i) {
+			auto& n = nodes[i];
+
+			float2 pos = (float2)n.pos * snapping_size;
+			
+			r.draw_text(prints("%d", wire_ids[i]), pos, 10, 1);
+
+			lines.draw_wire_point(pos, wire_radius, (int)n.edges.size(), 0, lcol);
 		}
 		
-		//// link up all nodes between our chip and any direct children parts
-		//for (auto& e : chip->wire_edges) {
-		//	auto get_node_sid = [&] (WireNode* node) {
-		//		Part* part = node->parent_part;
-		//		if (!part)
-		//			return node->local_id;
-		//
-		//		// TODO: expensive indexof, optimize via cached indices or similar
-		//		int idx = indexof(part->pins, node, [] (Part::Pin const& pin, WireNode* node) {
-		//			return pin.node.get() == node;
-		//		});
-		//		int sid_in_part = part->chip->wire_nodes[idx]->local_id;
-		//		//int sid_in_part = part->chip.wire_nodes[ part.pins.indexof(node) ].local_id;
-		//		return part->local_id + sid_in_part;
-		//	};
-		//	
-		//	int a = base_id + get_node_sid(e->a);
-		//	int b = base_id + get_node_sid(e->b);
-		//	
-		//	// link sim nodes
-		//	flat_nodes[a].edges.emplace_back(b);
-		//	flat_nodes[b].edges.emplace_back(a);
-		//}
-		
-		chip->local_ids = local_ids;
-		return local_ids;
+		ogl::add_line_group(r.line_renderer, lines);
 	}
 };
 
 void LogicSim::recreate_simulator (ogl::Renderer& r) {
 	
-	sim.gates.clear();
+	circuit.gates.clear();
 
-	BuildSim build{sim, r};
+	BuildSim build{circuit, r};
 
-	build.collect_nodes(viewed_chip.get(), 0, float2x3::identity());
+	build.flatten_graph(viewed_chip.get(), float2x3::identity());
+	build.find_graphs();
+	build.draw();
 }
-
-#if 0
-int sim_ (Chip& chip) {
-	
-
-	for_each_wire_node(chip, [&] (WireNode* node) {
-		node->visited = false;
-	});
-	
-	int sid = 0;
-	
-	for_each_wire_node(chip, [&] (WireNode* node) {
-		if (node->visited)
-			return;
-		
-		int wire_sid = sid++;
-		
-		// could use a queue as well, but order does not matter
-		// TODO: profile difference
-		std::vector<WireNode*> stk;
-		stk.push_back(node);
-		
-		while (!stk.empty()) {
-			WireNode* cur_node = stk.back();
-			stk.pop_back();
-				
-			cur_node->visited = true;
-			cur_node->sid = wire_sid;
-				
-			for (WireNode* link : cur_node->edges) {
-				if (!link->visited)
-					stk.push_back(link);
-			}
-
-			if (cur_node->parent_part) {
-				// ?
-
-			}
-		}
-	});
-	chip.wire_states = sid;
-
-	for_each_part(chip, [&] (Part* part) {
-		sid += update_state_indices(*part->chip);
-	});
-
-}
-#endif
 
 void simulate_chip (Chip& chip, int state_base, uint8_t* cur, uint8_t* next) {
 	
@@ -385,44 +346,11 @@ Chip Chip::deep_copy () const {
 	c.name = name;
 	c.col  = col;
 	c.size = size;
-			
-	// TODO: Is this really needed? How else to deep copy links correctly?
-	// -> Good reason to use indices instead of pointers again?
-	std::unordered_map<Part*, Part*> map; // old* -> new*
-			
-	auto create_part = [&] (Part* old) {
-		auto new_ = std::make_unique<Part>(old->chip, std::string(old->name), old->pos);
-		map.emplace(old, new_.get());
-		return new_;
-	};
-	auto deep_copy = [&] (Part* old, Part* new_) {
-		for (int i=0; i<(int)old->pins.size(); ++i) {
-			new_->pins[i].node = std::make_unique<WireNode>(*old->pins[i].node);
-		}
-	};
-
-	c.outputs.reserve(outputs.size());
-	c.inputs .reserve(inputs .size());
-	c.parts  .reserve(parts  .size());
-
-	for (auto& p : outputs)
-		c.outputs.emplace_back( create_part(p.get()) );
-			
-	for (auto& p : inputs)
-		c.inputs .emplace_back( create_part(p.get()) );
+	
+	c.parts.reserve(parts  .size());
 
 	for (auto& p : parts)
-		c.parts  .add( create_part(p.get()) );
-			
-	for (size_t i=0; i<outputs.size(); ++i) {
-		deep_copy(c.outputs[i].get(), outputs[i].get());
-	}
-	for (size_t i=0; i<inputs.size(); ++i) {
-		deep_copy(c.inputs[i].get(), inputs[i].get());
-	}
-	for (auto& old : parts) {
-		deep_copy(old.get(), map[old.get()]);
-	}
+		c.parts.add( std::make_unique<Part>(p->chip, std::string(p->name), p->pos) );
 
 	return c;
 }
@@ -447,79 +375,6 @@ void LogicSim::recompute_chip_users () {
 	}
 }
 
-/*
-// TODO: eliminate somehow
-template <typename FUNC>
-void for_each_wire_node (Chip& chip, FUNC func) {
-	for_each_part(chip, [&] (Part* part) {
-		for (auto& pin : part->pins) {
-			func(pin.node.get());
-		}
-	});
-
-	for (auto& node : chip.wire_nodes) {
-		func(node.get());
-	}
-}
-int update_state_indices (Chip& chip) {
-	if (chip.state_count >= 0)
-		return chip.state_count; // already up to date
-
-	for_each_wire_node(chip, [&] (WireNode* node) {
-		node->visited = false;
-	});
-		
-	int sid = 0;
-		
-	for_each_wire_node(chip, [&] (WireNode* node) {
-		if (node->visited)
-			return;
-		
-		int wire_sid = sid++;
-		
-		// could use a queue as well, but order does not matter
-		// TODO: profile difference
-		std::vector<WireNode*> stk;
-		stk.push_back(node);
-			
-		while (!stk.empty()) {
-			WireNode* cur_node = stk.back();
-			stk.pop_back();
-				
-			cur_node->visited = true;
-			cur_node->sid = wire_sid;
-				
-			for (WireNode* link : cur_node->edges) {
-				if (!link->visited)
-					stk.push_back(link);
-			}
-		}
-	});
-	chip.wire_states = sid;
-
-	for_each_part(chip, [&] (Part* part) {
-		sid += update_state_indices(*part->chip);
-	});
-
-	chip.state_count = sid;
-	return chip.state_count;
-}
-void update_all_chip_state_indices (LogicSim& sim) {
-
-	// invalidate all chips and recompute state_counts
-	for (auto& c : sim.saved_chips) {
-		c->wire_states = -1;
-		c->state_count = -1;
-	}
-	sim.viewed_chip->wire_states = -1;
-	sim.viewed_chip->state_count = -1;
-
-	for (auto& c : sim.saved_chips)
-		update_state_indices(*c);
-	update_state_indices(*sim.viewed_chip);
-}
-*/
-
 void LogicSim::update_chip_state () {
 	unsaved_changes = true;
 
@@ -530,92 +385,6 @@ void LogicSim::update_chip_state () {
 	//// TODO
 	//for (int i=0; i<2; ++i)
 	//	state[i].assign(viewed_chip->state_count, 0);
-}
-
-void LogicSim::add_part (Chip& chip, Chip* part_chip, Placement part_pos) {
-	assert(&chip == viewed_chip.get());
-
-	auto* ptr = new Part(part_chip, "", part_pos);
-
-	if (part_chip == &gates[INP_PIN]) {
-		
-		int idx = (int)chip.inputs.size();
-		chip.inputs.emplace_back(ptr);
-
-		for (auto& schip : saved_chips) {
-			for (auto& part : schip->parts) {
-				if (part->chip == &chip) {
-					part->pins.emplace(part->pins.begin() + idx,
-						std::make_unique<WireNode>(part->pos.calc_matrix() * get_inp_pos(*ptr), part.get()));
-				}
-			}
-		}
-	}
-	else if (part_chip == &gates[OUT_PIN]) {
-		
-		chip.outputs.emplace_back(ptr);
-
-		for (auto& schip : saved_chips) {
-			for (auto& part : schip->parts) {
-				if (part->chip == &chip) {
-					part->pins.emplace_back(
-						std::make_unique<WireNode>(part->pos.calc_matrix() * get_out_pos(*ptr), part.get()));
-				}
-			}
-		}
-	}
-	else {
-		// insert part at end of parts list
-		chip.parts.add(ptr);
-	}
-	
-	ptr->update_pins_pos();
-	
-	unsaved_changes = true;
-}
-void LogicSim::remove_part (Chip& chip, Part* part) {
-	assert(&chip == viewed_chip.get());
-
-	for (auto& pin : part->pins)
-		disconnect_wire_node(chip, pin.node.get());
-
-	if (part->chip == &gates[INP_PIN]) {
-		int idx = indexof(chip.inputs, part, _partptr_equal());
-		assert(idx >= 0);
-
-		chip.inputs.erase(chip.inputs.begin() + idx);
-	
-		int i = idx;
-		for (auto& schip : saved_chips) {
-			for (auto& part : schip->parts) {
-				if (part->chip == &chip) {
-					disconnect_wire_node(*schip, part->pins[i].node.get());
-					part->pins.erase(part->pins.begin() + i);
-				}
-			}
-		}
-	}
-	else if (part->chip == &gates[OUT_PIN]) {
-		int idx = indexof(chip.outputs, part, _partptr_equal());
-		assert(idx >= 0);
-
-		chip.outputs.erase(chip.outputs.begin() + idx);
-		
-		int i = idx + (int)chip.inputs.size();
-		for (auto& schip : saved_chips) {
-			for (auto& part : schip->parts) {
-				if (part->chip == &chip) {
-					disconnect_wire_node(*schip, part->pins[i].node.get());
-					part->pins.erase(part->pins.begin() + i);
-				}
-			}
-		}
-	}
-	else {
-		chip.parts.try_remove(part);
-	}
-	
-	unsaved_changes = true;
 }
 
 ////
@@ -632,7 +401,7 @@ json part2json (LogicSim const& sim, Part& part, std::unordered_map<Part*, int>&
 }
 json chip2json (const Chip& chip, LogicSim const& sim) {
 	std::unordered_map<Part*, int> part2idx;
-	part2idx.reserve(chip.inputs.size() + chip.outputs.size() + chip.parts.size());
+	part2idx.reserve(chip.parts.size());
 	
 	std::unordered_map<WireNode*, int> node2idx;
 	node2idx.reserve(chip.wire_nodes.size() + chip.parts.size()*4); // estimate
@@ -644,30 +413,10 @@ json chip2json (const Chip& chip, LogicSim const& sim) {
 		node2idx[wire.get()] = node_idx++;
 	}
 
-	for (auto& part : chip.outputs) {
-		part2idx[part.get()] = idx++;
-
-		for (auto& pin : part->pins) {
-			node2idx[pin.node.get()] = node_idx++;
-		}
-	}
-	for (auto& part : chip.inputs) {
-		part2idx[part.get()] = idx++;
-
-		for (auto& pin : part->pins) {
-			node2idx[pin.node.get()] = node_idx++;
-		}
-	}
 	for (auto& part : chip.parts) {
 		part2idx[part.get()] = idx++;
-
-		for (auto& pin : part->pins) {
-			node2idx[pin.node.get()] = node_idx++;
-		}
 	}
 
-	json jouts  = json::array();
-	json jinps  = json::array();
 	json jparts = json::array();
 	json jnodes = json::array();
 	json jedges = json::array();
@@ -687,14 +436,6 @@ json chip2json (const Chip& chip, LogicSim const& sim) {
 		});
 	}
 
-	for (auto& part : chip.outputs) {
-		jouts.emplace_back( part2json(sim, *part, part2idx) );
-	}
-
-	for (auto& part : chip.inputs) {
-		jinps.emplace_back( part2json(sim, *part, part2idx) );
-	}
-
 	for (auto& part : chip.parts) {
 		jparts.emplace_back( part2json(sim, *part, part2idx) );
 	}
@@ -703,8 +444,6 @@ json chip2json (const Chip& chip, LogicSim const& sim) {
 		{"name",       chip.name},
 		{"col",        chip.col},
 		{"size",       chip.size},
-		{"inputs",     std::move(jinps)},
-		{"outputs",    std::move(jouts)},
 		{"parts",      std::move(jparts)},
 		{"wire_nodes", std::move(jnodes)},
 		{"wire_edges", std::move(jedges)},
@@ -741,19 +480,13 @@ Part* json2part (const json& j, LogicSim const& sim, std::vector<WireNode*>& idx
 	}
 
 	auto* ptr = new Part(part_chip, std::move(name), pos);
-	for (auto& pin : ptr->pins) {
-		idx2node.emplace_back(pin.node.get());
-	}
 	return ptr;
 }
 void json2chip (const json& j, Chip& chip, LogicSim& sim) {
 	
-	auto& jouts = j.at("outputs");
-	auto& jinps = j.at("inputs");
 	auto& jparts = j.at("parts");
 	auto& jnodes = j.at("wire_nodes");
 	auto& jedges = j.at("wire_edges");
-	size_t total = jouts.size() + jinps.size() + jparts.size();
 	
 	chip.parts.reserve((int)jparts.size());
 
@@ -761,7 +494,7 @@ void json2chip (const json& j, Chip& chip, LogicSim& sim) {
 	chip.wire_edges.reserve((int)jedges.size());
 
 	// first pass to create pointers
-	std::vector<Part*> idx2part(total, nullptr);
+	std::vector<Part*> idx2part((int)jparts.size(), nullptr);
 	
 	std::vector<WireNode*> idx2node;
 	idx2node.reserve(chip.wire_nodes.size() + chip.parts.size()*4);
@@ -774,15 +507,6 @@ void json2chip (const json& j, Chip& chip, LogicSim& sim) {
 	}
 
 	int idx = 0;
-	int out_idx = 0, inp_idx = 0;
-	for (auto& j : jouts) {
-		auto* ptr = idx2part[idx++] = json2part(j, sim, idx2node);
-		chip.outputs[out_idx++] = std::unique_ptr<Part>(ptr);
-	}
-	for (auto& j : jinps) {
-		auto* ptr = idx2part[idx++] = json2part(j, sim, idx2node);
-		chip.inputs[inp_idx++] = std::unique_ptr<Part>(ptr);
-	}
 	for (auto& j : jparts) {
 		auto* ptr = idx2part[idx++] = json2part(j, sim, idx2node);
 		chip.parts.add(ptr);
@@ -795,6 +519,8 @@ void json2chip (const json& j, Chip& chip, LogicSim& sim) {
 		};
 		auto* a = get(j.at("a"));
 		auto* b = get(j.at("b"));
+		assert(a && b);
+
 		auto edge = std::make_unique<WireEdge>(a, b);
 	
 		a->edges.add(b);
@@ -811,26 +537,11 @@ void from_json (const json& j, LogicSim& sim) {
 		chip->name    = jchip.at("name");
 		chip->col     = jchip.at("col");
 		chip->size    = jchip.at("size");
-
-		chip->outputs.resize(jchip.at("outputs").size());
-		chip->inputs .resize(jchip.at("inputs" ).size());
 	}
 	// then convert chip ids references in parts to valid chips
 	auto cur = sim.saved_chips.begin();
 	for (auto& jchip : j["chips"]) {
 		json2chip(jchip, *(*cur++), sim);
-	}
-	
-	for (auto& chip : sim.saved_chips) {
-		for (auto& part : chip->inputs) {
-			part->update_pins_pos();
-		}
-		for (auto& part : chip->outputs) {
-			part->update_pins_pos();
-		}
-		for (auto& part : chip->parts) {
-			part->update_pins_pos();
-		}
 	}
 
 	sim.recompute_chip_users();
