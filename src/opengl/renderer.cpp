@@ -5,49 +5,51 @@
 using namespace logic_sim;
 
 namespace ogl {
-	
-void LineGroup::draw_wire_segment (float2 a, float2 b, int states, lrgba col) {
-	auto* out = push_back(lines, 1);
+
+void CircuitMeshBuilder::draw_wire_segment (int wire_id, float2 a, float2 b, int states, lrgba col) {
+	auto* out = push_back(line_groups[wire_id], 1);
 
 	*out++ = { a, b, wire_radius, 0, states, col };
 }
-
-void LineGroup::draw_wire_point (float2 pos, float radius, int num_wires, int states, lrgba col) {
+void CircuitMeshBuilder::draw_wire_point (int wire_id, float2 pos, float radius, int num_wires, int states, lrgba col) {
 	if (num_wires > 2)
 		radius *= wire_node_junction;
 	if (num_wires == 1)
 		radius *= wire_node_dead_end;
 
-	auto* out = push_back(lines, 1);
+	auto* out = push_back(line_groups[wire_id], 1);
 
 	*out++ = { pos, pos, radius, 2, states, col * lrgba(.8f,.8f,.8f, 1.0f) };
 }
 
-void add_line_group (LineRenderer& lines, LineGroup& group) {
-	size_t count = group.lines.size();
-	if (count == 0) return;
+void CircuitMeshBuilder::finish_wires () {
+		
+	for (auto& lines : line_groups) {
+		size_t count = lines.size();
+		if (count == 0) return;
 
-	LineRenderer::LineInstance* out = push_back(lines.lines, count*2);
+		auto* out = push_back(mesh.wires_mesh, count*2);
 
-	// BG elements
-	memcpy(out, group.lines.data(), count * sizeof(group.lines[0]));
-	out += count;
+		// BG elements
+		memcpy(out, lines.data(), count * sizeof(lines[0]));
+		out += count;
 	
-	// FG elements
-	memcpy(out, group.lines.data(), count * sizeof(group.lines[0]));
-	for (size_t i=0; i<count; ++i) {
-		out[i].type += 1;
+		// FG elements
+		memcpy(out, lines.data(), count * sizeof(lines[0]));
+		for (size_t i=0; i<count; ++i) {
+			out[i].type += 1;
+		}
 	}
 }
 
-void Renderer::draw_gate (float2x3 const& mat, float2 size, int type, int state, lrgba col) {
+void CircuitMeshBuilder::draw_gate (float2x3 const& mat, float2 size, int type, int state, lrgba col) {
 	//if (type < 2)
 	//	return; // TEST: don't draw INP/OUT_PINs
 
 	if (type >= AND3_GATE)
 		type = type - AND3_GATE + AND_GATE;
 
-	uint16_t idx = (uint16_t)tri_renderer.verticies.size();
+	uint16_t idx = (uint16_t)mesh.gates_mesh.size();
 		
 	constexpr float2 verts[] = {
 		float2(-0.5f, -0.5f),
@@ -56,119 +58,20 @@ void Renderer::draw_gate (float2x3 const& mat, float2 size, int type, int state,
 		float2(-0.5f, +0.5f),
 	};
 
-	auto* pv = push_back(tri_renderer.verticies, 4);
+	auto* pv = push_back(mesh.gates_mesh, 4);
 	pv[0] = { mat * (verts[0] * size), (verts[0] * size) + 0.5f, type, state, col };
 	pv[1] = { mat * (verts[1] * size), (verts[1] * size) + 0.5f, type, state, col };
 	pv[2] = { mat * (verts[2] * size), (verts[2] * size) + 0.5f, type, state, col };
 	pv[3] = { mat * (verts[3] * size), (verts[3] * size) + 0.5f, type, state, col };
 		
-	auto* pi = push_back(tri_renderer.indices, 6);
+	auto* pi = push_back(mesh.gates_mesh_indices, 6);
 	ogl::push_quad(pi, idx+0, idx+1, idx+2, idx+3);
 }
 
-//int make_state (uint8_t* prev, uint8_t* cur, int state_base, WireNode* node) {
-//	assert(node->sid >= 0);
-//	if (state_base < 0) return 0;
-//
-//	return prev[state_base + node->sid] | (cur[state_base + node->sid] << 1);
-//}
-
-#if 0
-void Renderer::draw_chip (App& app, Chip* chip, float2x3 const& chip2world, int sim_idx, lrgba col) {
-	auto& editor = app.editor;
-
-	//uint8_t* prev = g.sim.state[g.sim.cur_state^1].data();
-	//uint8_t* cur  = g.sim.state[g.sim.cur_state  ].data();
-
-	lrgba lcol = line_col * col;
-
-	if (is_gate(chip)) {
-		auto type = gate_type(chip);
-		//uint8_t state = chip_state >= 0 ? cur[chip_state] : 1;
-		uint8_t state = 0;
-		
-		draw_gate(chip2world, chip->size, type, state, lrgba(chip->col, 1) * col);
-	}
-	else {
-		LineGroup lines;
-
-		{ // TODO: make this look nicer, rounded thick outline? color the background inside chip differently?
-			float2 center = chip2world * float2(0);
-			float2 size = abs( (float2x2)chip2world * chip->size ) - 1.0f/16;
-			dbgdraw.wire_quad(float3(center - size*0.5f, 0.0f), size, lrgba(0.001f, 0.001f, 0.001f, 1));
-		}
-
-		for (auto& e : chip->wire_edges) {
-			//assert(e->a->sid == e->b->sid);
-
-			//int state = make_state(prev, cur, state_base, e->a);
-			int state = 0;
-			lines.draw_wire_segment(chip2world, e->a->pos, e->b->pos, state, lcol);
-		}
-		
-		int idx = sim_idx;
-
-		//if (part->chip != &gates[INP_PIN]) {
-		//	for (int i=0; i<(int)part->chip->inputs.size(); ++i) {
-		//		auto& inp = part->chip->inputs[i];
-		//	
-		//		float2 a = part2chip * get_inp_pos(*inp);
-		//		float2 b = part2chip * inp->pos.pos;
-		//		
-		//		auto& pin = part->pins[i];
-		//		auto& spin = gate.pins[i];
-		//		//int state = make_state(prev, cur, state_base, pin.node.get());
-		//		int state = 0;
-		//
-		//		lines.draw_wire_segment(chip2world, a,b, state, lcol);
-		//
-		//		draw_text(prints("%d", spin), chip2world * pin.node->pos, 10, 1);
-		//		lines.draw_wire_point(chip2world, pin.node->pos, wire_radius, pin.node->num_wires(), state, lcol);
-		//	}
-		//}
-
-		for (auto& n : chip->wire_nodes) {
-			//int state = make_state(prev, cur, state_base, n.get());
-			int state = 0;
-
-			//draw_text(prints("%d", n->sid), chip2world * n->pos, 10, 1);
-			lines.draw_wire_point(chip2world, n->pos, wire_radius, n->num_wires(), state, lcol);
-		}
-		
-		add_line_group(line_renderer, lines);
-
-		//int parts_sid = state_base >= 0 ? state_base + chip->wire_states : -1;
-		
-		idx = sim_idx;
-
-		//
-		for (auto& part : chip->parts) {
-			auto part2chip = part->pos.calc_matrix();
-			auto part2world = chip2world * part2chip;
-			
-			//Simulator::Gate gate;
-			//if (sim_idx >= 0 && is_gate(part->chip)) {
-			//	gate = app.sim.sim.gates[idx++];
-			//	assert(gate.type == gate_type(part->chip));
-			//}
-			
-			//draw_chip(app, part->chip, part2world, parts_sid, col);
-			draw_chip(app, part->chip, part2world, -1, col);
-			//draw_chip(g, part->chip, part2world, idx, col);
-			
-			//if (state_base >= 0)
-			//	parts_sid += part->chip->state_count;
-		}
-	}
-}
-#endif
 	
 void Renderer::begin (Window& window, App& app, int2 window_size) {
 	dbgdraw.clear();
 	text_renderer.begin();
-
-	tri_renderer.update(window.input);
-	line_renderer.update(window.input);
 }
 
 void Renderer::end (Window& window, App& app, int2 window_size) {
@@ -215,24 +118,24 @@ void Renderer::end (Window& window, App& app, int2 window_size) {
 	}
 
 	{
-		if (app.editor.in_mode<Editor::WireMode>()) {
-			auto& w = std::get<Editor::WireMode>(app.editor.mode);
-			
-			LineGroup lines;
-			
-			// w.prev is always a real existing point, don't draw preview
-			// w.cur can be a real existing point unless it points to w.node
-			if (w.cur && w.cur == &w.node) {
-				int wires = w.cur->num_wires() + (!w.prev || w.cur->edges.contains(w.prev) ? 0 : 1);
-				lines.draw_wire_point(w.cur->pos, wire_radius*1.12f, wires, 0, preview_line_col);
-			}
-			
-			if (w.cur && w.prev) {
-				lines.draw_wire_segment(w.prev->pos, w.cur->pos, 0, preview_line_col);
-			}
-
-			add_line_group(line_renderer, lines);
-		}
+		//if (app.editor.in_mode<Editor::WireMode>()) {
+		//	auto& w = std::get<Editor::WireMode>(app.editor.mode);
+		//	
+		//	LineGroup lines;
+		//	
+		//	// w.prev is always a real existing point, don't draw preview
+		//	// w.cur can be a real existing point unless it points to w.node
+		//	if (w.cur && w.cur == &w.node) {
+		//		int wires = w.cur->num_wires() + (!w.prev || w.cur->edges.contains(w.prev) ? 0 : 1);
+		//		lines.draw_wire_point(w.cur->pos, wire_radius*1.12f, wires, 0, preview_line_col);
+		//	}
+		//	
+		//	if (w.cur && w.prev) {
+		//		lines.draw_wire_segment(w.prev->pos, w.cur->pos, 0, preview_line_col);
+		//	}
+		//
+		//	add_line_group(line_renderer, lines);
+		//}
 	}
 
 	{ // Gate preview
@@ -244,8 +147,8 @@ void Renderer::end (Window& window, App& app, int2 window_size) {
 
 			//draw_chip(app, pl.place_chip, part2chip, -1, lrgba(1,1,1,0.75f));
 			
-			LineGroup lines;
-
+			//LineGroup lines;
+			//
 			//for (auto& pin : pl.place_chip->inputs) {
 			//	float2 a = part2chip * get_inp_pos(*pin);
 			//	float2 b = part2chip * pin->pos.pos;
@@ -253,13 +156,15 @@ void Renderer::end (Window& window, App& app, int2 window_size) {
 			//	lines.draw_wire_segment(float2x3::identity(), a, b, 0, preview_line_col);
 			//	lines.draw_wire_point(float2x3::identity(), a, wire_radius, 1, 0, preview_line_col);
 			//}
-
-			add_line_group(line_renderer, lines);
+			//
+			//add_line_group(line_renderer, lines);
 		}
 	}
-		
-	line_renderer.render(state, app.sim_t);
-	tri_renderer.render(state);
+
+	update_mesh(app.sim.circuit.mesh);
+	
+	draw_wires(state, app.sim_t);
+	draw_gates(state);
 
 	gl_dbgdraw.render(state, dbgdraw);
 	

@@ -73,10 +73,10 @@ struct Placement {
 	float  scale = 1.0f;
 
 	float2x3 calc_matrix () {
-		return translate(pos) * ::scale(float2(scale)) * ROT[rot] * MIRROR[mirror];
+		return translate(pos) * (::scale(float2(scale)) * ROT[rot] * MIRROR[mirror]);
 	}
 	float2x3 calc_inv_matrix () {
-		return MIRROR[mirror] * INV_ROT[rot] * ::scale(float2(1.0f/scale)) * translate(-pos);
+		return (MIRROR[mirror] * INV_ROT[rot] * ::scale(float2(1.0f/scale))) * translate(-pos);
 	}
 
 	void rotate_around (float2 center, short ang) {
@@ -304,6 +304,9 @@ struct Circuit {
 	int cur_state = 0;
 
 	std::vector<uint8_t> state[2];
+	
+
+	ogl::CircuitMesh mesh;
 };
 
 ////

@@ -10,121 +10,57 @@ namespace logic_sim {
 }
 
 namespace ogl {
-
-struct TriRenderer {
-	Shader* shad  = g_shaders.compile("gates");
-
-	struct Vertex {
-		float2 pos;
-		float2 uv;
-		int    gate_type;
-		int    gate_state;
-		float4 col;
-
-		ATTRIBUTES {
-			ATTRIB( idx++, GL_FLOAT,2, Vertex, pos);
-			ATTRIB( idx++, GL_FLOAT,2, Vertex, uv);
-			ATTRIBI(idx++, GL_INT,  1, Vertex, gate_type);
-			ATTRIBI(idx++, GL_INT,  1, Vertex, gate_state);
-			ATTRIB( idx++, GL_FLOAT,4, Vertex, col);
-		}
-	};
-
-	VertexBufferI vbo_tris = vertex_bufferI<Vertex>("TriRenderer.Vertex");
-
-	std::vector<Vertex>   verticies;
-	std::vector<uint16_t> indices;
-
-	void update (Input& I) {
-		verticies.clear();
-		verticies.shrink_to_fit();
-		indices  .clear();
-		indices  .shrink_to_fit();
-	}
-
-	void render (StateManager& state) {
-		ZoneScoped;
-
-		if (shad->prog) {
-			OGL_TRACE("TriRenderer");
-
-			vbo_tris.stream(verticies, indices);
-
-			if (indices.size() > 0) {
-				glUseProgram(shad->prog);
-
-				PipelineState s;
-				s.depth_test = false;
-				s.depth_write = false;
-				s.blend_enable = true;
-				s.cull_face = false;
-				state.set(s);
-
-				glBindVertexArray(vbo_tris.vao);
-				glDrawElements(GL_TRIANGLES, (GLsizei)indices.size(), GL_UNSIGNED_SHORT, (void*)0);
-			}
-		}
-
-		glBindVertexArray(0);
-	}
-};
-struct LineRenderer {
-	Shader* shad = g_shaders.compile("wires");
-
-	struct LineInstance {
+	
+struct CircuitMesh {
+	struct WireVertex {
 		float2 pos0;
 		float2 pos1;
 		float  radius;
 		int    type; // 0: wire segment BG  1: wire segment   2: wire node BG  3: wire node
-		int    states;
+		int    state;
 		float4 col;
 
 		ATTRIBUTES {
-			ATTRIB_INSTANCED( idx++, GL_FLOAT,2, LineInstance, pos0);
-			ATTRIB_INSTANCED( idx++, GL_FLOAT,2, LineInstance, pos1);
-			ATTRIB_INSTANCED( idx++, GL_FLOAT,1, LineInstance, radius);
-			ATTRIBI_INSTANCED(idx++, GL_INT  ,1, LineInstance, type);
-			ATTRIBI_INSTANCED(idx++, GL_INT  ,1, LineInstance, states);
-			ATTRIB_INSTANCED( idx++, GL_FLOAT,4, LineInstance, col);
+			ATTRIB_INSTANCED( idx++, GL_FLOAT,2, WireVertex, pos0);
+			ATTRIB_INSTANCED( idx++, GL_FLOAT,2, WireVertex, pos1);
+			ATTRIB_INSTANCED( idx++, GL_FLOAT,1, WireVertex, radius);
+			ATTRIBI_INSTANCED(idx++, GL_INT  ,1, WireVertex, type);
+			ATTRIBI_INSTANCED(idx++, GL_INT  ,1, WireVertex, state);
+			ATTRIB_INSTANCED( idx++, GL_FLOAT,4, WireVertex, col);
 		}
 	};
-
-	VertexBuffer vbo_lines = vertex_buffer<LineInstance>("LineRenderer.LineInstance");
-
-	std::vector<LineInstance> lines;
-
-	void update (Input& I) {
-		lines.clear();
-		lines.shrink_to_fit();
-	}
-
-	void render (StateManager& state, float sim_t) {
-		ZoneScoped;
-
-		if (shad->prog) {
-			OGL_TRACE("WireRenderer");
-
-			vbo_lines.stream(lines);
-
-			if (lines.size() > 0) {
-				glUseProgram(shad->prog);
-
-				shad->set_uniform("sim_t", sim_t);
-
-				PipelineState s;
-				s.depth_test = false;
-				s.depth_write = false;
-				s.blend_enable = true;
-				s.cull_face = false;
-				state.set(s);
-
-				glBindVertexArray(vbo_lines.vao);
-				glDrawArraysInstanced(GL_TRIANGLES, 0, 6, (GLsizei)lines.size());
-			}
+	struct GateVertex {
+		float2 pos;
+		float2 uv;
+		int    type;
+		int    state;
+		float4 col;
+		
+		ATTRIBUTES {
+			ATTRIB( idx++, GL_FLOAT,2, GateVertex, pos);
+			ATTRIB( idx++, GL_FLOAT,2, GateVertex, uv);
+			ATTRIBI(idx++, GL_INT,  1, GateVertex, type);
+			ATTRIBI(idx++, GL_INT,  1, GateVertex, state);
+			ATTRIB( idx++, GL_FLOAT,4, GateVertex, col);
 		}
+	};
+	
+	std::vector<WireVertex> wires_mesh;
 
-		glBindVertexArray(0);
-	}
+	std::vector<GateVertex> gates_mesh;
+	std::vector<uint16_t>   gates_mesh_indices;
+};
+struct CircuitMeshBuilder {
+	CircuitMesh& mesh;
+
+	std::vector< std::vector<CircuitMesh::WireVertex> > line_groups;
+	
+	void draw_wire_segment (int wire_id, float2 a, float2 b, int states, lrgba col);
+	void draw_wire_point (int wire_id, float2 pos, float radius, int num_wires, int states, lrgba col);
+
+	void finish_wires ();
+
+	void draw_gate (float2x3 const& mat, float2 size, int type, int state, lrgba col);
 };
 
 struct ScreenOutline {
@@ -180,22 +116,6 @@ struct ScreenOutline {
 	}
 };
 
-
-// Group of line segments and points that are drawn such that they appear connected (outlines appear behind all of the shapes)
-struct LineGroup {
-	std::vector<LineRenderer::LineInstance> lines;
-
-	LineGroup () {
-		lines.reserve(1024);
-	}
-		
-	void draw_wire_segment (float2 a, float2 b, int states, lrgba col);
-	void draw_wire_point (float2 pos, float radius, int num_wires, int states, lrgba col);
-};
-
-void add_line_group (LineRenderer& lines, LineGroup& group);
-
-
 struct Renderer {
 	SERIALIZE_NONE(Renderer)
 	
@@ -227,12 +147,75 @@ struct Renderer {
 
 	TextRenderer text_renderer = TextRenderer("fonts/AsimovExtraWide-veG4.ttf", 64, true);
 	
-	TriRenderer tri_renderer;
-	LineRenderer line_renderer;
-
 	Vao dummy_vao = {"dummy_vao"};
 
 	Shader* shad_background  = g_shaders.compile("background");
+
+	Shader* gates_shad  = g_shaders.compile("gates");
+	Shader* wires_shad = g_shaders.compile("wires");
+
+	VertexBufferI vbo_gates = vertex_bufferI<CircuitMesh::GateVertex>("GateVertex");
+	VertexBuffer  vbo_wires = vertex_buffer<CircuitMesh::WireVertex>("WireVertex");
+	GLsizei vbo_gates_indices; 
+	GLsizei vbo_wires_vertices; 
+
+	void update_mesh (CircuitMesh& mesh) {
+		vbo_gates.stream(mesh.gates_mesh, mesh.gates_mesh_indices);
+		vbo_wires.stream(mesh.wires_mesh);
+
+		vbo_gates_indices = (GLsizei)mesh.gates_mesh_indices.size();
+		vbo_wires_vertices = (GLsizei)mesh.wires_mesh.size();
+	}
+
+	void draw_gates (StateManager& state) {
+		ZoneScoped;
+
+		if (gates_shad->prog) {
+			OGL_TRACE("draw_gates");
+
+			if (vbo_gates_indices > 0) {
+				glUseProgram(gates_shad->prog);
+
+				PipelineState s;
+				s.depth_test = false;
+				s.depth_write = false;
+				s.blend_enable = true;
+				s.cull_face = false;
+				state.set(s);
+
+				glBindVertexArray(vbo_gates.vao);
+				glDrawElements(GL_TRIANGLES, vbo_gates_indices, GL_UNSIGNED_SHORT, (void*)0);
+			}
+		}
+
+		glBindVertexArray(0);
+	}
+
+	void draw_wires (StateManager& state, float sim_t) {
+		ZoneScoped;
+
+		if (wires_shad->prog) {
+			OGL_TRACE("WireRenderer");
+
+			if (vbo_wires_vertices > 0) {
+				glUseProgram(wires_shad->prog);
+
+				wires_shad->set_uniform("sim_t", sim_t);
+
+				PipelineState s;
+				s.depth_test = false;
+				s.depth_write = false;
+				s.blend_enable = true;
+				s.cull_face = false;
+				state.set(s);
+
+				glBindVertexArray(vbo_wires.vao);
+				glDrawArraysInstanced(GL_TRIANGLES, 0, 6, vbo_wires_vertices);
+			}
+		}
+
+		glBindVertexArray(0);
+	}
 
 	float text_scale = 1.0f;
 	
@@ -328,7 +311,7 @@ struct Renderer {
 		draw_text(name, center + size*(align - 0.5f), font_size, col, align);
 	}
 
-	void draw_gate (float2x3 const& mat, float2 size, int type, int state, lrgba col);
+	//void draw_gate (float2x3 const& mat, float2 size, int type, int state, lrgba col);
 	
 	//void draw_chip (App& app, logic_sim::Chip* chip, float2x3 const& chip2world, int sim_idx, lrgba col);
 	

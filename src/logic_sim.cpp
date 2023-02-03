@@ -10,6 +10,7 @@ namespace logic_sim {
 struct BuildSim {
 	Circuit& circuit;
 	ogl::Renderer& r;
+	ogl::CircuitMeshBuilder mesh_build;
 
 	struct WireNode {
 		int2             pos;
@@ -27,6 +28,7 @@ struct BuildSim {
 	std::vector<WireEdge>         edges;
 
 	std::vector<int> wire_ids;
+	int num_wire_ids;
 	
 	static constexpr float snapping_size = 0.125f;
 
@@ -44,32 +46,31 @@ struct BuildSim {
 
 		return res.first->second;
 	}
+	int get_node (float2 pos) {
+		int2 p = snap(pos);
+
+		auto res = node_map.find(p);
+		if (res != node_map.end()) {
+			return res->second;
+		}
+
+		assert(false);
+		return 0;
+	}
 	
 	void flatten_graph (Chip* chip, float2x3 const& chip2world) {
-		
-		ogl::LineGroup lines;
-		lrgba lcol = line_col * lrgba(1);
-
 		if (is_gate(chip)) {
-			auto type = gate_type(chip);
-			r.draw_gate(chip2world, chip->size, type, 0, lrgba(chip->col, 1) * lrgba(1));
 			
+			auto& sim_gate = circuit.gates.emplace_back(gate_type(chip));
+
+			int i = 0;
 			for (auto& pin : chip->pins) {
-				touch_node(chip2world * pin.pos);
+				int a = touch_node(chip2world * pin.pos);
 
-				float2 a = chip2world * pin.pos;
-				float2 b = chip2world * (pin.pos + ROT[pin.rot] * float2(pin.len, 0));
-				
-				lines.draw_wire_segment(a, b, 0, lcol);
-			}
+				nodes[a].edges.push_back(-1); // dummy id to mark connection to gate
 
-			circuit.gates.emplace_back(type);
-		}
-		else {
-			{ // TODO: make this look nicer, rounded thick outline? color the background inside chip differently?
-				float2 center = chip2world * float2(0);
-				float2 size = abs( (float2x2)chip2world * chip->size ) - 1.0f/16;
-				r.dbgdraw.wire_quad(float3(center - size*0.5f, 0.0f), size, lrgba(0.001f, 0.001f, 0.001f, 1));
+				if (i < 4)
+					sim_gate.pins[i++] = a;
 			}
 		}
 
@@ -81,8 +82,6 @@ struct BuildSim {
 
 			nodes[a].edges.push_back(b);
 			nodes[b].edges.push_back(a);
-
-			lines.draw_wire_segment(chip2world * e->a->pos, chip2world * e->b->pos, 0, lcol);
 		}
 
 		for (auto& part : chip->parts) {
@@ -90,8 +89,6 @@ struct BuildSim {
 
 			flatten_graph(part->chip, part2world);
 		}
-
-		ogl::add_line_group(r.line_renderer, lines);
 	}
 
 	void find_graphs () {
@@ -117,41 +114,89 @@ struct BuildSim {
 					wire_ids[cur] = wire_id;
 				
 					for (int link : nodes[cur].edges) {
-						if (!nodes[link].visited)
+						if (link >= 0 && !nodes[link].visited)
 							stk.push_back(link);
 					}
 				}
 			}
 		}
+
+		num_wire_ids = wid;
+
+		for (auto& state_vec : circuit.state)
+			state_vec.assign(num_wire_ids, 0);
 	}
 
-	void draw () {
-		ogl::LineGroup lines;
+	void draw_chip (Chip* chip, float2x3 const& chip2world) {
+		
 		lrgba lcol = line_col * lrgba(1);
+
+		if (is_gate(chip)) {
+			mesh_build.draw_gate(chip2world, chip->size, gate_type(chip), 0, lrgba(chip->col, 1) * lrgba(1));
+			
+			for (auto& pin : chip->pins) {
+				float2 a = chip2world * pin.pos;
+				float2 b = chip2world * (pin.pos + ROT[pin.rot] * float2(pin.len, 0));
+				
+				int wire_id = wire_ids[ get_node(a) ];
+
+				mesh_build.draw_wire_segment(wire_id, a, b, 0, lcol);
+			}
+		}
+		else {
+			{ // TODO: make this look nicer, rounded thick outline? color the background inside chip differently?
+				float2 center = chip2world * float2(0);
+				float2 size = abs( (float2x2)chip2world * chip->size ) - 1.0f/16;
+				r.dbgdraw.wire_quad(float3(center - size*0.5f, 0.0f), size, lrgba(0.001f, 0.001f, 0.001f, 1));
+			}
+		}
+
+		for (auto& part : chip->parts) {
+			auto part2world = chip2world * part->pos.calc_matrix();
+
+			draw_chip(part->chip, part2world);
+		}
+	}
+
+	void draw (Chip* viewed_chip) {
+		lrgba lcol = line_col * lrgba(1);
+
+		mesh_build.line_groups.resize( num_wire_ids );
+		
+		for (auto& e : edges) {
+			float2 a = (float2)nodes[e.a].pos * snapping_size;
+			float2 b = (float2)nodes[e.b].pos * snapping_size;
+			
+			int wire_id = wire_ids[ get_node(a) ];
+
+			mesh_build.draw_wire_segment(wire_id, a, b, 0, lcol);
+		}
+
+		draw_chip(viewed_chip, float2x3::identity());
 
 		for (int i=0; i<(int)nodes.size(); ++i) {
 			auto& n = nodes[i];
 
 			float2 pos = (float2)n.pos * snapping_size;
+			int wire_id = wire_ids[i];
 			
-			r.draw_text(prints("%d", wire_ids[i]), pos, 10, 1);
-
-			lines.draw_wire_point(pos, wire_radius, (int)n.edges.size(), 0, lcol);
+			r.draw_text(prints("%d", wire_id), pos, 10, 1);
+			mesh_build.draw_wire_point(wire_id, pos, wire_radius, (int)n.edges.size(), 0, lcol);
 		}
 		
-		ogl::add_line_group(r.line_renderer, lines);
+		mesh_build.finish_wires();
 	}
 };
 
 void LogicSim::recreate_simulator (ogl::Renderer& r) {
 	
-	circuit.gates.clear();
+	circuit = {};
 
-	BuildSim build{circuit, r};
+	BuildSim build{circuit, r, {circuit.mesh}};
 
 	build.flatten_graph(viewed_chip.get(), float2x3::identity());
 	build.find_graphs();
-	build.draw();
+	build.draw(viewed_chip.get());
 }
 
 void simulate_chip (Chip& chip, int state_base, uint8_t* cur, uint8_t* next) {
