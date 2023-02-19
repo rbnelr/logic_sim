@@ -237,6 +237,7 @@ void Circuit::simulate () {
 	for (int i=0; i<(int)gates.size(); ++i) {
 		auto& gate = gates[i];
 
+	#if 0
 		int inputs = (int)gate_chips[gate.type].pins.size() - 1;
 	
 		assert(inputs >= 1 && inputs <= 4);
@@ -254,12 +255,12 @@ void Circuit::simulate () {
 		int out  = gate.pins[inputs];
 		assert(out >= 0 && out < (int)cur.wire_state.size());
 		
-		bool a = in_a >= 0 && cur.wire_state[in_a] != 0;
-		bool b = in_b >= 0 && cur.wire_state[in_b] != 0;
-		bool c = in_c >= 0 && cur.wire_state[in_c] != 0;
-		bool d = in_d >= 0 && cur.wire_state[in_d] != 0;
+		bool a = in_a >= 0 ? (bool)cur.wire_state[in_a] : false;
+		bool b = in_b >= 0 ? (bool)cur.wire_state[in_b] : false;
+		bool c = in_c >= 0 ? (bool)cur.wire_state[in_c] : false;
+		bool d = in_d >= 0 ? (bool)cur.wire_state[in_d] : false;
 		
-		uint8_t new_state;
+		bool new_state;
 		switch (gate.type) {
 			case BUF_GATE : new_state =  a;     break;
 			case NOT_GATE : new_state = !a;     break;
@@ -287,8 +288,185 @@ void Circuit::simulate () {
 			default: assert(false);
 		}
 		
-		next.gate_state[i] = new_state;
-		next.wire_state[out] = new_state;
+		next.gate_state[i]   = (uint8_t)new_state;
+		next.wire_state[out] = (uint8_t)new_state;
+	#elif 0
+		int inputs = (int)gate_chips[gate.type].pins.size() - 1;
+	
+		assert(inputs >= 1 && inputs <= 4);
+		
+		if (inputs >= 1) assert(gate.pins[0] >= 0 && gate.pins[0] < (int)cur.wire_state.size());
+		if (inputs >= 2) assert(gate.pins[1] >= 0 && gate.pins[1] < (int)cur.wire_state.size());
+		if (inputs >= 3) assert(gate.pins[2] >= 0 && gate.pins[2] < (int)cur.wire_state.size());
+		if (inputs >= 4) assert(gate.pins[3] >= 0 && gate.pins[3] < (int)cur.wire_state.size());
+
+		int in_a = gate.pins[0];
+		int in_b = gate.pins[1];
+		int in_c = gate.pins[2];
+		int in_d = gate.pins[3];
+
+		int out  = gate.pins[inputs];
+		assert(out >= 0 && out < (int)cur.wire_state.size());
+		
+		uint8_t a = in_a >= 0 ? cur.wire_state[in_a] : 0;
+		uint8_t b = in_b >= 0 ? cur.wire_state[in_b] : 0;
+		uint8_t c = in_c >= 0 ? cur.wire_state[in_c] : 0;
+		uint8_t d = in_d >= 0 ? cur.wire_state[in_d] : 0;
+		
+		uint8_t res = a;
+		switch (gate.type) {
+
+			case AND4_GATE : case NAND4_GATE: res &= d; // fallthrough
+			case AND3_GATE : case NAND3_GATE: res &= c; // fallthrough
+			case AND_GATE  : case NAND_GATE:  res &= b; break;
+
+			case OR4_GATE  : case NOR4_GATE : res |= d; // fallthrough
+			case OR3_GATE  : case NOR3_GATE : res |= c; // fallthrough
+			case OR_GATE   : case NOR_GATE :  res |= b; break;
+
+			case XOR_GATE  :                  res ^= b; break;
+			
+			default: break;
+		}
+
+		switch (gate.type) {
+			case NOT_GATE  :
+			case NAND_GATE :
+			case NOR_GATE  :
+			case NAND3_GATE:
+			case NOR3_GATE :
+			case NAND4_GATE:
+			case NOR4_GATE :
+				res ^= 1;
+				break;
+	
+			default:
+				break;
+		}
+		
+		next.gate_state[i]   = res;
+		next.wire_state[out] = res;
+	#else
+		int inputs = (int)gate_chips[gate.type].pins.size() - 1;
+		
+		if (inputs >= 1) assert(gate.pins[0] >= 0 && gate.pins[0] < (int)cur.wire_state.size());
+		if (inputs >= 2) assert(gate.pins[1] >= 0 && gate.pins[1] < (int)cur.wire_state.size());
+		if (inputs >= 3) assert(gate.pins[2] >= 0 && gate.pins[2] < (int)cur.wire_state.size());
+		if (inputs >= 4) assert(gate.pins[3] >= 0 && gate.pins[3] < (int)cur.wire_state.size());
+
+		uint8_t a = cur.wire_state[ gate.pins[0] ];
+
+		switch (gate.type) {
+			case BUF_GATE  : case NOT_GATE  : {
+				assert(inputs == 1);
+
+				int out  = gate.pins[1];
+				assert(out >= 0 && out < (int)cur.wire_state.size());
+		
+				uint8_t res = gate.type == NOT_GATE ? a^1 : a;
+
+				next.gate_state[i]   = res;
+				next.wire_state[out] = res;
+
+			} break;
+			
+			case AND_GATE  : case NAND_GATE: 
+			case OR_GATE   : case NOR_GATE : 
+			case XOR_GATE  : {
+				assert(inputs == 2);
+
+				int out  = gate.pins[2];
+				assert(out >= 0 && out < (int)cur.wire_state.size());
+				
+				uint8_t b = cur.wire_state[ gate.pins[1] ];
+		
+				uint8_t res = a;
+				switch (gate.type) {
+					case AND_GATE  : case NAND_GATE:  res &= b; break;
+					case OR_GATE   : case NOR_GATE :  res |= b; break;
+					case XOR_GATE  :                  res ^= b; break;
+					INVALID_DEFAULT;
+				}
+
+				switch (gate.type) {
+					case NAND_GATE :
+					case NOR_GATE  :
+						res ^= 1;
+						break;
+					default:
+						break;
+				}
+		
+				next.gate_state[i]   = res;
+				next.wire_state[out] = res;
+
+			} break;
+				
+			case AND3_GATE : case NAND3_GATE:
+			case OR3_GATE  : case NOR3_GATE : {
+				assert(inputs == 3);
+
+				int out  = gate.pins[3];
+				assert(out >= 0 && out < (int)cur.wire_state.size());
+				
+				uint8_t b = cur.wire_state[ gate.pins[1] ];
+				uint8_t c = cur.wire_state[ gate.pins[2] ];
+		
+				uint8_t res = a;
+				switch (gate.type) {
+					case AND3_GATE : case NAND3_GATE: res = res & b & c; break;
+					case OR3_GATE  : case NOR3_GATE : res = res | b | c; break;
+					INVALID_DEFAULT;
+				}
+
+				switch (gate.type) {
+					case NAND3_GATE:
+					case NOR3_GATE :
+						res ^= 1;
+						break;
+					INVALID_DEFAULT;
+				}
+		
+				next.gate_state[i]   = res;
+				next.wire_state[out] = res;
+
+			} break;
+
+			case AND4_GATE : case NAND4_GATE:
+			case OR4_GATE  : case NOR4_GATE : {
+				assert(inputs == 4);
+
+				int out  = gate.pins[4];
+				assert(out >= 0 && out < (int)cur.wire_state.size());
+				
+				uint8_t b = cur.wire_state[ gate.pins[1] ];
+				uint8_t c = cur.wire_state[ gate.pins[2] ];
+				uint8_t d = cur.wire_state[ gate.pins[3] ];
+		
+				uint8_t res = a;
+				switch (gate.type) {
+					case AND4_GATE : case NAND4_GATE: res = res & b & c & d; break;
+					case OR4_GATE  : case NOR4_GATE : res = res | b | c | d; break;
+					INVALID_DEFAULT;
+				}
+
+				switch (gate.type) {
+					case NAND4_GATE:
+					case NOR4_GATE :
+						res ^= 1;
+						break;
+					INVALID_DEFAULT;
+				}
+		
+				next.gate_state[i]   = res;
+				next.wire_state[out] = res;
+
+			} break;
+
+			INVALID_DEFAULT;
+		}
+
+	#endif
 	}
 	
 	cur_state ^= 1;

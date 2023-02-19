@@ -261,6 +261,7 @@ enum GateType {
 	GATE_COUNT=1000,
 };
 
+
 #define _INP2 {"A", float2(-4, +2), 0, 2}, {"B", float2(-4, -2), 0, 2}
 #define _INP3 {"A", float2(-4, +2), 0, 2}, {"B", float2(-4, 0), 0, 2}, {"C", float2(-4, -2), 0, 2}
 #define _INP4 {"A", float2(-4, +3), 0, 2}, {"B", float2(-4, +1), 0, 2}, {"C", float2(-4, -1), 0, 2}, {"D", float2(-4, -3), 0, 2}
@@ -295,7 +296,7 @@ inline Chip gate_chips[GATE_COUNT] = {
 	{},{},{},{},
 	{},{},{},{},{},
 };
-	
+
 inline bool is_gate (Chip* chip) {
 	return chip >= gate_chips && chip < &gate_chips[GATE_COUNT];
 }
