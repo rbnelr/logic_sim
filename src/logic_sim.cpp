@@ -133,24 +133,19 @@ struct BuildSim {
 			}
 		}
 
-		for (auto& state_vec : circuit.state)
-			state_vec.assign(num_wire_ids, 0);
+		for (auto& state_vec : circuit.states) {
+			state_vec.gate_state.assign(circuit.gates.size(), 0);
+			state_vec.wire_state.assign(num_wire_ids, 0);
+		}
 	}
 
-	void draw_chip (Chip* chip, float2x3 const& chip2world) {
+	void draw_chip (Chip* chip, float2x3 const& chip2world, int& i) {
 		
 		lrgba lcol = line_col * lrgba(1);
 
 		if (is_gate(chip)) {
 			
-			int inputs = (int)chip->pins.size() - 1;
-			assert(inputs >= 1 && inputs <= 3);
-			
-			// TODO: improve?
-			float2 a = chip2world * chip->pins[inputs].pos;
-			int out_wire_id = wire_ids[ get_node(a) ];
-
-			mesh_build.draw_gate(chip2world, chip->size, gate_type(chip), out_wire_id, lrgba(chip->col, 1) * lrgba(1));
+			mesh_build.draw_gate(chip2world, chip->size, gate_type(chip), i++, lrgba(chip->col, 1) * lrgba(1));
 			
 			for (auto& pin : chip->pins) {
 				float2 a = chip2world * pin.pos;
@@ -173,7 +168,7 @@ struct BuildSim {
 		for (auto& part : chip->parts) {
 			auto part2world = chip2world * part->pos.calc_matrix();
 
-			draw_chip(part->chip, part2world);
+			draw_chip(part->chip, part2world, i);
 		}
 	}
 
@@ -193,7 +188,8 @@ struct BuildSim {
 			mesh_build.draw_wire_segment(a, b, wire_id, lcol);
 		}
 
-		draw_chip(viewed_chip, float2x3::identity());
+		int i = 0;
+		draw_chip(viewed_chip, float2x3::identity(), i);
 
 		for (int i=0; i<(int)nodes.size(); ++i) {
 			auto& n = nodes[i];
@@ -218,6 +214,14 @@ void LogicSim::recreate_simulator () {
 	{
 		ZoneScopedN("flatten_graph");
 		build.flatten_graph(viewed_chip.get(), float2x3::identity());
+
+		char buf[128];
+		int size = snprintf(buf, 128, "sim_gates: %d  node: %d  edges: %d",
+			(int)circuit.gates.size(),
+			(int)build.nodes.size(),
+			(int)build.edges.size());
+		if (size < 128)
+			ZoneText(buf, size);
 	}
 	build.find_graphs();
 	build.draw(viewed_chip.get());
@@ -226,28 +230,30 @@ void LogicSim::recreate_simulator () {
 void Circuit::simulate () {
 	ZoneScoped;
 
-	uint8_t* cur  = state[cur_state  ].data();
-	uint8_t* next = state[cur_state^1].data();
+	auto& cur  = states[cur_state  ];
+	auto& next = states[cur_state^1];
 
-	for (auto& gate : gates) {
+	for (int i=0; i<(int)gates.size(); ++i) {
+		auto& gate = gates[i];
+
 		int inputs = (int)gate_chips[gate.type].pins.size() - 1;
 	
 		assert(inputs >= 1 && inputs <= 3);
 		
-		if (inputs >= 1) assert(gate.pins[0] >= 0 && gate.pins[0] < (int)state->size());
-		if (inputs >= 2) assert(gate.pins[1] >= 0 && gate.pins[1] < (int)state->size());
-		if (inputs >= 3) assert(gate.pins[2] >= 0 && gate.pins[2] < (int)state->size());
+		if (inputs >= 1) assert(gate.pins[0] >= 0 && gate.pins[0] < (int)cur.wire_state.size());
+		if (inputs >= 2) assert(gate.pins[1] >= 0 && gate.pins[1] < (int)cur.wire_state.size());
+		if (inputs >= 3) assert(gate.pins[2] >= 0 && gate.pins[2] < (int)cur.wire_state.size());
 
 		int in_a = gate.pins[0];
 		int in_b = gate.pins[1];
 		int in_c = gate.pins[2];
 
 		int out  = gate.pins[inputs];
-		assert(out >= 0 && out < (int)state->size());
+		assert(out >= 0 && out < (int)cur.wire_state.size());
 		
-		bool a = in_a >= 0 && cur[in_a] != 0;
-		bool b = in_b >= 0 && cur[in_b] != 0;
-		bool c = in_c >= 0 && cur[in_c] != 0;
+		bool a = in_a >= 0 && cur.wire_state[in_a] != 0;
+		bool b = in_b >= 0 && cur.wire_state[in_b] != 0;
+		bool c = in_c >= 0 && cur.wire_state[in_c] != 0;
 		
 		uint8_t new_state;
 		switch (gate.type) {
@@ -270,8 +276,9 @@ void Circuit::simulate () {
 	
 			default: assert(false);
 		}
-	
-		next[out] = new_state;
+		
+		next.gate_state[i] = new_state;
+		next.wire_state[out] = new_state;
 	}
 	
 	cur_state ^= 1;

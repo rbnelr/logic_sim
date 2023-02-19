@@ -156,10 +156,11 @@ struct App : IApp {
 		manual_tick = false;
 
 		if (update_state) {
-			uint8_t* prev = sim.circuit.state[sim.circuit.cur_state  ].data();
-			uint8_t* cur  = sim.circuit.state[sim.circuit.cur_state^1].data();
+			auto prev = sim.circuit.states[sim.circuit.cur_state  ];
+			auto cur  = sim.circuit.states[sim.circuit.cur_state^1];
 
-			renderer.circuit_draw.update_state(prev, cur, (int)sim.circuit.state[0].size());
+			renderer.circuit_draw.update_wire_state(prev.wire_state.data(), cur.wire_state.data(), (int)cur.wire_state.size());
+			renderer.circuit_draw.update_gate_state(prev.gate_state.data(), cur.gate_state.data(), (int)cur.gate_state.size());
 		}
 		
 		// toggle gate after simulate to overwrite simulated state for that gate

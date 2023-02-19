@@ -158,7 +158,8 @@ struct Renderer {
 		VertexBufferI vbo_gates;
 		VertexBuffer  vbo_wires;
 
-		Texture1DArray state_tex;
+		Texture1DArray wire_state_tex;
+		Texture1DArray gate_state_tex;
 
 		GLsizei vbo_gates_indices; 
 		GLsizei vbo_wires_vertices;
@@ -166,11 +167,14 @@ struct Renderer {
 		CircuitDrawer (bool preview_drawer):
 				vbo_gates{ vertex_bufferI<CircuitMesh::GateVertex>(std::string("GateVertex") + (preview_drawer ? "_preview":"")) },
 				vbo_wires{ vertex_buffer <CircuitMesh::WireVertex>(std::string("WireVertex") + (preview_drawer ? "_preview":"")) },
-				state_tex{std::string("state_tex") + (preview_drawer ? "_preview":"")} {
+				wire_state_tex{std::string("wire_state_tex") + (preview_drawer ? "_preview":"")},
+				gate_state_tex{std::string("gate_state_tex") + (preview_drawer ? "_preview":"")} {
+
 			if (preview_drawer) {
 				// dummy state for preview (all state_ids should be 0)
 				uint8_t zero = 0;
-				update_state(&zero, &zero, 1);
+				update_wire_state(&zero, &zero, 1);
+				update_gate_state(&zero, &zero, 1);
 			}
 		}
 
@@ -182,8 +186,23 @@ struct Renderer {
 			vbo_wires_vertices = (GLsizei)mesh.wires_mesh.size();
 		}
 
-		void update_state (uint8_t* state_prev, uint8_t* state_cur, int count) {
-			glBindTexture(GL_TEXTURE_1D_ARRAY, state_tex);
+		void update_wire_state (uint8_t* state_prev, uint8_t* state_cur, int count) {
+			glBindTexture(GL_TEXTURE_1D_ARRAY, wire_state_tex);
+		
+			glTexImage2D(GL_TEXTURE_1D_ARRAY, 0, GL_R8, count,2, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr);
+
+			glTexSubImage2D(GL_TEXTURE_1D_ARRAY, 0, 0,0, count,1, GL_RED, GL_UNSIGNED_BYTE, state_prev);
+			glTexSubImage2D(GL_TEXTURE_1D_ARRAY, 0, 0,1, count,1, GL_RED, GL_UNSIGNED_BYTE, state_cur);
+		
+			glTexParameteri(GL_TEXTURE_1D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+			glTexParameteri(GL_TEXTURE_1D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+			glTexParameteri(GL_TEXTURE_1D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+			glTexParameteri(GL_TEXTURE_1D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+			glBindTexture(GL_TEXTURE_1D_ARRAY, 0);
+		}
+		void update_gate_state (uint8_t* state_prev, uint8_t* state_cur, int count) {
+			glBindTexture(GL_TEXTURE_1D_ARRAY, gate_state_tex);
 		
 			glTexImage2D(GL_TEXTURE_1D_ARRAY, 0, GL_R8, count,2, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr);
 
@@ -209,7 +228,7 @@ struct Renderer {
 				
 					gates_shad->set_uniform("sim_t", sim_t);
 					state.bind_textures(gates_shad, {
-						{"state_tex", state_tex}
+						{"gate_state_tex", gate_state_tex}
 					});
 
 					PipelineState s;
@@ -238,7 +257,7 @@ struct Renderer {
 
 					wires_shad->set_uniform("sim_t", sim_t);
 					state.bind_textures(wires_shad, {
-						{"state_tex", state_tex}
+						{"wire_state_tex", wire_state_tex}
 					});
 
 					PipelineState s;

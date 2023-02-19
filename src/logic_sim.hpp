@@ -290,8 +290,11 @@ struct Circuit {
 
 	int cur_state = 0;
 
-	std::vector<uint8_t> state[2];
-	
+	struct State {
+		std::vector<uint8_t> gate_state;
+		std::vector<uint8_t> wire_state;
+	};
+	State states[2];
 
 	ogl::CircuitMesh mesh;
 

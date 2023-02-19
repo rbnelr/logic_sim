@@ -170,10 +170,30 @@ void Renderer::end (Window& window, App& app, int2 window_size) {
 		circuit_draw_preview.update_mesh(mesh);
 	}
 	
-	for (auto& wirev : app.sim.circuit.mesh.wires_mesh) {
-		if (wirev.type == 2) { // Wire node (non-BG)
-			draw_text(prints("%d", wirev.state_id), wirev.pos0, 10, 1);
+	static bool draw_state_ids = true;
+	ImGui::Checkbox("draw_state_ids", &draw_state_ids);
+
+	if (draw_state_ids) {
+		for (auto& wirev : app.sim.circuit.mesh.wires_mesh) {
+			if (wirev.type == 2) { // Wire node (non-BG)
+				draw_text(prints("%d", wirev.state_id), wirev.pos0, 10, 1);
+			}
 		}
+
+		auto& circ = app.sim.circuit;
+		auto& cur_state = circ.states[circ.cur_state];
+
+		//std::string str;
+		//str.resize(cur_state.wire_state.size());
+
+		for (int i=0; i<(int)cur_state.wire_state.size(); ++i) {
+			//str[i] = cur_state.wire_state[i] ? '1' : '0';
+			bool b = cur_state.wire_state[i];
+			ImGui::SameLine(0, 1);
+			ImGui::TextColored(b ? ImVec4(1,0.2f,0.2f,1) : ImVec4(0.01f,0.01f,0.1f,1.0f), b ? "1":"0");
+		}
+
+		//ImGui::TextColored(ImVec4(1,0.2f,0.2f,1), str.c_str());
 	}
 
 	circuit_draw.draw_wires(wires_shad, state, app.sim_t);

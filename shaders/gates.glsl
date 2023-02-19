@@ -10,7 +10,7 @@ VS2FS Vertex v;
 flat VS2FS int v_gate_type;
 flat VS2FS int v_state_id;
 
-uniform usampler1DArray state_tex;
+uniform usampler1DArray gate_state_tex;
 uniform float sim_t;
 
 #define BUF_GATE  0
@@ -143,8 +143,8 @@ uniform float sim_t;
 		int ty  = v_gate_type/2;
 		bool inv = v_gate_type%2 != 0;
 		
-		//uint prev_state = texelFetch(state_tex, ivec2(state_id, 1), 0).x;
-		uint cur_state  = texelFetch(state_tex, ivec2(v_state_id, 0), 0).x;
+		//uint prev_state = texelFetch(gate_state_tex, ivec2(state_id, 1), 0).x;
+		uint cur_state  = texelFetch(gate_state_tex, ivec2(v_state_id, 0), 0).x;
 		
 		bool base_state = cur_state != 0;
 		bool inv_state  = cur_state != 0;
@@ -184,7 +184,7 @@ uniform float sim_t;
 			float outl_alpha = map_clamp(d + outline, -aa/2.0, +aa/2.0, 1.0, 0.0);
 			
 			vec4 c = v.col;
-			c.rgb *= inv_state ? vec3(1) : vec3(0.1);
+			c.rgb *= inv_state ? vec3(1) : vec3(0.05);
 			
 			c.rgb *= outl_alpha * 0.99;
 			c.a *= alpha;
