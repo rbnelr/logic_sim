@@ -13,13 +13,10 @@ flat VS2FS int v_state_id;
 uniform usampler1DArray gate_state_tex;
 uniform float sim_t;
 
-#define BUF_GATE  0
-#define NOT_GATE  1
-#define AND_GATE  2
-#define NAND_GATE 3
-#define OR_GATE   4
-#define NOR_GATE  5
-#define XOR_GATE  6
+#define BUF_GATE   0 //  0 / 10
+#define AND_GATE   1 // 10 / 10
+#define OR_GATE    2 // 20 / 10
+#define XOR_GATE   3 // 30 / 10
 
 #ifdef _VERTEX
 	layout(location = 0) in vec2  pos;
@@ -85,36 +82,36 @@ uniform float sim_t;
 		
 		return d;
 	}
-	float and_gate (vec2 uv) {
+	float and_gate (vec2 uv, float yscale) {
 		vec2 uv_mirr = vec2(uv.x, abs(uv.y - 0.5));
 		
 		float a = 0.3;
 		
 		float d;
 		if (uv.x < a)
-			d = SDF_box(uv - 0.5, vec2(0.36,0.40));
+			d = SDF_box(uv - 0.5, vec2(0.36,0.40*yscale));
 		else
-			d = SDF_ellipse(uv - vec2(a,0.5), vec2(0.8-a, 0.40));
+			d = SDF_ellipse(uv - vec2(a,0.5), vec2(0.8-a, 0.40*yscale));
 		
 		return d;
 	}
-	float or_gate (vec2 uv) {
+	float or_gate (vec2 uv, float yscale) {
 		vec2 uv_mirr = vec2(uv.x, abs(uv.y - 0.5));
 		
-		float a = 0.25;
+		float a = 0.2;
 		
 		float d;
 		if (uv.x < a)
-			d = SDF_line(uv_mirr, vec2(0.0, 0.4), vec2(1.0,0.4));
+			d = SDF_line(uv_mirr, vec2(0.0, 0.4*yscale), vec2(1.0,0.4*yscale));
 		else
-			d = SDF_ellipse(uv_mirr - vec2(a,-0.1), vec2(0.8-a, 0.5));
+			d = SDF_ellipse(uv_mirr - vec2(a,-0.1*yscale), vec2(0.8-a, 0.5*yscale));
 			
 		d = max(d, -SDF_ellipse(uv - vec2(-0.3,0.5), vec2(0.5, 0.6)));
 		
 		return d;
 	}
 	float xor_gate (vec2 uv) {
-		float d = or_gate(uv);
+		float d = or_gate(uv, 1.0);
 		
 		float d2 = SDF_ellipse(uv - vec2(-0.12,0.5), vec2(0.5, 0.6));
 		d2 = max(d2, -SDF_ellipse(uv - vec2(-0.17,0.5), vec2(0.5, 0.6)));
@@ -140,8 +137,9 @@ uniform float sim_t;
 	
 	void main () {
 		
-		int ty  = v_gate_type/2;
-		bool inv = v_gate_type%2 != 0;
+		int  ty  = v_gate_type/10;
+		bool inv = v_gate_type%10 >= 5;
+		float yscale = v_gate_type%5 >= 2 ? 1.25 : 1.0;
 		
 		//uint prev_state = texelFetch(gate_state_tex, ivec2(state_id, 1), 0).x;
 		uint cur_state  = texelFetch(gate_state_tex, ivec2(v_state_id, 0), 0).x;
@@ -159,11 +157,11 @@ uniform float sim_t;
 		{ // draw base gate symbol
 			float d;
 			
-			//if      (ty == INP_PIN /2) d =  pin_gate(v.uv);
-			if      (ty == BUF_GATE/2) d =  buf_gate(v.uv);
-			else if (ty == AND_GATE/2) d =  and_gate(v.uv);
-			else if (ty == OR_GATE /2) d =   or_gate(v.uv);
-			else /* ty == GT_XOR */ d =  xor_gate(v.uv);
+			//if      (ty == INP_PIN ) d =  pin_gate(v.uv);
+			if      (ty == BUF_GATE ) d =  buf_gate(v.uv);
+			else if (ty == AND_GATE ) d =  and_gate(v.uv, yscale);
+			else if (ty == OR_GATE  ) d =   or_gate(v.uv, yscale);
+			else /* ty == XOR_GATE */ d =  xor_gate(v.uv);
 			
 			float alpha      = map_clamp(d, -aa/2.0, +aa/2.0, 1.0, 0.0);
 			float outl_alpha = map_clamp(d + outline, -aa/2.0, +aa/2.0, 0.0, 1.0);

@@ -239,37 +239,61 @@ struct ThingPtr {
 
 ////
 enum GateType {
-	BUF_GATE  =0,
-	NOT_GATE  ,
-	AND_GATE  ,
-	NAND_GATE ,
-	OR_GATE   ,
-	NOR_GATE  ,
-	XOR_GATE  ,
+	BUF_GATE  = 0,
+	NOT_GATE  = 5,
 
-	AND3_GATE  ,
-	NAND3_GATE ,
-	OR3_GATE   ,
-	NOR3_GATE  ,
+	AND_GATE  =10,
+	AND3_GATE =11,
+	AND4_GATE =12,
+	NAND_GATE =15,
+	NAND3_GATE=16,
+	NAND4_GATE=17,
 
-	GATE_COUNT,
+	OR_GATE   =20,
+	OR3_GATE  =21,
+	OR4_GATE  =22,
+	NOR_GATE  =25,
+	NOR3_GATE =26,
+	NOR4_GATE =27,
+
+	XOR_GATE  =30,
+
+	GATE_COUNT=1000,
 };
+
+#define _INP2 {"A", float2(-4, +2), 0, 2}, {"B", float2(-4, -2), 0, 2}
+#define _INP3 {"A", float2(-4, +2), 0, 2}, {"B", float2(-4, 0), 0, 2}, {"C", float2(-4, -2), 0, 2}
+#define _INP4 {"A", float2(-4, +3), 0, 2}, {"B", float2(-4, +1), 0, 2}, {"C", float2(-4, -1), 0, 2}, {"D", float2(-4, -3), 0, 2}
 
 // Not const because we use Chip* for both editable (user-defined) chips and primitve gates
 // alternatively just cast const away?
 inline Chip gate_chips[GATE_COUNT] = {
 	Chip("Buffer Gate", lrgb(0.5f, 0.5f,0.75f), float2(8,4), {{"In", float2(-4, 0), 0, 2}, {"Out", float2(4, 0), 2, 4}} ),
+	{},{},{},{},
 	Chip("NOT Gate",    lrgb(   0,    0,    1), float2(8,4), {{"In", float2(-4, 0), 0, 2}, {"Out", float2(4, 0), 2, 1}} ),
-	Chip("AND Gate",    lrgb(   1,    0,    0), float2(8,8), {{"A", float2(-4, +2), 0, 2}, {"B", float2(-4, -2), 0, 2}, {"Out", float2(4, 0), 2, 2}} ),
-	Chip("NAND Gate",   lrgb(0.5f,    1,    0), float2(8,8), {{"A", float2(-4, +2), 0, 2}, {"B", float2(-4, -2), 0, 2}, {"Out", float2(4, 0), 2, 1}} ),
-	Chip("OR Gate",     lrgb(   1, 0.5f,    0), float2(8,8), {{"A", float2(-4, +2), 0, 2}, {"B", float2(-4, -2), 0, 2}, {"Out", float2(4, 0), 2, 2}} ),
-	Chip("NOR Gate",    lrgb(   0,    1, 0.5f), float2(8,8), {{"A", float2(-4, +2), 0, 2}, {"B", float2(-4, -2), 0, 2}, {"Out", float2(4, 0), 2, 1}} ),
-	Chip("XOR Gate",    lrgb(   0,    1,    0), float2(8,8), {{"A", float2(-4, +2), 0, 2}, {"B", float2(-4, -2), 0, 2}, {"Out", float2(4, 0), 2, 2}} ),
+	{},{},{},{},
+
+	Chip("AND Gate",    lrgb(   1,    0,    0), float2(8,8), {_INP2, {"Out", float2(4, 0), 2, 2}} ),
+	Chip("AND-3 Gate",  lrgb(   1,    0,    0), float2(8,8), {_INP3, {"Out", float2(4, 0), 2, 2}} ),
+	Chip("AND-4 Gate",  lrgb(   1,    0,    0), float2(8,10), {_INP4, {"Out", float2(4, 0), 2, 2}} ),
+	{},{},
+	Chip("NAND Gate",   lrgb(0.5f,    1,    0), float2(8,8), {_INP2, {"Out", float2(4, 0), 2, 1}} ),
+	Chip("NAND-3 Gate", lrgb(0.5f,    1,    0), float2(8,8), {_INP3, {"Out", float2(4, 0), 2, 1}} ),
+	Chip("NAND-4 Gate", lrgb(0.5f,    1,    0), float2(8,10), {_INP4, {"Out", float2(4, 0), 2, 1}} ),
+	{},{},
+
+	Chip("OR Gate",     lrgb(   1, 0.5f,    0), float2(8,8), {_INP2, {"Out", float2(4, 0), 2, 2}} ),
+	Chip("OR-3 Gate",   lrgb(   1, 0.5f,    0), float2(8,8), {_INP3, {"Out", float2(4, 0), 2, 2}} ),
+	Chip("OR-4 Gate",   lrgb(   1, 0.5f,    0), float2(8,10), {_INP4, {"Out", float2(4, 0), 2, 2}} ),
+	{},{},
+	Chip("NOR Gate",    lrgb(   0,    1, 0.5f), float2(8,8), {_INP2, {"Out", float2(4, 0), 2, 1}} ),
+	Chip("NOR-3 Gate",  lrgb(   0,    1, 0.5f), float2(8,8), {_INP3, {"Out", float2(4, 0), 2, 1}} ),
+	Chip("NOR-4 Gate",  lrgb(   0,    1, 0.5f), float2(8,10), {_INP4, {"Out", float2(4, 0), 2, 1}} ),
+	{},{},
 	
-	Chip("AND-3 Gate",  lrgb(   1,    0,    0), float2(8,8), {{"A", float2(-4, +2), 0, 2}, {"B", float2(-4, 0), 0, 2}, {"C", float2(-4, -2), 0, 2}, {"Out", float2(4, 0), 2, 2}} ),
-	Chip("NAND-3 Gate", lrgb(0.5f,    1,    0), float2(8,8), {{"A", float2(-4, +2), 0, 2}, {"B", float2(-4, 0), 0, 2}, {"C", float2(-4, -2), 0, 2}, {"Out", float2(4, 0), 2, 1}} ),
-	Chip("OR-3 Gate",   lrgb(   1, 0.5f,    0), float2(8,8), {{"A", float2(-4, +2), 0, 2}, {"B", float2(-4, 0), 0, 2}, {"C", float2(-4, -2), 0, 2}, {"Out", float2(4, 0), 2, 2}} ),
-	Chip("NOR-3 Gate",  lrgb(   0,    1, 0.5f), float2(8,8), {{"A", float2(-4, +2), 0, 2}, {"B", float2(-4, 0), 0, 2}, {"C", float2(-4, -2), 0, 2}, {"Out", float2(4, 0), 2, 1}} ),
+	Chip("XOR Gate",    lrgb(   0,    1,    0), float2(8,8), {_INP2, {"Out", float2(4, 0), 2, 2}} ),
+	{},{},{},{},
+	{},{},{},{},{},
 };
 	
 inline bool is_gate (Chip* chip) {
@@ -284,7 +308,7 @@ struct Circuit {
 	
 	struct Gate {
 		GateType type;
-		int pins[4] = { -1, -1, -1, -1 };
+		int pins[5] = { -1, -1, -1, -1, -1 };
 	};
 	std::vector<Gate> gates;
 

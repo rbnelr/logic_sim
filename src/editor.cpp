@@ -302,7 +302,7 @@ void Editor::imgui (LogicSim& sim, Camera2D& cam) {
 			
 			if (ImGui::TreeNodeEx("Primitive Parts", ImGuiTreeNodeFlags_DefaultOpen)) {
 				ImGui::TextDisabled("Click to Place");
-				if (ImGui::BeginTable("TableGates", 4, ImGuiTableFlags_Borders)) {
+				if (ImGui::BeginTable("TableGates", 6, ImGuiTableFlags_Borders)) {
 					
 					struct Entry {
 						const char* name = nullptr;
@@ -316,20 +316,28 @@ void Editor::imgui (LogicSim& sim, Camera2D& cam) {
 						//     
 						{ "BUF"    , &gate_chips[BUF_GATE  ] },
 						{},
+						{},
 						{ "NOT"    , &gate_chips[NOT_GATE  ] },
+						{},
 						{},
 
 						{ "AND"    , &gate_chips[AND_GATE  ] },
 						{ "AND-3"  , &gate_chips[AND3_GATE ] },
+						{ "AND-4"  , &gate_chips[AND4_GATE ] },
 						{ "NAND"   , &gate_chips[NAND_GATE ] },
 						{ "NAND-3" , &gate_chips[NAND3_GATE] },
+						{ "NAND-4" , &gate_chips[NAND4_GATE] },
 
 						{ "OR"     , &gate_chips[OR_GATE   ] },
 						{ "OR-3"   , &gate_chips[OR3_GATE  ] },
+						{ "OR-4"   , &gate_chips[OR4_GATE  ] },
 						{ "NOR"    , &gate_chips[NOR_GATE  ] },
 						{ "NOR-3"  , &gate_chips[NOR3_GATE ] },
+						{ "NOR-4"  , &gate_chips[NOR4_GATE ] },
 					
 						{ "XOR"    , &gate_chips[XOR_GATE  ] },
+						{},
+						{},
 						{},
 						{},
 						{},

@@ -47,9 +47,6 @@ void CircuitMeshBuilder::draw_gate (float2x3 const& mat, float2 size, int type, 
 	//if (type < 2)
 	//	return; // TEST: don't draw INP/OUT_PINs
 
-	if (type >= AND3_GATE)
-		type = type - AND3_GATE + AND_GATE;
-
 	uint16_t idx = (uint16_t)mesh.gates_mesh.size();
 		
 	constexpr float2 verts[] = {
@@ -183,17 +180,17 @@ void Renderer::end (Window& window, App& app, int2 window_size) {
 		auto& circ = app.sim.circuit;
 		auto& cur_state = circ.states[circ.cur_state];
 
-		//std::string str;
-		//str.resize(cur_state.wire_state.size());
+		std::string str;
+		str.resize(cur_state.wire_state.size());
 
 		for (int i=0; i<(int)cur_state.wire_state.size(); ++i) {
-			//str[i] = cur_state.wire_state[i] ? '1' : '0';
-			bool b = cur_state.wire_state[i];
-			ImGui::SameLine(0, 1);
-			ImGui::TextColored(b ? ImVec4(1,0.2f,0.2f,1) : ImVec4(0.01f,0.01f,0.1f,1.0f), b ? "1":"0");
+			str[i] = cur_state.wire_state[i] ? '1' : '0';
+			//bool b = cur_state.wire_state[i];
+			//ImGui::SameLine(0, 1);
+			//ImGui::TextColored(b ? ImVec4(1,0.2f,0.2f,1) : ImVec4(0.01f,0.01f,0.1f,1.0f), b ? "1":"0");
 		}
 
-		//ImGui::TextColored(ImVec4(1,0.2f,0.2f,1), str.c_str());
+		ImGui::Text(str.c_str());
 	}
 
 	circuit_draw.draw_wires(wires_shad, state, app.sim_t);

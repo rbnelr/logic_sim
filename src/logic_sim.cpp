@@ -71,7 +71,7 @@ struct BuildSim {
 
 				nodes[a].edges.push_back(-1); // dummy id to mark connection to gate
 
-				if (i < 4)
+				if (i < ARRLEN(sim_gate.pins))
 					sim_gate.pins[i++] = a;
 			}
 		}
@@ -127,7 +127,7 @@ struct BuildSim {
 		num_wire_ids = wid;
 		
 		for (auto& gate : circuit.gates) {
-			for (int i=0; i<4; ++i) {
+			for (int i=0; i<ARRLEN(gate.pins); ++i) {
 				auto& id = gate.pins[i];
 				id = id >= 0 ? wire_ids[ id ] : -1;
 			}
@@ -220,8 +220,9 @@ void LogicSim::recreate_simulator () {
 			(int)circuit.gates.size(),
 			(int)build.nodes.size(),
 			(int)build.edges.size());
-		if (size < 128)
+		if (size < 128) {
 			ZoneText(buf, size);
+		}
 	}
 	build.find_graphs();
 	build.draw(viewed_chip.get());
@@ -238,15 +239,17 @@ void Circuit::simulate () {
 
 		int inputs = (int)gate_chips[gate.type].pins.size() - 1;
 	
-		assert(inputs >= 1 && inputs <= 3);
+		assert(inputs >= 1 && inputs <= 4);
 		
 		if (inputs >= 1) assert(gate.pins[0] >= 0 && gate.pins[0] < (int)cur.wire_state.size());
 		if (inputs >= 2) assert(gate.pins[1] >= 0 && gate.pins[1] < (int)cur.wire_state.size());
 		if (inputs >= 3) assert(gate.pins[2] >= 0 && gate.pins[2] < (int)cur.wire_state.size());
+		if (inputs >= 4) assert(gate.pins[3] >= 0 && gate.pins[3] < (int)cur.wire_state.size());
 
 		int in_a = gate.pins[0];
 		int in_b = gate.pins[1];
 		int in_c = gate.pins[2];
+		int in_d = gate.pins[3];
 
 		int out  = gate.pins[inputs];
 		assert(out >= 0 && out < (int)cur.wire_state.size());
@@ -254,6 +257,7 @@ void Circuit::simulate () {
 		bool a = in_a >= 0 && cur.wire_state[in_a] != 0;
 		bool b = in_b >= 0 && cur.wire_state[in_b] != 0;
 		bool c = in_c >= 0 && cur.wire_state[in_c] != 0;
+		bool d = in_d >= 0 && cur.wire_state[in_d] != 0;
 		
 		uint8_t new_state;
 		switch (gate.type) {
@@ -273,6 +277,12 @@ void Circuit::simulate () {
 					
 			case OR3_GATE  : new_state =   a || b || c;    break;
 			case NOR3_GATE : new_state = !(a || b || c);   break;
+
+			case AND4_GATE : new_state =   a && b && c && d;    break;
+			case NAND4_GATE: new_state = !(a && b && c && d);   break;
+					
+			case OR4_GATE  : new_state =   a || b || c || d;    break;
+			case NOR4_GATE : new_state = !(a || b || c || d);   break;
 	
 			default: assert(false);
 		}
@@ -402,7 +412,7 @@ Part* json2part (const json& j, LogicSim const& sim, std::vector<WireNode*>& idx
 	int chip_id      = j.at("chip");
 	std::string name = j.contains("name") ? j.at("name") : "";
 	Placement   pos  = j.at("pos");
-		
+	
 	assert(chip_id >= 0);
 	Chip* part_chip = nullptr;
 	if (chip_id >= 0) {
