@@ -9,7 +9,6 @@ namespace logic_sim {
 
 struct BuildSim {
 	Circuit& circuit;
-	ogl::Renderer& r;
 	ogl::CircuitMeshBuilder mesh_build;
 
 	struct WireNode {
@@ -29,11 +28,9 @@ struct BuildSim {
 
 	std::vector<int> wire_ids;
 	int num_wire_ids;
-	
-	static constexpr float snapping_size = 0.125f;
 
 	static int2 snap (float2 pos) {
-		return roundi(pos / snapping_size);
+		return roundi(pos);
 	};
 	int touch_node (float2 pos) {
 		int2 p = snap(pos);
@@ -59,6 +56,11 @@ struct BuildSim {
 	}
 	
 	void flatten_graph (Chip* chip, float2x3 const& chip2world) {
+		
+		for (auto& n : chip->wire_nodes) {
+			touch_node(chip2world * n->pos);
+		}
+
 		if (is_gate(chip)) {
 			
 			auto& sim_gate = circuit.gates.emplace_back(gate_type(chip));
@@ -92,6 +94,7 @@ struct BuildSim {
 	}
 
 	void find_graphs () {
+		ZoneScoped;
 
 		wire_ids.assign((int)nodes.size(), -1);
 
@@ -122,6 +125,13 @@ struct BuildSim {
 		}
 
 		num_wire_ids = wid;
+		
+		for (auto& gate : circuit.gates) {
+			for (int i=0; i<4; ++i) {
+				auto& id = gate.pins[i];
+				id = id >= 0 ? wire_ids[ id ] : -1;
+			}
+		}
 
 		for (auto& state_vec : circuit.state)
 			state_vec.assign(num_wire_ids, 0);
@@ -132,23 +142,32 @@ struct BuildSim {
 		lrgba lcol = line_col * lrgba(1);
 
 		if (is_gate(chip)) {
-			mesh_build.draw_gate(chip2world, chip->size, gate_type(chip), 0, lrgba(chip->col, 1) * lrgba(1));
+			
+			int inputs = (int)chip->pins.size() - 1;
+			assert(inputs >= 1 && inputs <= 3);
+			
+			// TODO: improve?
+			float2 a = chip2world * chip->pins[inputs].pos;
+			int out_wire_id = wire_ids[ get_node(a) ];
+
+			mesh_build.draw_gate(chip2world, chip->size, gate_type(chip), out_wire_id, lrgba(chip->col, 1) * lrgba(1));
 			
 			for (auto& pin : chip->pins) {
 				float2 a = chip2world * pin.pos;
 				float2 b = chip2world * (pin.pos + ROT[pin.rot] * float2(pin.len, 0));
 				
+				// TODO: improve?
 				int wire_id = wire_ids[ get_node(a) ];
 
-				mesh_build.draw_wire_segment(wire_id, a, b, 0, lcol);
+				mesh_build.draw_wire_segment(a, b, wire_id, lcol);
 			}
 		}
 		else {
-			{ // TODO: make this look nicer, rounded thick outline? color the background inside chip differently?
-				float2 center = chip2world * float2(0);
-				float2 size = abs( (float2x2)chip2world * chip->size ) - 1.0f/16;
-				r.dbgdraw.wire_quad(float3(center - size*0.5f, 0.0f), size, lrgba(0.001f, 0.001f, 0.001f, 1));
-			}
+			//{ // TODO: make this look nicer, rounded thick outline? color the background inside chip differently?
+			//	float2 center = chip2world * float2(0);
+			//	float2 size = abs( (float2x2)chip2world * chip->size ) - 1.0f/16;
+			//	r.dbgdraw.wire_quad(float3(center - size*0.5f, 0.0f), size, lrgba(0.001f, 0.001f, 0.001f, 1));
+			//}
 		}
 
 		for (auto& part : chip->parts) {
@@ -159,17 +178,19 @@ struct BuildSim {
 	}
 
 	void draw (Chip* viewed_chip) {
+		ZoneScoped;
+		
 		lrgba lcol = line_col * lrgba(1);
 
 		mesh_build.line_groups.resize( num_wire_ids );
 		
 		for (auto& e : edges) {
-			float2 a = (float2)nodes[e.a].pos * snapping_size;
-			float2 b = (float2)nodes[e.b].pos * snapping_size;
+			float2 a = (float2)nodes[e.a].pos;
+			float2 b = (float2)nodes[e.b].pos;
 			
 			int wire_id = wire_ids[ get_node(a) ];
 
-			mesh_build.draw_wire_segment(wire_id, a, b, 0, lcol);
+			mesh_build.draw_wire_segment(a, b, wire_id, lcol);
 		}
 
 		draw_chip(viewed_chip, float2x3::identity());
@@ -177,215 +198,87 @@ struct BuildSim {
 		for (int i=0; i<(int)nodes.size(); ++i) {
 			auto& n = nodes[i];
 
-			float2 pos = (float2)n.pos * snapping_size;
+			float2 pos = (float2)n.pos;
 			int wire_id = wire_ids[i];
 			
-			r.draw_text(prints("%d", wire_id), pos, 10, 1);
-			mesh_build.draw_wire_point(wire_id, pos, wire_radius, (int)n.edges.size(), 0, lcol);
+			mesh_build.draw_wire_point(pos, wire_radius, (int)n.edges.size(), wire_id, lcol);
 		}
 		
 		mesh_build.finish_wires();
 	}
 };
 
-void LogicSim::recreate_simulator (ogl::Renderer& r) {
+void LogicSim::recreate_simulator () {
+	ZoneScoped;
 	
 	circuit = {};
 
-	BuildSim build{circuit, r, {circuit.mesh}};
+	BuildSim build{circuit, {circuit.mesh}};
 
-	build.flatten_graph(viewed_chip.get(), float2x3::identity());
+	{
+		ZoneScopedN("flatten_graph");
+		build.flatten_graph(viewed_chip.get(), float2x3::identity());
+	}
 	build.find_graphs();
 	build.draw(viewed_chip.get());
 }
 
-void simulate_chip (Chip& chip, int state_base, uint8_t* cur, uint8_t* next) {
-	
-	//int parts_sid = state_base + chip.wire_states;
-	//
-	//auto get = [&] (Part::Pin& pin) -> uint8_t* {
-	//	// Note: in this case sid is still valid, could just read it anyway
-		// TODO: How should gate toggling work?
-	//	if (pin.node->edges.empty())
-	//		return nullptr;
-	//	return &cur[state_base + pin.node->sid];
-	//};
-	//
-	//for (auto& part : chip.outputs) {
-	//	assert(part->chip == &gates[OUT_PIN]);
-	//	assert(part->pins.size() == 2);
-	//	
-	//	uint8_t* pa = get(part->pins[0]);
-	//
-	//	uint8_t* res0 = &next[state_base + part->pins.back().node->sid];
-	//
-	//	if (!pa) {
-	//		// keep prev state (needed to toggle gates via LMB)
-	//		*res0 = cur[state_base + part->pins.back().node->sid];
-	//	}
-	//	else {
-	//		*res0 = *pa;
-	//	}
-	//}
-	//
-	////// skip inputs which were updated by caller
-	//sid += (int)chip.inputs.size();
-	//
-	//for (auto& part : chip.parts) {
-	//	int input_count = (int)part->chip->inputs.size();
-	//
-	//	if (!is_gate(part->chip)) {
-	//		int output_count = (int)part->chip->outputs.size();
-	//
-	//		for (int i=0; i<input_count; ++i) {
-	//			Part* src = part->inputs[i].part;
-	//				
-	//			uint8_t new_state;
-	//
-	//			if (!src) {
-	//				// keep prev state (needed to toggle gates via LMB)
-	//				new_state = cur[sid + output_count + i] != 0;
-	//			}
-	//			else {
-	//				// read input connection
-	//				new_state = cur[state_base + src->sid + part->inputs[i].pin] != 0;
-	//				// write input part state
-	//			}
-	//
-	//			next[sid + output_count + i] = new_state;
-	//		}
-	//
-	//		simulate_chip(*part->chip, sid, cur, next);
-	//	}
-	//	else {
-	//		auto type = gate_type(part->chip);
-	//
-	//		assert(type != INP_PIN && type != OUT_PIN);
-	//		
-	//		assert(part->chip->state_count == 1);
-	//		
-	//		// TODO: cache part_idx in input as well to avoid indirection
-	//		Part* src_a = input_count >= 1 ? part->inputs[0].part : nullptr;
-	//		Part* src_b = input_count >= 2 ? part->inputs[1].part : nullptr;
-	//		Part* src_c = input_count >= 3 ? part->inputs[2].part : nullptr;
-	//
-	//		if (!src_a && !src_b) {
-	//			// keep prev state (needed to toggle gates via LMB)
-	//			next[sid] = cur[sid];
-	//		}
-	//		else {
-	//			bool a = src_a && cur[state_base + src_a->sid + part->inputs[0].pin] != 0;
-	//			bool b = src_b && cur[state_base + src_b->sid + part->inputs[1].pin] != 0;
-	//			bool c = src_c && cur[state_base + src_c->sid + part->inputs[2].pin] != 0;
-	//				
-	//			uint8_t new_state;
-	//			switch (type) {
-	//				case BUF_GATE : new_state =  a;     break;
-	//				case NOT_GATE : new_state = !a;     break;
-	//				
-	//				case AND_GATE : new_state =   a && b;    break;
-	//				case NAND_GATE: new_state = !(a && b);   break;
-	//				
-	//				case OR_GATE  : new_state =   a || b;    break;
-	//				case NOR_GATE : new_state = !(a || b);   break;
-	//				
-	//				case XOR_GATE : new_state =   a != b;    break;
-	//
-	//				case AND3_GATE : new_state =   a && b && c;    break;
-	//				case NAND3_GATE: new_state = !(a && b && c);   break;
-	//				
-	//				case OR3_GATE  : new_state =   a || b || c;    break;
-	//				case NOR3_GATE : new_state = !(a || b || c);   break;
-	//
-	//				default: assert(false);
-	//			}
-	//
-	//			next[sid] = new_state;
-	//		}
-	//
-	//		// don't recurse
-	//	}
-	//
-	//	sid += part->chip->state_count;
-	//}
-	//
-	//for (auto& part : chip.parts) {
-	//
-	//	if (!is_gate(part->chip)) {
-	//		simulate_chip(*part->chip, parts_sid, cur, next);
-	//		parts_sid += part->chip->state_count;
-	//		continue;
-	//	}
-	//
-	//	auto type = gate_type(part->chip);
-	//	
-	//	if (type == INP_PIN || type == OUT_PIN)
-	//		continue;
-	//	
-	//	int num_pins = (int)part->pins.size();
-	//	assert(num_pins == (int)part->chip->inputs.size() + (int)part->chip->outputs.size());
-	//	
-	//	uint8_t* pa = num_pins >= 2 ? get(part->pins[0]) : nullptr;
-	//	uint8_t* pb = num_pins >= 3 ? get(part->pins[1]) : nullptr;
-	//	uint8_t* pc = num_pins >= 4 ? get(part->pins[2]) : nullptr;
-	//
-	//	uint8_t* res0 = &next[state_base + part->pins.back().node->sid];
-	//	
-	//	if (!pa && !pb && !pc) {
-	//		// keep state if input is not connected
-			// TODO: does this make sense? maybe rather just create a 'button' gate?
-	//		*res0 = cur[state_base + part->pins.back().node->sid];
-	//		continue;
-	//	}
-	//
-	//	uint8_t a = pa ? *pa : 0;
-	//	uint8_t b = pb ? *pb : 0;
-	//	uint8_t c = pc ? *pc : 0;
-	//	
-	//	if (res0) {
-	//		switch (type) {
-	//			case BUF_GATE  : *res0 = (uint8_t)(  a );  break;
-	//			case NOT_GATE  : *res0 = (uint8_t)( !a );  break;
-	//		
-	//			case AND_GATE  : *res0 = (uint8_t)(   a && b  ); break;
-	//			case NAND_GATE : *res0 = (uint8_t)( !(a && b) ); break;
-	//		
-	//			case OR_GATE   : *res0 = (uint8_t)(   a || b  ); break;
-	//			case NOR_GATE  : *res0 = (uint8_t)( !(a || b) ); break;
-	//		
-	//			case XOR_GATE  : *res0 = (uint8_t)(   a != b ); break;
-	//		
-	//			case AND3_GATE : *res0 = (uint8_t)(   a && b && c  ); break;
-	//			case NAND3_GATE: *res0 = (uint8_t)( !(a && b && c) ); break;
-	//		
-	//			case OR3_GATE  : *res0 = (uint8_t)(   a || b || c  ); break;
-	//			case NOR3_GATE : *res0 = (uint8_t)( !(a || b || c) ); break;
-	//		
-	//			default: assert(false);
-	//		}
-	//	}
-	//}
-	//
-	//assert(chip.state_count >= 0); // state_count stale!
-	//assert(parts_sid - state_base == chip.state_count); // state_count invalid!
-}
-
-void LogicSim::simulate (Input& I) {
+void Circuit::simulate () {
 	ZoneScoped;
 
-	//uint8_t* cur  = state[cur_state  ].data();
-	//uint8_t* next = state[cur_state^1].data();
+	uint8_t* cur  = state[cur_state  ].data();
+	uint8_t* next = state[cur_state^1].data();
 
-	//for (int i=0; i<(int)viewed_chip->inputs.size(); ++i) {
-	//	// keep prev state (needed to toggle gates via LMB)
-	//	next[sid + output_count + i] = cur[sid + output_count + i] != 0;
-	//}
-
-	//simulate_chip(*viewed_chip, 0, cur, next);
-	//
-	//cur_state ^= 1;
-}
+	for (auto& gate : gates) {
+		int inputs = (int)gate_chips[gate.type].pins.size() - 1;
 	
+		assert(inputs >= 1 && inputs <= 3);
+		
+		if (inputs >= 1) assert(gate.pins[0] >= 0 && gate.pins[0] < (int)state->size());
+		if (inputs >= 2) assert(gate.pins[1] >= 0 && gate.pins[1] < (int)state->size());
+		if (inputs >= 3) assert(gate.pins[2] >= 0 && gate.pins[2] < (int)state->size());
+
+		int in_a = gate.pins[0];
+		int in_b = gate.pins[1];
+		int in_c = gate.pins[2];
+
+		int out  = gate.pins[inputs];
+		assert(out >= 0 && out < (int)state->size());
+		
+		bool a = in_a >= 0 && cur[in_a] != 0;
+		bool b = in_b >= 0 && cur[in_b] != 0;
+		bool c = in_c >= 0 && cur[in_c] != 0;
+		
+		uint8_t new_state;
+		switch (gate.type) {
+			case BUF_GATE : new_state =  a;     break;
+			case NOT_GATE : new_state = !a;     break;
+					
+			case AND_GATE : new_state =   a && b;    break;
+			case NAND_GATE: new_state = !(a && b);   break;
+					
+			case OR_GATE  : new_state =   a || b;    break;
+			case NOR_GATE : new_state = !(a || b);   break;
+					
+			case XOR_GATE : new_state =   a != b;    break;
+	
+			case AND3_GATE : new_state =   a && b && c;    break;
+			case NAND3_GATE: new_state = !(a && b && c);   break;
+					
+			case OR3_GATE  : new_state =   a || b || c;    break;
+			case NOR3_GATE : new_state = !(a || b || c);   break;
+	
+			default: assert(false);
+		}
+	
+		next[out] = new_state;
+	}
+	
+	cur_state ^= 1;
+
+
+}
+
 Chip Chip::deep_copy () const {
 	Chip c;
 	c.name = name;
@@ -418,18 +311,6 @@ void LogicSim::recompute_chip_users () {
 	for (auto& chip : saved_chips) {
 		_add_user_to_chip_deps(chip.get(), chip.get()); // add chip to all its recursive dependencies
 	}
-}
-
-void LogicSim::update_chip_state () {
-	unsaved_changes = true;
-
-	recompute_chip_users();
-	
-	//update_all_chip_state_indices(*this);
-	
-	//// TODO
-	//for (int i=0; i<2; ++i)
-	//	state[i].assign(viewed_chip->state_count, 0);
 }
 
 ////
@@ -519,7 +400,7 @@ Part* json2part (const json& j, LogicSim const& sim, std::vector<WireNode*>& idx
 	Chip* part_chip = nullptr;
 	if (chip_id >= 0) {
 		if (chip_id >= 0 && chip_id < GATE_COUNT)
-			part_chip = &gates[chip_id];
+			part_chip = &gate_chips[chip_id];
 		else if (chip_id >= 0)
 			part_chip = sim.saved_chips[chip_id - GATE_COUNT].get();
 	}
@@ -595,6 +476,8 @@ void from_json (const json& j, LogicSim& sim) {
 	if (viewed_chip_idx >= 0) {
 		sim.switch_to_chip_view( sim.saved_chips[viewed_chip_idx]);
 	}
+
+	sim.recompute = true;
 }
 
 } // namespace logic_sim

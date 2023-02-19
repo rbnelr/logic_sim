@@ -218,7 +218,7 @@ void Editor::saved_chips_imgui (LogicSim& sim, Camera2D& cam) {
 	}
 }
 
-void Editor::selection_imgui (PartSelection& sel) {
+void Editor::selection_imgui (LogicSim& sim, PartSelection& sel) {
 	if (sel.items.size() == 0) {
 		ImGui::Text("No parts selected");
 	}
@@ -233,15 +233,16 @@ void Editor::selection_imgui (PartSelection& sel) {
 		
 		ImGui::Text("First Selected: %s Instance", part.chip->name.c_str());
 
-		ImGui::InputText("name",          &part.name);
+		sim.recompute |= ImGui::InputText("name",          &part.name);
 
 		ImGui::Text("Placement in parent chip:");
 
 		int rot = (int)part.pos.rot;
-		ImGui::DragFloat2("pos",          &part.pos.pos.x, 0.1f);
-		ImGui::SliderInt("rot [R]",       &rot, 0, 3);
-		ImGui::Checkbox("mirror (X) [M]", &part.pos.mirror);
-		ImGui::DragFloat("scale",         &part.pos.scale, 0.1f, 0.001f, 100.0f);
+		int2 pos = roundi(part.pos.pos);
+		sim.recompute |= ImGui::DragInt2("pos",          &pos.x, 0.1f);
+		sim.recompute |= ImGui::SliderInt("rot [R]",       &rot, 0, 3);
+		sim.recompute |= ImGui::Checkbox("mirror (X) [M]", &part.pos.mirror);
+		part.pos.pos = (float2)pos;
 		part.pos.rot = (short)rot;
 	}
 }
@@ -266,15 +267,6 @@ void Editor::imgui (LogicSim& sim, Camera2D& cam) {
 				else   mode = EditMode();
 			}
 		}
-		//{
-		//	bool m = !in_mode<Editor::ViewMode>();
-		//	if (ImGui::Checkbox("Edit Mode [E]", &m))
-		//		toggle_edit_mode(*this);
-		//}
-
-		ImGui::Checkbox("snapping", &snapping);
-		ImGui::SameLine();
-		ImGui::InputFloat("###snapping_size", &snapping_size);
 		
 		if (imgui_Header("Selection", true)) {
 			ImGui::Indent(10);
@@ -287,7 +279,7 @@ void Editor::imgui (LogicSim& sim, Camera2D& cam) {
 				else {
 					auto& e = std::get<EditMode>(mode);
 					
-					selection_imgui(e.sel);
+					selection_imgui(sim, e.sel);
 				}
 			}
 			ImGui::EndChild();
@@ -317,27 +309,27 @@ void Editor::imgui (LogicSim& sim, Camera2D& cam) {
 						Chip*       gate;
 					};
 					constexpr Entry entries[] = {
-						//{ "INP"    , &gates[INP_PIN   ] },
+						//{ "INP"    , &gate_chips[INP_PIN   ] },
 						//{},
-						//{ "OUT"    , &gates[OUT_PIN   ] },
+						//{ "OUT"    , &gate_chips[OUT_PIN   ] },
 						//{},
 						//     
-						{ "BUF"    , &gates[BUF_GATE  ] },
+						{ "BUF"    , &gate_chips[BUF_GATE  ] },
 						{},
-						{ "NOT"    , &gates[NOT_GATE  ] },
+						{ "NOT"    , &gate_chips[NOT_GATE  ] },
 						{},
 
-						{ "AND"    , &gates[AND_GATE  ] },
-						{ "AND-3"  , &gates[AND3_GATE ] },
-						{ "NAND"   , &gates[NAND_GATE ] },
-						{ "NAND-3" , &gates[NAND3_GATE] },
+						{ "AND"    , &gate_chips[AND_GATE  ] },
+						{ "AND-3"  , &gate_chips[AND3_GATE ] },
+						{ "NAND"   , &gate_chips[NAND_GATE ] },
+						{ "NAND-3" , &gate_chips[NAND3_GATE] },
 
-						{ "OR"     , &gates[OR_GATE   ] },
-						{ "OR-3"   , &gates[OR3_GATE  ] },
-						{ "NOR"    , &gates[NOR_GATE  ] },
-						{ "NOR-3"  , &gates[NOR3_GATE ] },
+						{ "OR"     , &gate_chips[OR_GATE   ] },
+						{ "OR-3"   , &gate_chips[OR3_GATE  ] },
+						{ "NOR"    , &gate_chips[NOR_GATE  ] },
+						{ "NOR-3"  , &gate_chips[NOR3_GATE ] },
 					
-						{ "XOR"    , &gates[XOR_GATE  ] },
+						{ "XOR"    , &gate_chips[XOR_GATE  ] },
 						{},
 						{},
 						{},
@@ -375,10 +367,12 @@ void edit_placement (LogicSim& sim, Input& I, Placement& p, float2 center=0) {
 		int dir = I.buttons[KEY_LEFT_SHIFT].is_down ? -1 : +1;
 		p.rotate_around(center, dir);
 		sim.unsaved_changes = true;
+		sim.recompute = true;
 	}
 	if (I.buttons['M'].went_down) {
 		p.mirror_around(center);
 		sim.unsaved_changes = true;
+		sim.recompute = true;
 	}
 }
 // Edit placement wrapper that works on just position (for WireNode)
@@ -432,17 +426,9 @@ void highlight_part (ogl::Renderer& r, Part& part, float2x3 const& part2world, l
 		show_text ? part_name(part, buf) : std::string_view{});
 }
 void highlight_chip_names (ogl::Renderer& r, Chip& chip, float2x3 const& chip2world) {
-	// TODO: ?
-	//if (&chip != &gates[INP_PIN]) {
-	//	for (int i=0; i<(int)chip.inputs.size(); ++i) {
-	//		auto& pin = *chip.inputs[i];
-	//		r.draw_text(pin.name, chip2world * get_inp_pos(pin), pin_text_sz, pin_col, 0.5f, 0.4f);
-	//	}
-	//}
-			
 	for (auto& part : chip.parts) {
 		if (!part->name.empty())
-			r.draw_text(part->name, chip2world * part->pos.pos, part_text_sz, named_part_col, 0.5f, 0.4f);
+			r.draw_text(part->name, chip2world * part->pos.pos, part_text_sz, named_part_col, 0.5f, 3.2f);
 	}
 }
 
@@ -812,6 +798,8 @@ void Editor::update (Input& I, LogicSim& sim, ogl::Renderer& r) {
 					else {
 						e.dragging = false;
 					}
+					
+					sim.recompute = true;
 				}
 			}
 		}
@@ -933,8 +921,9 @@ void Editor::update (Input& I, LogicSim& sim, ogl::Renderer& r) {
 
 	highlight_chip_names(r, *sim.viewed_chip, float2x3::identity());
 
-	//if (sim.viewed_chip->state_count < 0)
-	//	sim.update_chip_state();
+	if (sim.unsaved_changes) {
+		sim.recompute_chip_users();
+	}
 }
 
 void Editor::update_toggle_gate (Input& I, LogicSim& sim, Window& window) {

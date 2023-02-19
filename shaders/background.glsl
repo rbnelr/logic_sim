@@ -28,7 +28,7 @@ VS2FS Vertex v;
 #ifdef _FRAGMENT
 	out vec4 frag_col;
 	void main () {
-		vec2 xy = fract(v.pos_world);
+		vec2 xy = fract(v.pos_world * 0.125);
 		
 		vec3 col = vec3(0.05, 0.06, 0.07);
 		if ((xy.x > 0.5) != (xy.y > 0.5))

@@ -86,12 +86,9 @@ struct Editor {
 	void reset () {
 		mode = ViewMode();
 	}
-
-	float snapping_size = 0.125f;
-	bool snapping = true;
 	
 	float2 snap (float2 pos) {
-		return snapping ? round(pos / snapping_size) * snapping_size : pos;
+		return round(pos);
 	}
 
 	int chips_reorder_src = -1;
@@ -107,7 +104,7 @@ struct Editor {
 	void saved_chip_imgui (LogicSim& sim, std::shared_ptr<Chip>& chip, bool can_place, bool is_viewed);
 	void saved_chips_imgui (LogicSim& sim, Camera2D& cam);
 		
-	void selection_imgui (PartSelection& sel);
+	void selection_imgui (LogicSim& sim, PartSelection& sel);
 
 	void imgui (LogicSim& sim, Camera2D& cam);
 		

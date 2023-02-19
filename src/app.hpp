@@ -121,15 +121,24 @@ struct App : IApp {
 		renderer.view = cam.update(I, (float2)I.window_size);
 		
 		editor.update(I, sim, renderer);
-	
-		sim.recreate_simulator(renderer);
+		
+		bool update_state = false;
+
+		if (sim.recompute) {
+			sim.recreate_simulator();
+
+			renderer.circuit_draw.update_mesh(sim.circuit.mesh);
+
+			sim.recompute = false;
+			update_state = true;
+		}
 
 		if (!sim_paused && sim_freq >= 0.1f) {
 			
 			for (int i=0; i<10 && sim_t >= 1.0f; ++i) {
-				
-				sim.simulate(I);
+				sim.circuit.simulate();
 				tick_counter++;
+				update_state = true;
 				
 				sim_t -= 1.0f;
 			}
@@ -138,12 +147,20 @@ struct App : IApp {
 			sim_t += I.dt * sim_freq;
 		}
 		else if (manual_tick) {
-			sim.simulate(I);
+			sim.circuit.simulate();
 			tick_counter++;
+			update_state = true;
 
 			sim_t = 0.5f;
 		}
 		manual_tick = false;
+
+		if (update_state) {
+			uint8_t* prev = sim.circuit.state[sim.circuit.cur_state  ].data();
+			uint8_t* cur  = sim.circuit.state[sim.circuit.cur_state^1].data();
+
+			renderer.circuit_draw.update_state(prev, cur, (int)sim.circuit.state[0].size());
+		}
 		
 		// toggle gate after simulate to overwrite simulated state for that gate
 		editor.update_toggle_gate(I, sim, window);

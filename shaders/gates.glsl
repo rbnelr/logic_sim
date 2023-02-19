@@ -8,7 +8,10 @@ struct Vertex {
 VS2FS Vertex v;
 
 flat VS2FS int v_gate_type;
-flat VS2FS int v_gate_state;
+flat VS2FS int v_state_id;
+
+uniform usampler1DArray state_tex;
+uniform float sim_t;
 
 #define BUF_GATE  0
 #define NOT_GATE  1
@@ -22,7 +25,7 @@ flat VS2FS int v_gate_state;
 	layout(location = 0) in vec2  pos;
 	layout(location = 1) in vec2  uv;
 	layout(location = 2) in int   gate_type;
-	layout(location = 3) in int   gate_state;
+	layout(location = 3) in int   state_id;
 	layout(location = 4) in vec4  col;
 	
 	void main () {
@@ -31,7 +34,7 @@ flat VS2FS int v_gate_state;
 		v.col = col;
 		
 		v_gate_type  = gate_type;
-		v_gate_state  = gate_state;
+		v_state_id  = state_id;
 	}
 #endif
 #ifdef _FRAGMENT
@@ -140,8 +143,11 @@ flat VS2FS int v_gate_state;
 		int ty  = v_gate_type/2;
 		bool inv = v_gate_type%2 != 0;
 		
-		bool base_state = v_gate_state != 0;
-		bool inv_state  = v_gate_state != 0;
+		//uint prev_state = texelFetch(state_tex, ivec2(state_id, 1), 0).x;
+		uint cur_state  = texelFetch(state_tex, ivec2(v_state_id, 0), 0).x;
+		
+		bool base_state = cur_state != 0;
+		bool inv_state  = cur_state != 0;
 		if (inv) base_state = !base_state;
 		
 		float du = fwidth(v.uv.x);
@@ -164,7 +170,7 @@ flat VS2FS int v_gate_state;
 			//float outl       = clamp(-d / outline, 0.0, 1.0);
 			
 			vec4 c = v.col;
-			c.rgb *= base_state ? vec3(1) : vec3(0.1);
+			c.rgb *= base_state ? vec3(1) : vec3(0.05);
 			
 			c.rgb *= (1.0 - outl_alpha * 0.99);
 			c.a *= alpha;

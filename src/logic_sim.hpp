@@ -12,36 +12,44 @@ namespace ogl { struct Renderer; }
 // because std::unordered_set< std::unique_ptr<T> > does not work before C++20 (cannot lookup via T*)
 
 namespace logic_sim {
-	
+
 inline constexpr float SEL_HIGHL_SHRINK = 1.0f/64;
 
-inline float wire_radius = 0.04f;
+inline float wire_radius = 0.30f;
 inline float wire_node_junction = 2.0f;
 inline float wire_node_dead_end = 1.3f;
 
-inline constexpr float PIN_LENGTH = 0.5f; // IO Pin base wire length
-
-constexpr lrgba line_col = lrgba(0.8f, 0.01f, 0.025f, 1);
+constexpr lrgba line_col = lrgba(1.0f, 0.015f, 0.03f, 1);
 constexpr lrgba preview_line_col = line_col * lrgba(1,1,1, 0.75f);
 
-constexpr float2x2 ROT[] = {
+inline constexpr float2x2 ROT[] = {
 	float2x2(  1, 0,  0, 1 ),
 	float2x2(  0, 1, -1, 0 ),
 	float2x2( -1, 0,  0,-1 ),
 	float2x2(  0,-1,  1, 0 ),
 };
-constexpr float2x2 INV_ROT[] = {
+inline constexpr float2x2 INV_ROT[] = {
 	float2x2(  1, 0,  0, 1 ),
 	float2x2(  0,-1,  1, 0 ),
 	float2x2( -1, 0,  0,-1 ),
 	float2x2(  0, 1, -1, 0 ),
 };
 	
-constexpr float2x2 MIRROR[] = {
+inline constexpr float2x2 MIRROR[] = {
 	float2x2(  1, 0,  0, 1 ),
 	float2x2( -1, 0,  0, 1 ),
 };
-	
+
+inline constexpr int2 roti (int rot, int2 vec) {
+	switch (rot & 3) {
+		case 0: return vec;
+		case 1: return int2(-vec.y, vec.x);
+		case 2: return -vec;
+		default:
+		case 3: return int2(vec.y, -vec.x);
+	}
+}
+
 struct AABB {
 	float2 lo; // min
 	float2 hi; // max
@@ -65,33 +73,31 @@ struct AABB {
 };
 
 struct Placement {
-	SERIALIZE(Placement, pos, rot, mirror, scale)
+	SERIALIZE(Placement, pos, rot, mirror)
 
-	float2 pos = 0;
-	short  rot = 0;
+	float2 pos    = 0;
+	short  rot    = 0;
 	bool   mirror = false;
-	float  scale = 1.0f;
 
 	float2x3 calc_matrix () {
-		return translate(pos) * (::scale(float2(scale)) * ROT[rot] * MIRROR[mirror]);
+		return translate(pos) * (ROT[rot] * MIRROR[mirror]);
 	}
 	float2x3 calc_inv_matrix () {
-		return (MIRROR[mirror] * INV_ROT[rot] * ::scale(float2(1.0f/scale))) * translate(-pos);
+		return (MIRROR[mirror] * INV_ROT[rot]) * translate(-pos);
 	}
 
-	void rotate_around (float2 center, short ang) {
-		pos = (ROT[wrap(ang, 4)] * (pos - center)) + center;
-
-		rot = wrap(rot + ang, 4);
-	}
 	void mirror_around (float2 center) {
-		//pos = (MIRROR[1] * (pos - center)) + center;
 		pos.x = center.x - (pos.x - center.x);
-
+	
 		if (rot % 2)
-			rot = wrap(rot + 2, 4);
-
+			rot = (rot + 2) & 3;
+	
 		mirror = !mirror;
+	}
+	void rotate_around (float2 center, short ang) {
+		pos = (ROT[ang & 3] * (pos - center)) + center;
+	
+		rot = (rot + ang) & 3;
 	}
 };
 	
@@ -115,8 +121,8 @@ struct WireNode {
 	}
 
 	AABB get_aabb () const {
-		return AABB{ pos - wire_radius*wire_node_junction,
-			         pos + wire_radius*wire_node_junction };
+		return AABB{ (float2)pos - wire_radius*wire_node_junction,
+			         (float2)pos + wire_radius*wire_node_junction };
 	}
 };
 struct WireEdge {
@@ -187,14 +193,10 @@ struct Part {
 	Part& operator= (Part&& p) = delete;
 
 	AABB get_aabb () const {
-		// mirror does not matter
-		float2 size = chip->size * pos.scale;
+		float2 size = abs(ROT[pos.rot] * chip->size);
 
-		// Does not handle non-90 deg rotations
-		size = abs(ROT[pos.rot] * size);
-
-		return AABB{ pos.pos - size*0.5f,
-			         pos.pos + size*0.5f };
+		return AABB{ (float2)pos.pos - size*0.5f,
+			         (float2)pos.pos + size*0.5f };
 	}
 };
 
@@ -235,21 +237,6 @@ struct ThingPtr {
 	float2& get_pos ();
 };
 
-
-inline float2 get_inp_pos (Part& pin_part) {
-	return pin_part.pos.calc_matrix() * float2(-PIN_LENGTH/2, 0);
-}
-inline float2 get_out_pos (Part& pin_part) {
-	return pin_part.pos.calc_matrix() * float2(+PIN_LENGTH/2, 0);
-}
-	
-inline float2x3 get_inp_pos_invmat (Part& pin_part) {
-	return translate(float2(+PIN_LENGTH/2, 0)) * pin_part.pos.calc_inv_matrix();
-}
-inline float2x3 get_out_pos_invmat (Part& pin_part) {
-	return translate(float2(-PIN_LENGTH/2, 0)) * pin_part.pos.calc_inv_matrix();
-}
-
 ////
 enum GateType {
 	BUF_GATE  =0,
@@ -270,27 +257,27 @@ enum GateType {
 
 // Not const because we use Chip* for both editable (user-defined) chips and primitve gates
 // alternatively just cast const away?
-inline Chip gates[GATE_COUNT] = {
-	Chip("Buffer Gate", lrgb(0.5f, 0.5f,0.75f), float2(1,0.5f), {{"In", float2(-0.5f, 0), 0, 0.25f}, {"Out", float2(0.5f, 0), 2, 0.5f}} ),
-	Chip("NOT Gate",    lrgb(   0,    0,    1), float2(1,0.5f), {{"In", float2(-0.5f, 0), 0, 0.25f}, {"Out", float2(0.5f, 0), 2, 0.125f}} ),
-	Chip("AND Gate",    lrgb(   1,    0,    0), float2(1,   1), {{"A", float2(-0.5f, +0.25f), 0, 0.25f}, {"B", float2(-0.5f, -0.25f), 0, 0.25f}, {"Out", float2(0.5f, 0), 2, 0.25f}} ),
-	Chip("NAND Gate",   lrgb(0.5f,    1,    0), float2(1,   1), {{"A", float2(-0.5f, +0.25f), 0, 0.25f}, {"B", float2(-0.5f, -0.25f), 0, 0.25f}, {"Out", float2(0.5f, 0), 2, 0.125f}} ),
-	Chip("OR Gate",     lrgb(   1, 0.5f,    0), float2(1,   1), {{"A", float2(-0.5f, +0.25f), 0, 0.25f}, {"B", float2(-0.5f, -0.25f), 0, 0.25f}, {"Out", float2(0.5f, 0), 2, 0.25f}} ),
-	Chip("NOR Gate",    lrgb(   0,    1, 0.5f), float2(1,   1), {{"A", float2(-0.5f, +0.25f), 0, 0.25f}, {"B", float2(-0.5f, -0.25f), 0, 0.25f}, {"Out", float2(0.5f, 0), 2, 0.125f}} ),
-	Chip("XOR Gate",    lrgb(   0,    1,    0), float2(1,   1), {{"A", float2(-0.5f, +0.25f), 0, 0.25f}, {"B", float2(-0.5f, -0.25f), 0, 0.25f}, {"Out", float2(0.5f, 0), 2, 0.25f}} ),
+inline Chip gate_chips[GATE_COUNT] = {
+	Chip("Buffer Gate", lrgb(0.5f, 0.5f,0.75f), float2(8,4), {{"In", float2(-4, 0), 0, 2}, {"Out", float2(4, 0), 2, 4}} ),
+	Chip("NOT Gate",    lrgb(   0,    0,    1), float2(8,4), {{"In", float2(-4, 0), 0, 2}, {"Out", float2(4, 0), 2, 1}} ),
+	Chip("AND Gate",    lrgb(   1,    0,    0), float2(8,8), {{"A", float2(-4, +2), 0, 2}, {"B", float2(-4, -2), 0, 2}, {"Out", float2(4, 0), 2, 2}} ),
+	Chip("NAND Gate",   lrgb(0.5f,    1,    0), float2(8,8), {{"A", float2(-4, +2), 0, 2}, {"B", float2(-4, -2), 0, 2}, {"Out", float2(4, 0), 2, 1}} ),
+	Chip("OR Gate",     lrgb(   1, 0.5f,    0), float2(8,8), {{"A", float2(-4, +2), 0, 2}, {"B", float2(-4, -2), 0, 2}, {"Out", float2(4, 0), 2, 2}} ),
+	Chip("NOR Gate",    lrgb(   0,    1, 0.5f), float2(8,8), {{"A", float2(-4, +2), 0, 2}, {"B", float2(-4, -2), 0, 2}, {"Out", float2(4, 0), 2, 1}} ),
+	Chip("XOR Gate",    lrgb(   0,    1,    0), float2(8,8), {{"A", float2(-4, +2), 0, 2}, {"B", float2(-4, -2), 0, 2}, {"Out", float2(4, 0), 2, 2}} ),
 	
-	Chip("AND-3 Gate",  lrgb(   1,    0,    0), float2(1,   1), {{"A", float2(-0.5f, +0.25f), 0, 0.25f}, {"B", float2(-0.5f, 0), 0, 0.25f}, {"C", float2(-0.5f, -0.25f), 0, 0.25f}, {"Out", float2(0.5f, 0), 2, 0.25f}} ),
-	Chip("NAND-3 Gate", lrgb(0.5f,    1,    0), float2(1,   1), {{"A", float2(-0.5f, +0.25f), 0, 0.25f}, {"B", float2(-0.5f, 0), 0, 0.25f}, {"C", float2(-0.5f, -0.25f), 0, 0.25f}, {"Out", float2(0.5f, 0), 2, 0.125f}} ),
-	Chip("OR-3 Gate",   lrgb(   1, 0.5f,    0), float2(1,   1), {{"A", float2(-0.5f, +0.25f), 0, 0.25f}, {"B", float2(-0.5f, 0), 0, 0.25f}, {"C", float2(-0.5f, -0.25f), 0, 0.25f}, {"Out", float2(0.5f, 0), 2, 0.25f}} ),
-	Chip("NOR-3 Gate",  lrgb(   0,    1, 0.5f), float2(1,   1), {{"A", float2(-0.5f, +0.25f), 0, 0.25f}, {"B", float2(-0.5f, 0), 0, 0.25f}, {"C", float2(-0.5f, -0.25f), 0, 0.25f}, {"Out", float2(0.5f, 0), 2, 0.125f}} ),
+	Chip("AND-3 Gate",  lrgb(   1,    0,    0), float2(8,8), {{"A", float2(-4, +2), 0, 2}, {"B", float2(-4, 0), 0, 2}, {"C", float2(-4, -2), 0, 2}, {"Out", float2(4, 0), 2, 2}} ),
+	Chip("NAND-3 Gate", lrgb(0.5f,    1,    0), float2(8,8), {{"A", float2(-4, +2), 0, 2}, {"B", float2(-4, 0), 0, 2}, {"C", float2(-4, -2), 0, 2}, {"Out", float2(4, 0), 2, 1}} ),
+	Chip("OR-3 Gate",   lrgb(   1, 0.5f,    0), float2(8,8), {{"A", float2(-4, +2), 0, 2}, {"B", float2(-4, 0), 0, 2}, {"C", float2(-4, -2), 0, 2}, {"Out", float2(4, 0), 2, 2}} ),
+	Chip("NOR-3 Gate",  lrgb(   0,    1, 0.5f), float2(8,8), {{"A", float2(-4, +2), 0, 2}, {"B", float2(-4, 0), 0, 2}, {"C", float2(-4, -2), 0, 2}, {"Out", float2(4, 0), 2, 1}} ),
 };
 	
 inline bool is_gate (Chip* chip) {
-	return chip >= gates && chip < &gates[GATE_COUNT];
+	return chip >= gate_chips && chip < &gate_chips[GATE_COUNT];
 }
 inline GateType gate_type (Chip* chip) {
 	assert(is_gate(chip));
-	return (GateType)(chip - gates);
+	return (GateType)(chip - gate_chips);
 }
 
 struct Circuit {
@@ -307,6 +294,8 @@ struct Circuit {
 	
 
 	ogl::CircuitMesh mesh;
+
+	void simulate ();
 };
 
 ////
@@ -330,13 +319,15 @@ struct LogicSim {
 	Circuit circuit;
 
 	bool unsaved_changes = false;
+
+	bool recompute = true;
 	
 	int indexof_chip (Chip* chip) const {
 		int idx = indexof(saved_chips, chip, [] (std::shared_ptr<Chip> const& l, Chip* r) { return l.get() == r; });
 		return idx;
 	}
 
-	void recreate_simulator (ogl::Renderer& r);
+	void recreate_simulator ();
 
 	void recompute_chip_users ();
 
@@ -345,6 +336,7 @@ struct LogicSim {
 		viewed_chip = std::move(chip); // move copy of shared ptr (ie original still exists)
 
 		recompute_chip_users();
+		recompute = true;
 
 		//viewed_chip->state_count = -1; // TODO: needed?
 	}
@@ -393,6 +385,7 @@ struct LogicSim {
 			reset_chip_view(cam);
 
 		unsaved_changes = true;
+		//recompute = true;
 	}
 	
 	void update_chip_state ();
@@ -406,6 +399,7 @@ struct LogicSim {
 		chip.parts.add(ptr);
 	
 		unsaved_changes = true;
+		recompute = true;
 	}
 	void remove_part (Chip& chip, Part* part) {
 		assert(&chip == viewed_chip.get());
@@ -413,13 +407,15 @@ struct LogicSim {
 		chip.parts.try_remove(part);
 	
 		unsaved_changes = true;
+		recompute = true;
 	}
 		
 	WireNode* add_wire_node (Chip& chip, float2 pos) {
-		auto ptr = new WireNode(pos);
+		auto ptr = new WireNode { pos };
 		chip.wire_nodes.add(std::unique_ptr<WireNode>(ptr));
 		
 		unsaved_changes = true;
+		recompute = true;
 		return ptr;
 	}
 	void disconnect_wire_node (Chip& chip, WireNode* node) {
@@ -436,6 +432,7 @@ struct LogicSim {
 		assert(count == removed_edges);
 		
 		unsaved_changes = true;
+		recompute = true;
 	}
 	void remove_wire_node (Chip& chip, WireNode* node) {
 		disconnect_wire_node(chip, node);
@@ -444,6 +441,7 @@ struct LogicSim {
 		assert(removed);
 		
 		unsaved_changes = true;
+		recompute = true;
 	}
 	// existing connections are allowed as inputs but will be ignored
 	void connect_wire_nodes (Chip& chip, WireNode* a, WireNode* b) {
@@ -457,6 +455,7 @@ struct LogicSim {
 		chip.wire_edges.add(std::make_unique<WireEdge>(a, b));
 		
 		unsaved_changes = true;
+		recompute = true;
 	}
 	void remove_wire_edge (Chip& chip, WireEdge* edge) {
 			
@@ -466,9 +465,8 @@ struct LogicSim {
 		chip.wire_edges.remove(edge);
 
 		unsaved_changes = true;
+		recompute = true;
 	}
-
-	void simulate (Input& I);
 };
 	
 } // namespace logic_sim

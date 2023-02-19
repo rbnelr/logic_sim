@@ -14,6 +14,7 @@ VS2FS Vertex v;
 
 uniform float num_wires;
 
+uniform usampler1DArray state_tex;
 uniform float sim_t;
 
 #ifdef _VERTEX
@@ -21,7 +22,7 @@ uniform float sim_t;
 	layout(location = 1) in vec2  pos1;
 	layout(location = 2) in float radius;
 	layout(location = 3) in int   type;
-	layout(location = 4) in int   states;
+	layout(location = 4) in int   state_id;
 	layout(location = 5) in vec4  col;
 	
 	vec2 uvs[6] = {
@@ -44,12 +45,27 @@ uniform float sim_t;
 		
 		//v.t = mix(t.x, t.y, v.coord.x / v.len);
 		
-		vec4 col_a, col_b;
-		col_a = vec4(col.rgb * vec3((states & 1) != 0 ? 1.0 : 0.1), col.a);
-		col_b = vec4(col.rgb * vec3((states & 2) != 0 ? 1.0 : 0.1), col.a);
+		uint prev_state = texelFetch(state_tex, ivec2(state_id, 1), 0).x;
+		uint cur_state  = texelFetch(state_tex, ivec2(state_id, 0), 0).x;
 		
-		col_a.rgb = mix(0.0 * col.rgb, col_a.rgb, layer);
-		col_b.rgb = mix(0.0 * col.rgb, col_b.rgb, layer);
+		//vec4 col_a, col_b;
+		//col_a = vec4(col.rgb * vec3(prev_state != 0u ? 1.0 : 0.03), col.a);
+		//col_b = vec4(col.rgb * vec3( cur_state != 0u ? 1.0 : 0.03), col.a);
+		
+		vec4 col0 = vec4(col.rgb * 0.05, col.a);
+		vec4 col1 = col;
+		
+		//vec3 cols = vec3(1.0, 0.98, 0.8);
+		//vec3 cols_bg = vec3(0.8, 0.6, 0.04);
+		
+		vec4 col_bg = vec4(col.rgb * 0.0, col.a);
+		
+		vec4 col_a, col_b;
+		col_a = prev_state != 0u ? col1 : col0;
+		col_b =  cur_state != 0u ? col1 : col0;
+		
+		col_a = mix(col_bg, col_a, layer);
+		col_b = mix(col_bg, col_b, layer);
 		
 		v.col = mix(col_a, col_b, sim_t);
 		
@@ -58,7 +74,7 @@ uniform float sim_t;
 		v.len = length(dir);
 		dir = v.len > 0.001 ? normalize(dir) : vec2(1.0,0.0);
 		
-		v.radius = radius + clamp(aa * 3.0, 0.01, 0.02) * (0.5 - layer);
+		v.radius = radius + clamp(aa * 3.0, 0.08, 0.16) * (0.5 - layer);
 		
 		vec2 norm = vec2(-dir.y, dir.x);
 		
