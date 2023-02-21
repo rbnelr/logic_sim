@@ -237,7 +237,7 @@ void Circuit::simulate () {
 	for (int i=0; i<(int)gates.size(); ++i) {
 		auto& gate = gates[i];
 
-	#if 0
+	#if 1
 		int inputs = (int)gate_chips[gate.type].pins.size() - 1;
 	
 		assert(inputs >= 1 && inputs <= 4);
