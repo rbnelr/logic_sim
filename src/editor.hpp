@@ -28,13 +28,13 @@ struct Editor {
 	struct ViewMode {
 		struct Hover_Part {
 			Part* part = nullptr;
-			int   sid = -1;
+			//int   sid = -1;
 
 			float2x3 part2world;
 		};
 		Hover_Part hover_part = {};
 
-		int toggle_sid = -1;
+		//int toggle_sid = -1;
 		bool state_toggle_value; // new state value while toggle is 'held'
 
 			

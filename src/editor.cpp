@@ -511,23 +511,23 @@ void Editor::ViewMode::find_hover (float2 cursor_pos, Chip& chip,
 		float2x3 chip2world, float2x3 world2chip, int state_base) {
 
 	//int parts_sid = state_base + chip.wire_states;
-	//
-	//for (auto& part : chip.parts) {
-	//	auto part2world = chip2world * part->pos.calc_matrix();
-	//	auto world2part = part->pos.calc_inv_matrix() * world2chip;
-	//	
-	//	if (hitbox(cursor_pos, part->chip->size, world2part)) {
-	//		int output_sid = state_base + part->pins.back().node->sid;
-	//
-	//		hover_part = { part.get(), output_sid, part2world };
-	//
-	//		if (!is_gate(part->chip)) {
-	//			find_hover(cursor_pos, *part->chip, part2world, world2part, parts_sid);
-	//		}
-	//	}
-	//
-	//	parts_sid += part->chip->state_count;
-	//}
+	
+	for (auto& part : chip.parts) {
+		auto part2world = chip2world * part->pos.calc_matrix();
+		auto world2part = part->pos.calc_inv_matrix() * world2chip;
+		
+		if (hitbox(cursor_pos, part->chip->size, world2part)) {
+			//int output_sid = state_base + part->pins.back().node->sid;
+	
+			hover_part = { part.get(), part2world };
+			
+			if (!is_gate(part->chip)) {
+				find_hover(cursor_pos, *part->chip, part2world, world2part, 0);
+			}
+		}
+	
+		//parts_sid += part->chip->state_count;
+	}
 }
 
 void find_edit_hover (float2 cursor_pos, Chip& chip, bool allow_parts, bool allow_wires, ThingPtr& hover) {
