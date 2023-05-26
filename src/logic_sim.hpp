@@ -40,6 +40,7 @@ inline constexpr float2x2 MIRROR[] = {
 	float2x2( -1, 0,  0, 1 ),
 };
 
+/*
 inline constexpr int2 roti (int rot, int2 vec) {
 	switch (rot & 3) {
 		case 0: return vec;
@@ -48,7 +49,7 @@ inline constexpr int2 roti (int rot, int2 vec) {
 		default:
 		case 3: return int2(vec.y, -vec.x);
 	}
-}
+}*/
 
 struct AABB {
 	float2 lo; // min
@@ -114,7 +115,7 @@ struct WireNode {
 	vector_set<WireNode*> edges = {}; // TODO: small vec opt to 4 entries
 	
 	//bool visited = false;
-	int  local_id = -1;
+	//int  local_id = -1;
 
 	int num_wires () {
 		return edges.size() + (parent_part ? 1 : 0);
@@ -159,7 +160,7 @@ struct Chip {
 
 	vector_set< std::unique_ptr<WireNode> > wire_nodes = {};
 	vector_set< std::unique_ptr<WireEdge> > wire_edges = {};
-	
+
 	vector_set<Chip*> users;
 
 	// move needed for  Chip gates[GATE_COUNT]  be careful not to move a chip after init, because we need stable pointers for parts
@@ -258,6 +259,11 @@ enum GateType {
 
 	XOR_GATE  =30,
 
+	MUX_GATE  =40,
+	DMUX_GATE =41,
+	MUX4_GATE =42,
+	DMUX4_GATE=43,
+
 	GATE_COUNT=1000,
 };
 
@@ -266,35 +272,46 @@ enum GateType {
 #define _INP3 {"A", float2(-4, +2), 0, 2}, {"B", float2(-4, 0), 0, 2}, {"C", float2(-4, -2), 0, 2}
 #define _INP4 {"A", float2(-4, +3), 0, 2}, {"B", float2(-4, +1), 0, 2}, {"C", float2(-4, -1), 0, 2}, {"D", float2(-4, -3), 0, 2}
 
+#define _INP2_MUX {"A", float2(-4, +1), 0, 2}, {"B", float2(-4, -1), 0, 2}
+
+#define _OUT2_DMUX {"A", float2(+4, +1), 2, 2}, {"B", float2(+4, -1), 2, 2}
+#define _OUT4 {"A", float2(+4, +3), 2, 2}, {"B", float2(+4, +1), 2, 2}, {"C", float2(+4, -1), 2, 2}, {"D", float2(+4, -3), 2, 2}
+
 // Not const because we use Chip* for both editable (user-defined) chips and primitve gates
 // alternatively just cast const away?
 inline Chip gate_chips[GATE_COUNT] = {
-	Chip("Buffer Gate", lrgb(0.5f, 0.5f,0.75f), float2(8,4), {{"In", float2(-4, 0), 0, 2}, {"Out", float2(4, 0), 2, 4}} ),
+	Chip("Buffer Gate", lrgb(0.5f, 0.5f,0.75f), float2(8,4), {{"Out", float2(4, 0), 2, 4}, {"In", float2(-4, 0), 0, 2}} ),
 	{},{},{},{},
-	Chip("NOT Gate",    lrgb(   0,    0,    1), float2(8,4), {{"In", float2(-4, 0), 0, 2}, {"Out", float2(4, 0), 2, 1}} ),
+	Chip("NOT Gate",    lrgb(   0,    0,    1), float2(8,4), {{"Out", float2(4, 0), 2, 1}, {"In", float2(-4, 0), 0, 2}} ),
 	{},{},{},{},
 
-	Chip("AND Gate",    lrgb(   1,    0,    0), float2(8,8), {_INP2, {"Out", float2(4, 0), 2, 2}} ),
-	Chip("AND-3 Gate",  lrgb(   1,    0,    0), float2(8,8), {_INP3, {"Out", float2(4, 0), 2, 2}} ),
-	Chip("AND-4 Gate",  lrgb(   1,    0,    0), float2(8,10), {_INP4, {"Out", float2(4, 0), 2, 2}} ),
+	Chip("AND Gate",    lrgb(   1,    0,    0), float2(8, 8), {{"Out", float2(4, 0), 2, 2}, _INP2} ),
+	Chip("AND-3 Gate",  lrgb(   1,    0,    0), float2(8, 8), {{"Out", float2(4, 0), 2, 2}, _INP3} ),
+	Chip("AND-4 Gate",  lrgb(   1,    0,    0), float2(8,10), {{"Out", float2(4, 0), 2, 2}, _INP4} ),
 	{},{},
-	Chip("NAND Gate",   lrgb(0.5f,    1,    0), float2(8,8), {_INP2, {"Out", float2(4, 0), 2, 1}} ),
-	Chip("NAND-3 Gate", lrgb(0.5f,    1,    0), float2(8,8), {_INP3, {"Out", float2(4, 0), 2, 1}} ),
-	Chip("NAND-4 Gate", lrgb(0.5f,    1,    0), float2(8,10), {_INP4, {"Out", float2(4, 0), 2, 1}} ),
+	Chip("NAND Gate",   lrgb(0.5f,    1,    0), float2(8, 8), {{"Out", float2(4, 0), 2, 1}, _INP2} ),
+	Chip("NAND-3 Gate", lrgb(0.5f,    1,    0), float2(8, 8), {{"Out", float2(4, 0), 2, 1}, _INP3} ),
+	Chip("NAND-4 Gate", lrgb(0.5f,    1,    0), float2(8,10), {{"Out", float2(4, 0), 2, 1}, _INP4} ),
 	{},{},
 
-	Chip("OR Gate",     lrgb(   1, 0.5f,    0), float2(8,8), {_INP2, {"Out", float2(4, 0), 2, 2}} ),
-	Chip("OR-3 Gate",   lrgb(   1, 0.5f,    0), float2(8,8), {_INP3, {"Out", float2(4, 0), 2, 2}} ),
-	Chip("OR-4 Gate",   lrgb(   1, 0.5f,    0), float2(8,10), {_INP4, {"Out", float2(4, 0), 2, 2}} ),
+	Chip("OR Gate",     lrgb(   1, 0.5f,    0), float2(8, 8), {{"Out", float2(4, 0), 2, 2}, _INP2} ),
+	Chip("OR-3 Gate",   lrgb(   1, 0.5f,    0), float2(8, 8), {{"Out", float2(4, 0), 2, 2}, _INP3} ),
+	Chip("OR-4 Gate",   lrgb(   1, 0.5f,    0), float2(8,10), {{"Out", float2(4, 0), 2, 2}, _INP4} ),
 	{},{},
-	Chip("NOR Gate",    lrgb(   0,    1, 0.5f), float2(8,8), {_INP2, {"Out", float2(4, 0), 2, 1}} ),
-	Chip("NOR-3 Gate",  lrgb(   0,    1, 0.5f), float2(8,8), {_INP3, {"Out", float2(4, 0), 2, 1}} ),
-	Chip("NOR-4 Gate",  lrgb(   0,    1, 0.5f), float2(8,10), {_INP4, {"Out", float2(4, 0), 2, 1}} ),
+	Chip("NOR Gate",    lrgb(   0,    1, 0.5f), float2(8, 8), {{"Out", float2(4, 0), 2, 1}, _INP2} ),
+	Chip("NOR-3 Gate",  lrgb(   0,    1, 0.5f), float2(8, 8), {{"Out", float2(4, 0), 2, 1}, _INP3} ),
+	Chip("NOR-4 Gate",  lrgb(   0,    1, 0.5f), float2(8,10), {{"Out", float2(4, 0), 2, 1}, _INP4} ),
 	{},{},
 	
-	Chip("XOR Gate",    lrgb(   0,    1,    0), float2(8,8), {_INP2, {"Out", float2(4, 0), 2, 2}} ),
+	Chip("XOR Gate",    lrgb(   0,    1,    0), float2(8, 8), {{"Out", float2(4, 0), 2, 2}, _INP2} ),
 	{},{},{},{},
 	{},{},{},{},{},
+
+	Chip("Mux",         lrgb(   1,    1,    0), float2(8, 6), {{"Out", float2(4, 0), 2, 2}, _INP2_MUX, {"Sel", float2(0, -3), 3, 2}} ),
+	Chip("Dmux",        lrgb(   1,    1, 0.5f), float2(8, 6), {_OUT2_DMUX, {"In", float2(-4, 0), 0, 2}, {"Sel", float2(0, -3), 3, 2}} ),
+	Chip("Mux-4",       lrgb(   1,    1,    0), float2(8,10), {{"Out", float2(4, 0), 2, 2}, _INP4, {"Sel0", float2(-1, -5), 3, 2}, {"Sel1", float2(+1, -5), 3, 2}} ),
+	Chip("Dmux-4",      lrgb(   1,    1, 0.5f), float2(8,10), {_OUT4, {"In", float2(-4, 0), 0, 2}, {"Sel0", float2(-1, -5), 3, 2}, {"Sel1", float2(+1, -5), 3, 2}} ),
+	{},{},{},{},{},{},
 };
 
 inline bool is_gate (Chip* chip) {
@@ -309,20 +326,21 @@ struct Circuit {
 	
 	struct Gate {
 		GateType type;
-		int pins[5] = { -1, -1, -1, -1, -1 };
+		int pins[10] = { -1, -1, -1, -1, -1, -1, -1 }; // outputs, inputs
 	};
 	std::vector<Gate> gates;
 
 	int cur_state = 0;
 
 	struct State {
-		std::vector<uint8_t> gate_state;
-		std::vector<uint8_t> wire_state;
+		std::vector<uint8_t> state;
 	};
 	State states[2];
 
-	ogl::CircuitMesh mesh;
-
+	// needed for meshing
+	// TODO: if remeshing is always triggered on circuit rebuild this could be simply passed instead
+	std::unordered_map<int2, int> node_state_ids;
+	
 	void simulate ();
 };
 
@@ -383,13 +401,6 @@ struct LogicSim {
 		
 		
 	void imgui (Input& I) {
-		if (ImGui::TreeNode("settings")) {
-			ImGui::DragFloat("wire_radius", &wire_radius, 0.0001f);
-			ImGui::DragFloat("wire_node_junction", &wire_node_junction, 0.01f);
-			ImGui::DragFloat("wire_node_dead_end", &wire_node_dead_end, 0.01f);
-			ImGui::TreePop();
-		}
-
 		if (unsaved_changes) {
 			ImGui::TextColored(ImVec4(1.00f, 0.67f, 0.00f, 1), "Unsaved changes");
 		}
@@ -398,6 +409,13 @@ struct LogicSim {
 		}
 
 		//ImGui::Text("Gates (# of states): %d", (int)state[0].size());
+
+		if (ImGui::TreeNode("Visuals")) {
+			ImGui::DragFloat("wire_radius", &wire_radius, 0.0001f);
+			ImGui::DragFloat("wire_node_junction", &wire_node_junction, 0.01f);
+			ImGui::DragFloat("wire_node_dead_end", &wire_node_dead_end, 0.01f);
+			ImGui::TreePop();
+		}
 	}
 		
 	// delete chip from saved_chips, and reset viewed chip such that chip will actually be deleted

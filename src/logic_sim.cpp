@@ -9,7 +9,6 @@ namespace logic_sim {
 
 struct BuildSim {
 	Circuit& circuit;
-	ogl::CircuitMeshBuilder mesh_build;
 
 	struct WireNode {
 		int2             pos;
@@ -23,36 +22,22 @@ struct BuildSim {
 	// pos -> id map to merge wire edge end points into a graph
 	std::unordered_map<int2, int> node_map;
 	// flattened wire graph
-	std::vector<WireNode>         nodes;
-	std::vector<WireEdge>         edges;
+	std::vector<WireNode>         flat_nodes;
+	std::vector<WireEdge>         flat_edges;
 
 	std::vector<int> wire_ids;
-	int num_wire_ids;
+	int num_states;
 
-	static int2 snap (float2 pos) {
-		return roundi(pos);
-	};
 	int touch_node (float2 pos) {
-		int2 p = snap(pos);
+		int2 p = roundi(pos);
 
 		auto res = node_map.try_emplace(p);
 		if (res.second) {
-			res.first->second = (int)nodes.size();
-			nodes.emplace_back(p);
+			res.first->second = (int)flat_nodes.size();
+			flat_nodes.emplace_back(p);
 		}
 
 		return res.first->second;
-	}
-	int get_node (float2 pos) {
-		int2 p = snap(pos);
-
-		auto res = node_map.find(p);
-		if (res != node_map.end()) {
-			return res->second;
-		}
-
-		assert(false);
-		return 0;
 	}
 	
 	void flatten_graph (Chip* chip, float2x3 const& chip2world) {
@@ -69,7 +54,7 @@ struct BuildSim {
 			for (auto& pin : chip->pins) {
 				int a = touch_node(chip2world * pin.pos);
 
-				nodes[a].edges.push_back(-1); // dummy id to mark connection to gate
+				flat_nodes[a].edges.push_back(-1); // dummy id to mark connection to gate
 
 				if (i < ARRLEN(sim_gate.pins))
 					sim_gate.pins[i++] = a;
@@ -80,10 +65,10 @@ struct BuildSim {
 			int a = touch_node(chip2world * e->a->pos);
 			int b = touch_node(chip2world * e->b->pos);
 			
-			edges.emplace_back(a, b);
+			flat_edges.emplace_back(a, b);
 
-			nodes[a].edges.push_back(b);
-			nodes[b].edges.push_back(a);
+			flat_nodes[a].edges.push_back(b);
+			flat_nodes[b].edges.push_back(a);
 		}
 
 		for (auto& part : chip->parts) {
@@ -96,12 +81,12 @@ struct BuildSim {
 	void find_graphs () {
 		ZoneScoped;
 
-		wire_ids.assign((int)nodes.size(), -1);
+		wire_ids.assign((int)flat_nodes.size(), -1);
 
 		int wid = 0;
 
-		for (int i=0; i<(int)nodes.size(); ++i) {
-			if (!nodes[i].visited) {
+		for (int i=0; i<(int)flat_nodes.size(); ++i) {
+			if (!flat_nodes[i].visited) {
 				int wire_id = wid++;
 		
 				// could use a queue as well, but order does not matter
@@ -113,18 +98,18 @@ struct BuildSim {
 					int cur = stk.back();
 					stk.pop_back();
 				
-					nodes[cur].visited = true;
+					flat_nodes[cur].visited = true;
 					wire_ids[cur] = wire_id;
 				
-					for (int link : nodes[cur].edges) {
-						if (link >= 0 && !nodes[link].visited)
+					for (int link : flat_nodes[cur].edges) {
+						if (link >= 0 && !flat_nodes[link].visited)
 							stk.push_back(link);
 					}
 				}
 			}
 		}
 
-		num_wire_ids = wid;
+		num_states = wid;
 		
 		for (auto& gate : circuit.gates) {
 			for (int i=0; i<ARRLEN(gate.pins); ++i) {
@@ -134,73 +119,14 @@ struct BuildSim {
 		}
 
 		for (auto& state_vec : circuit.states) {
-			state_vec.gate_state.assign(circuit.gates.size(), 0);
-			state_vec.wire_state.assign(num_wire_ids, 0);
-		}
-	}
-
-	void draw_chip (Chip* chip, float2x3 const& chip2world, int& i) {
-		
-		lrgba lcol = line_col * lrgba(1);
-
-		if (is_gate(chip)) {
-			
-			mesh_build.draw_gate(chip2world, chip->size, gate_type(chip), i++, lrgba(chip->col, 1) * lrgba(1));
-			
-			for (auto& pin : chip->pins) {
-				float2 a = chip2world * pin.pos;
-				float2 b = chip2world * (pin.pos + ROT[pin.rot] * float2(pin.len, 0));
-				
-				// TODO: improve?
-				int wire_id = wire_ids[ get_node(a) ];
-
-				mesh_build.draw_wire_segment(a, b, wire_id, lcol);
-			}
-		}
-		else {
-			//{ // TODO: make this look nicer, rounded thick outline? color the background inside chip differently?
-			//	float2 center = chip2world * float2(0);
-			//	float2 size = abs( (float2x2)chip2world * chip->size ) - 1.0f/16;
-			//	r.dbgdraw.wire_quad(float3(center - size*0.5f, 0.0f), size, lrgba(0.001f, 0.001f, 0.001f, 1));
-			//}
+			state_vec.state.assign(num_states, 0);
 		}
 
-		for (auto& part : chip->parts) {
-			auto part2world = chip2world * part->pos.calc_matrix();
-
-			draw_chip(part->chip, part2world, i);
+		// turn node map into node pos -> state id map
+		circuit.node_state_ids = std::move(node_map);
+		for (auto& kv : circuit.node_state_ids) {
+			kv.second = wire_ids[ kv.second ];
 		}
-	}
-
-	void draw (Chip* viewed_chip) {
-		ZoneScoped;
-		
-		lrgba lcol = line_col * lrgba(1);
-
-		mesh_build.line_groups.resize( num_wire_ids );
-		
-		for (auto& e : edges) {
-			float2 a = (float2)nodes[e.a].pos;
-			float2 b = (float2)nodes[e.b].pos;
-			
-			int wire_id = wire_ids[ get_node(a) ];
-
-			mesh_build.draw_wire_segment(a, b, wire_id, lcol);
-		}
-
-		int i = 0;
-		draw_chip(viewed_chip, float2x3::identity(), i);
-
-		for (int i=0; i<(int)nodes.size(); ++i) {
-			auto& n = nodes[i];
-
-			float2 pos = (float2)n.pos;
-			int wire_id = wire_ids[i];
-			
-			mesh_build.draw_wire_point(pos, wire_radius, (int)n.edges.size(), wire_id, lcol);
-		}
-		
-		mesh_build.finish_wires();
 	}
 };
 
@@ -209,7 +135,7 @@ void LogicSim::recreate_simulator () {
 	
 	circuit = {};
 
-	BuildSim build{circuit, {circuit.mesh}};
+	BuildSim build{circuit};
 
 	{
 		ZoneScopedN("flatten_graph");
@@ -218,14 +144,13 @@ void LogicSim::recreate_simulator () {
 		char buf[128];
 		int size = snprintf(buf, 128, "sim_gates: %d  node: %d  edges: %d",
 			(int)circuit.gates.size(),
-			(int)build.nodes.size(),
-			(int)build.edges.size());
+			(int)build.flat_nodes.size(),
+			(int)build.flat_edges.size());
 		if (size < 128) {
 			ZoneText(buf, size);
 		}
 	}
 	build.find_graphs();
-	build.draw(viewed_chip.get());
 }
 
 void Circuit::simulate () {
@@ -237,28 +162,57 @@ void Circuit::simulate () {
 	for (int i=0; i<(int)gates.size(); ++i) {
 		auto& gate = gates[i];
 
-	#if 1
-		int inputs = (int)gate_chips[gate.type].pins.size() - 1;
+		int pin_count = (int)gate_chips[gate.type].pins.size();
+		
+		for (int i=0; i<pin_count; ++i) {
+			int state_id = gate.pins[i];
+			assert(state_id >= 0 && state_id < (int)cur.state.size());
+		}
+
+		switch (gate.type) {
+
+			case DMUX_GATE: {
+				assert(pin_count == 4);
+
+				bool in = (bool)cur.state[gate.pins[2]];
+				bool sel = (bool)cur.state[gate.pins[3]];
+				
+				next.state[gate.pins[0]] = (uint8_t)(sel == 0 && in);
+				next.state[gate.pins[1]] = (uint8_t)(sel == 1 && in);
+			} continue; // skip
+
+			case DMUX4_GATE: {
+				assert(pin_count == 7);
+
+				bool in   = (bool)cur.state[gate.pins[4]];
+				bool sel0 = (bool)cur.state[gate.pins[5]];
+				bool sel1 = (bool)cur.state[gate.pins[6]];
+
+				next.state[gate.pins[0]] = (uint8_t)(!sel0 && !sel1 && in);
+				next.state[gate.pins[1]] = (uint8_t)( sel0 && !sel1 && in);
+				next.state[gate.pins[2]] = (uint8_t)(!sel0 &&  sel1 && in);
+				next.state[gate.pins[3]] = (uint8_t)( sel0 &&  sel1 && in);
+			} continue; // skip
+		}
+
+		int out  = gate.pins[0];
+		assert(out >= 0 && out < (int)cur.state.size());
+
+		int inputs = pin_count - 1;
 	
-		assert(inputs >= 1 && inputs <= 4);
+		assert(inputs >= 1 && inputs <= ARRLEN(Circuit::Gate::pins)-1);
 		
-		if (inputs >= 1) assert(gate.pins[0] >= 0 && gate.pins[0] < (int)cur.wire_state.size());
-		if (inputs >= 2) assert(gate.pins[1] >= 0 && gate.pins[1] < (int)cur.wire_state.size());
-		if (inputs >= 3) assert(gate.pins[2] >= 0 && gate.pins[2] < (int)cur.wire_state.size());
-		if (inputs >= 4) assert(gate.pins[3] >= 0 && gate.pins[3] < (int)cur.wire_state.size());
+		bool args[ARRLEN(Circuit::Gate::pins)];
 
-		int in_a = gate.pins[0];
-		int in_b = gate.pins[1];
-		int in_c = gate.pins[2];
-		int in_d = gate.pins[3];
+		for (int i=0; i<inputs; ++i) {
+			//args[i-1] = state_id ? (bool)cur.state[state_id] : false;
+			args[i] = (bool)cur.state[gate.pins[i+1]];
+		}
 
-		int out  = gate.pins[inputs];
-		assert(out >= 0 && out < (int)cur.wire_state.size());
-		
-		bool a = in_a >= 0 ? (bool)cur.wire_state[in_a] : false;
-		bool b = in_b >= 0 ? (bool)cur.wire_state[in_b] : false;
-		bool c = in_c >= 0 ? (bool)cur.wire_state[in_c] : false;
-		bool d = in_d >= 0 ? (bool)cur.wire_state[in_d] : false;
+		bool a = args[0];
+		bool b = args[1];
+		bool c = args[2];
+		bool d = args[3];
 		
 		bool new_state;
 		switch (gate.type) {
@@ -284,194 +238,20 @@ void Circuit::simulate () {
 					
 			case OR4_GATE  : new_state =   a || b || c || d;    break;
 			case NOR4_GATE : new_state = !(a || b || c || d);   break;
+
+			case MUX_GATE: new_state = c ? b : a;   break;
+			case MUX4_GATE:
+				//new_state = args[5] ? (args[4] ? args[3] : args[2]) : (args[4] ? args[1] : args[0]);
+				new_state = args[ ((int)args[5]<<1) | (int)args[4]];
+				break;
 	
 			default: assert(false);
 		}
 		
-		next.gate_state[i]   = (uint8_t)new_state;
-		next.wire_state[out] = (uint8_t)new_state;
-	#elif 0
-		int inputs = (int)gate_chips[gate.type].pins.size() - 1;
-	
-		assert(inputs >= 1 && inputs <= 4);
-		
-		if (inputs >= 1) assert(gate.pins[0] >= 0 && gate.pins[0] < (int)cur.wire_state.size());
-		if (inputs >= 2) assert(gate.pins[1] >= 0 && gate.pins[1] < (int)cur.wire_state.size());
-		if (inputs >= 3) assert(gate.pins[2] >= 0 && gate.pins[2] < (int)cur.wire_state.size());
-		if (inputs >= 4) assert(gate.pins[3] >= 0 && gate.pins[3] < (int)cur.wire_state.size());
-
-		int in_a = gate.pins[0];
-		int in_b = gate.pins[1];
-		int in_c = gate.pins[2];
-		int in_d = gate.pins[3];
-
-		int out  = gate.pins[inputs];
-		assert(out >= 0 && out < (int)cur.wire_state.size());
-		
-		uint8_t a = in_a >= 0 ? cur.wire_state[in_a] : 0;
-		uint8_t b = in_b >= 0 ? cur.wire_state[in_b] : 0;
-		uint8_t c = in_c >= 0 ? cur.wire_state[in_c] : 0;
-		uint8_t d = in_d >= 0 ? cur.wire_state[in_d] : 0;
-		
-		uint8_t res = a;
-		switch (gate.type) {
-
-			case AND4_GATE : case NAND4_GATE: res &= d; // fallthrough
-			case AND3_GATE : case NAND3_GATE: res &= c; // fallthrough
-			case AND_GATE  : case NAND_GATE:  res &= b; break;
-
-			case OR4_GATE  : case NOR4_GATE : res |= d; // fallthrough
-			case OR3_GATE  : case NOR3_GATE : res |= c; // fallthrough
-			case OR_GATE   : case NOR_GATE :  res |= b; break;
-
-			case XOR_GATE  :                  res ^= b; break;
-			
-			default: break;
-		}
-
-		switch (gate.type) {
-			case NOT_GATE  :
-			case NAND_GATE :
-			case NOR_GATE  :
-			case NAND3_GATE:
-			case NOR3_GATE :
-			case NAND4_GATE:
-			case NOR4_GATE :
-				res ^= 1;
-				break;
-	
-			default:
-				break;
-		}
-		
-		next.gate_state[i]   = res;
-		next.wire_state[out] = res;
-	#else
-		int inputs = (int)gate_chips[gate.type].pins.size() - 1;
-		
-		if (inputs >= 1) assert(gate.pins[0] >= 0 && gate.pins[0] < (int)cur.wire_state.size());
-		if (inputs >= 2) assert(gate.pins[1] >= 0 && gate.pins[1] < (int)cur.wire_state.size());
-		if (inputs >= 3) assert(gate.pins[2] >= 0 && gate.pins[2] < (int)cur.wire_state.size());
-		if (inputs >= 4) assert(gate.pins[3] >= 0 && gate.pins[3] < (int)cur.wire_state.size());
-
-		uint8_t a = cur.wire_state[ gate.pins[0] ];
-
-		switch (gate.type) {
-			case BUF_GATE  : case NOT_GATE  : {
-				assert(inputs == 1);
-
-				int out  = gate.pins[1];
-				assert(out >= 0 && out < (int)cur.wire_state.size());
-		
-				uint8_t res = gate.type == NOT_GATE ? a^1 : a;
-
-				next.gate_state[i]   = res;
-				next.wire_state[out] = res;
-
-			} break;
-			
-			case AND_GATE  : case NAND_GATE: 
-			case OR_GATE   : case NOR_GATE : 
-			case XOR_GATE  : {
-				assert(inputs == 2);
-
-				int out  = gate.pins[2];
-				assert(out >= 0 && out < (int)cur.wire_state.size());
-				
-				uint8_t b = cur.wire_state[ gate.pins[1] ];
-		
-				uint8_t res = a;
-				switch (gate.type) {
-					case AND_GATE  : case NAND_GATE:  res &= b; break;
-					case OR_GATE   : case NOR_GATE :  res |= b; break;
-					case XOR_GATE  :                  res ^= b; break;
-					INVALID_DEFAULT;
-				}
-
-				switch (gate.type) {
-					case NAND_GATE :
-					case NOR_GATE  :
-						res ^= 1;
-						break;
-					default:
-						break;
-				}
-		
-				next.gate_state[i]   = res;
-				next.wire_state[out] = res;
-
-			} break;
-				
-			case AND3_GATE : case NAND3_GATE:
-			case OR3_GATE  : case NOR3_GATE : {
-				assert(inputs == 3);
-
-				int out  = gate.pins[3];
-				assert(out >= 0 && out < (int)cur.wire_state.size());
-				
-				uint8_t b = cur.wire_state[ gate.pins[1] ];
-				uint8_t c = cur.wire_state[ gate.pins[2] ];
-		
-				uint8_t res = a;
-				switch (gate.type) {
-					case AND3_GATE : case NAND3_GATE: res = res & b & c; break;
-					case OR3_GATE  : case NOR3_GATE : res = res | b | c; break;
-					INVALID_DEFAULT;
-				}
-
-				switch (gate.type) {
-					case NAND3_GATE:
-					case NOR3_GATE :
-						res ^= 1;
-						break;
-					INVALID_DEFAULT;
-				}
-		
-				next.gate_state[i]   = res;
-				next.wire_state[out] = res;
-
-			} break;
-
-			case AND4_GATE : case NAND4_GATE:
-			case OR4_GATE  : case NOR4_GATE : {
-				assert(inputs == 4);
-
-				int out  = gate.pins[4];
-				assert(out >= 0 && out < (int)cur.wire_state.size());
-				
-				uint8_t b = cur.wire_state[ gate.pins[1] ];
-				uint8_t c = cur.wire_state[ gate.pins[2] ];
-				uint8_t d = cur.wire_state[ gate.pins[3] ];
-		
-				uint8_t res = a;
-				switch (gate.type) {
-					case AND4_GATE : case NAND4_GATE: res = res & b & c & d; break;
-					case OR4_GATE  : case NOR4_GATE : res = res | b | c | d; break;
-					INVALID_DEFAULT;
-				}
-
-				switch (gate.type) {
-					case NAND4_GATE:
-					case NOR4_GATE :
-						res ^= 1;
-						break;
-					INVALID_DEFAULT;
-				}
-		
-				next.gate_state[i]   = res;
-				next.wire_state[out] = res;
-
-			} break;
-
-			INVALID_DEFAULT;
-		}
-
-	#endif
+		next.state[out] = (uint8_t)new_state;
 	}
 	
 	cur_state ^= 1;
-
-
 }
 
 Chip Chip::deep_copy () const {

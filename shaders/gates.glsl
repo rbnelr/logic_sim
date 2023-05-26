@@ -8,15 +8,16 @@ struct Vertex {
 VS2FS Vertex v;
 
 flat VS2FS int v_gate_type;
-flat VS2FS int v_state_id;
+flat VS2FS uint v_cur_state;
 
-uniform usampler1DArray gate_state_tex;
+uniform usampler1DArray state_tex;
 uniform float sim_t;
 
 #define BUF_GATE   0 //  0 / 10
 #define AND_GATE   1 // 10 / 10
 #define OR_GATE    2 // 20 / 10
 #define XOR_GATE   3 // 30 / 10
+#define MTPLX_GATE 4 // 40 / 10
 
 #ifdef _VERTEX
 	layout(location = 0) in vec2  pos;
@@ -31,7 +32,7 @@ uniform float sim_t;
 		v.col = col;
 		
 		v_gate_type  = gate_type;
-		v_state_id  = state_id;
+		v_cur_state  = texelFetch(state_tex, ivec2(state_id, 0), 0).x;
 	}
 #endif
 #ifdef _FRAGMENT
@@ -75,7 +76,7 @@ uniform float sim_t;
 	float buf_gate (vec2 uv) {
 		vec2 uv_mirr = vec2(uv.x, abs(uv.y - 0.5));
 		
-		float d  = SDF_line(uv, vec2(0.2, 0.0), vec2(0.2, 1.0));
+		float d  = SDF_line(uv, vec2(0.14, 0.0), vec2(0.14, 1.0));
 		d = max(d, SDF_line(uv, vec2(0.8, 1.0), vec2(0.8, 0.0)));
 		
 		d = max(d, SDF_line(uv_mirr, vec2(0.0,0.25), vec2(0.8, 0.01)));
@@ -119,6 +120,18 @@ uniform float sim_t;
 		return max(d, -d2);
 	}
 	
+	float mtplx_gate (vec2 uv, float yoffs) {
+		vec2 uv_mirr = vec2(uv.x, abs(uv.y - 0.5));
+		uv_mirr.y -= yoffs;
+		
+		float d  = SDF_line(uv, vec2(0.14, 0.0), vec2(0.14, 1.0));
+		d = max(d, SDF_line(uv, vec2(0.8, 1.0), vec2(0.8, 0.0)));
+		
+		d = max(d, SDF_line(uv_mirr, vec2(0.0,0.35), vec2(0.8, 0.10)));
+		
+		return d;
+	}
+	
 	//float not_gate (vec2 uv) {
 	//	float d = buf_gate(uv);
 	//	return min(d, SDF_circ(uv - vec2(0.88,0.5), 0.10));
@@ -142,10 +155,9 @@ uniform float sim_t;
 		float yscale = v_gate_type%5 >= 2 ? 1.25 : 1.0;
 		
 		//uint prev_state = texelFetch(gate_state_tex, ivec2(state_id, 1), 0).x;
-		uint cur_state  = texelFetch(gate_state_tex, ivec2(v_state_id, 0), 0).x;
 		
-		bool base_state = cur_state != 0;
-		bool inv_state  = cur_state != 0;
+		bool base_state = v_cur_state != 0;
+		bool inv_state  = v_cur_state != 0;
 		if (inv) base_state = !base_state;
 		
 		float du = fwidth(v.uv.x);
@@ -161,7 +173,14 @@ uniform float sim_t;
 			if      (ty == BUF_GATE ) d =  buf_gate(v.uv);
 			else if (ty == AND_GATE ) d =  and_gate(v.uv, yscale);
 			else if (ty == OR_GATE  ) d =   or_gate(v.uv, yscale);
-			else /* ty == XOR_GATE */ d =  xor_gate(v.uv);
+			else if (ty == XOR_GATE ) d =  xor_gate(v.uv);
+			else /* ty == MTPLX_GATE */ {
+				vec2 _uv = v.uv;
+				if ((v_gate_type % 10) % 2 >= 1) {
+					_uv.x = 1.0 - _uv.x;
+				}
+				d = mtplx_gate(_uv, v_gate_type >= 42 ? 0.25 : 0.0);
+			}
 			
 			float alpha      = map_clamp(d, -aa/2.0, +aa/2.0, 1.0, 0.0);
 			float outl_alpha = map_clamp(d + outline, -aa/2.0, +aa/2.0, 0.0, 1.0);

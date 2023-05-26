@@ -11,7 +11,8 @@ namespace logic_sim {
 
 namespace ogl {
 	
-struct CircuitMesh {
+	
+struct CircuitDraw {
 	struct WireVertex {
 		float2 pos0;
 		float2 pos1;
@@ -33,7 +34,7 @@ struct CircuitMesh {
 		float2 pos;
 		float2 uv;
 		int    type;
-		int    state_id;
+		int    state_id; // could currently be computed from vertex id, but this is more flexible
 		float4 col;
 		
 		ATTRIBUTES {
@@ -45,22 +46,104 @@ struct CircuitMesh {
 		}
 	};
 	
-	std::vector<WireVertex> wires_mesh;
+	struct ChipDraw {
+		float2 center;
+		float2 size;
+		float4 col;
+	};
 
-	std::vector<GateVertex> gates_mesh;
-	std::vector<uint16_t>   gates_mesh_indices;
-};
-struct CircuitMeshBuilder {
-	CircuitMesh& mesh;
+	void remesh (App& app);
 
-	std::vector< std::vector<CircuitMesh::WireVertex> > line_groups;
+	//
+	Shader* wires_shad = g_shaders.compile("wires");
+	Shader* gates_shad  = g_shaders.compile("gates");
 	
-	void draw_wire_segment (float2 a, float2 b, int state_id, lrgba col);
-	void draw_wire_point (float2 pos, float radius, int num_wires, int state_id, lrgba col);
+	VertexBuffer  vbo_wires = vertex_buffer<WireVertex>("vbo_gates");
+	VertexBufferI vbo_gates = vertex_bufferI<GateVertex>("vbo_gates");
 
-	void finish_wires ();
+	// x: texture id  y: prev|cur state      x=-1 gets border which is 0 (for preview mesh)
+	Texture1DArray state_tex{"state_tex"};
 
-	void draw_gate (float2x3 const& mat, float2 size, int type, int state_id, lrgba col);
+	GLsizei vbo_gates_indices; 
+	GLsizei vbo_wires_vertices;
+
+	std::vector<ChipDraw> chips;
+
+	void update_state (uint8_t* state_prev, uint8_t* state_cur, int count) {
+		glBindTexture(GL_TEXTURE_1D_ARRAY, state_tex);
+		
+		glTexImage2D(GL_TEXTURE_1D_ARRAY, 0, GL_R8, count,2, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr);
+
+		glTexSubImage2D(GL_TEXTURE_1D_ARRAY, 0, 0,0, count,1, GL_RED, GL_UNSIGNED_BYTE, state_prev);
+		glTexSubImage2D(GL_TEXTURE_1D_ARRAY, 0, 0,1, count,1, GL_RED, GL_UNSIGNED_BYTE, state_cur);
+		
+		glTexParameteri(GL_TEXTURE_1D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_1D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_1D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+		glTexParameteri(GL_TEXTURE_1D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		float4 border = 0;
+		glTexParameterfv(GL_TEXTURE_1D_ARRAY, GL_TEXTURE_BORDER_COLOR, &border.x);
+
+		glBindTexture(GL_TEXTURE_1D_ARRAY, 0);
+	}
+	
+	void draw_wires (StateManager& state, float sim_t) {
+		ZoneScoped;
+
+		if (wires_shad->prog) {
+			OGL_TRACE("WireRenderer");
+
+			if (vbo_wires_vertices > 0) {
+				glUseProgram(wires_shad->prog);
+
+				wires_shad->set_uniform("sim_t", sim_t);
+				state.bind_textures(wires_shad, {
+					{"state_tex", state_tex}
+				});
+
+				PipelineState s;
+				s.depth_test = false;
+				s.depth_write = false;
+				s.blend_enable = true;
+				s.cull_face = false;
+				state.set(s);
+
+				glBindVertexArray(vbo_wires.vao);
+				glDrawArraysInstanced(GL_TRIANGLES, 0, 6, vbo_wires_vertices);
+			}
+		}
+
+		glBindVertexArray(0);
+	}
+	void draw_gates (StateManager& state, float sim_t) {
+		ZoneScoped;
+
+		if (gates_shad->prog) {
+			OGL_TRACE("draw_gates");
+
+			if (vbo_gates_indices > 0) {
+				glUseProgram(gates_shad->prog);
+				
+				gates_shad->set_uniform("sim_t", sim_t);
+				state.bind_textures(gates_shad, {
+					{"state_tex", state_tex}
+				});
+
+				PipelineState s;
+				s.depth_test = false;
+				s.depth_write = false;
+				s.blend_enable = true;
+				s.cull_face = false;
+				state.set(s);
+
+				glBindVertexArray(vbo_gates.vao);
+				glDrawElements(GL_TRIANGLES, vbo_gates_indices, GL_UNSIGNED_SHORT, (void*)0);
+			}
+		}
+
+		glBindVertexArray(0);
+	}
+
 };
 
 struct ScreenOutline {
@@ -151,133 +234,7 @@ struct Renderer {
 
 	Shader* shad_background  = g_shaders.compile("background");
 
-	Shader* gates_shad  = g_shaders.compile("gates");
-	Shader* wires_shad = g_shaders.compile("wires");
-
-	struct CircuitDrawer {
-		VertexBufferI vbo_gates;
-		VertexBuffer  vbo_wires;
-
-		Texture1DArray wire_state_tex;
-		Texture1DArray gate_state_tex;
-
-		GLsizei vbo_gates_indices; 
-		GLsizei vbo_wires_vertices;
-
-		CircuitDrawer (bool preview_drawer):
-				vbo_gates{ vertex_bufferI<CircuitMesh::GateVertex>(std::string("GateVertex") + (preview_drawer ? "_preview":"")) },
-				vbo_wires{ vertex_buffer <CircuitMesh::WireVertex>(std::string("WireVertex") + (preview_drawer ? "_preview":"")) },
-				wire_state_tex{std::string("wire_state_tex") + (preview_drawer ? "_preview":"")},
-				gate_state_tex{std::string("gate_state_tex") + (preview_drawer ? "_preview":"")} {
-
-			if (preview_drawer) {
-				// dummy state for preview (all state_ids should be 0)
-				uint8_t zero = 0;
-				update_wire_state(&zero, &zero, 1);
-				update_gate_state(&zero, &zero, 1);
-			}
-		}
-
-		void update_mesh (CircuitMesh& mesh) {
-			vbo_gates.stream(mesh.gates_mesh, mesh.gates_mesh_indices);
-			vbo_wires.stream(mesh.wires_mesh);
-
-			vbo_gates_indices = (GLsizei)mesh.gates_mesh_indices.size();
-			vbo_wires_vertices = (GLsizei)mesh.wires_mesh.size();
-		}
-
-		void update_wire_state (uint8_t* state_prev, uint8_t* state_cur, int count) {
-			glBindTexture(GL_TEXTURE_1D_ARRAY, wire_state_tex);
-		
-			glTexImage2D(GL_TEXTURE_1D_ARRAY, 0, GL_R8, count,2, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr);
-
-			glTexSubImage2D(GL_TEXTURE_1D_ARRAY, 0, 0,0, count,1, GL_RED, GL_UNSIGNED_BYTE, state_prev);
-			glTexSubImage2D(GL_TEXTURE_1D_ARRAY, 0, 0,1, count,1, GL_RED, GL_UNSIGNED_BYTE, state_cur);
-		
-			glTexParameteri(GL_TEXTURE_1D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-			glTexParameteri(GL_TEXTURE_1D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-			glTexParameteri(GL_TEXTURE_1D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-			glTexParameteri(GL_TEXTURE_1D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-			glBindTexture(GL_TEXTURE_1D_ARRAY, 0);
-		}
-		void update_gate_state (uint8_t* state_prev, uint8_t* state_cur, int count) {
-			glBindTexture(GL_TEXTURE_1D_ARRAY, gate_state_tex);
-		
-			glTexImage2D(GL_TEXTURE_1D_ARRAY, 0, GL_R8, count,2, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr);
-
-			glTexSubImage2D(GL_TEXTURE_1D_ARRAY, 0, 0,0, count,1, GL_RED, GL_UNSIGNED_BYTE, state_prev);
-			glTexSubImage2D(GL_TEXTURE_1D_ARRAY, 0, 0,1, count,1, GL_RED, GL_UNSIGNED_BYTE, state_cur);
-		
-			glTexParameteri(GL_TEXTURE_1D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-			glTexParameteri(GL_TEXTURE_1D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-			glTexParameteri(GL_TEXTURE_1D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-			glTexParameteri(GL_TEXTURE_1D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-			glBindTexture(GL_TEXTURE_1D_ARRAY, 0);
-		}
-
-		void draw_gates (Shader* gates_shad, StateManager& state, float sim_t) {
-			ZoneScoped;
-
-			if (gates_shad->prog) {
-				OGL_TRACE("draw_gates");
-
-				if (vbo_gates_indices > 0) {
-					glUseProgram(gates_shad->prog);
-				
-					gates_shad->set_uniform("sim_t", sim_t);
-					state.bind_textures(gates_shad, {
-						{"gate_state_tex", gate_state_tex}
-					});
-
-					PipelineState s;
-					s.depth_test = false;
-					s.depth_write = false;
-					s.blend_enable = true;
-					s.cull_face = false;
-					state.set(s);
-
-					glBindVertexArray(vbo_gates.vao);
-					glDrawElements(GL_TRIANGLES, vbo_gates_indices, GL_UNSIGNED_SHORT, (void*)0);
-				}
-			}
-
-			glBindVertexArray(0);
-		}
-
-		void draw_wires (Shader* wires_shad, StateManager& state, float sim_t) {
-			ZoneScoped;
-
-			if (wires_shad->prog) {
-				OGL_TRACE("WireRenderer");
-
-				if (vbo_wires_vertices > 0) {
-					glUseProgram(wires_shad->prog);
-
-					wires_shad->set_uniform("sim_t", sim_t);
-					state.bind_textures(wires_shad, {
-						{"wire_state_tex", wire_state_tex}
-					});
-
-					PipelineState s;
-					s.depth_test = false;
-					s.depth_write = false;
-					s.blend_enable = true;
-					s.cull_face = false;
-					state.set(s);
-
-					glBindVertexArray(vbo_wires.vao);
-					glDrawArraysInstanced(GL_TRIANGLES, 0, 6, vbo_wires_vertices);
-				}
-			}
-
-			glBindVertexArray(0);
-		}
-	};
-
-	CircuitDrawer circuit_draw = { false };
-	CircuitDrawer circuit_draw_preview = { true };
+	CircuitDraw circuit_draw;
 
 	float text_scale = 1.0f;
 	

@@ -127,13 +127,13 @@ struct App : IApp {
 		if (sim.recompute) {
 			sim.recreate_simulator();
 
-			renderer.circuit_draw.update_mesh(sim.circuit.mesh);
-
 			sim.recompute = false;
 			update_state = true;
 		}
 
 		if (!sim_paused && sim_freq >= 0.1f) {
+			
+			sim_t += I.dt * sim_freq;
 			
 			for (int i=0; i<10 && sim_t >= 1.0f; ++i) {
 				sim.circuit.simulate();
@@ -142,9 +142,9 @@ struct App : IApp {
 				
 				sim_t -= 1.0f;
 			}
+			if (sim_t >= 1.0f)
+				sim_t = 0; // can't simulate real time
 			assert(sim_t >= 0.0f && sim_t < 1.0f);
-			
-			sim_t += I.dt * sim_freq;
 		}
 		else if (manual_tick) {
 			sim.circuit.simulate();
@@ -159,8 +159,7 @@ struct App : IApp {
 			auto prev = sim.circuit.states[sim.circuit.cur_state  ];
 			auto cur  = sim.circuit.states[sim.circuit.cur_state^1];
 
-			renderer.circuit_draw.update_wire_state(prev.wire_state.data(), cur.wire_state.data(), (int)cur.wire_state.size());
-			renderer.circuit_draw.update_gate_state(prev.gate_state.data(), cur.gate_state.data(), (int)cur.gate_state.size());
+			renderer.circuit_draw.update_state(prev.state.data(), cur.state.data(), (int)cur.state.size());
 		}
 		
 		// toggle gate after simulate to overwrite simulated state for that gate

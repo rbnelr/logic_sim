@@ -28,7 +28,7 @@ struct Editor {
 	struct ViewMode {
 		struct Hover_Part {
 			Part* part = nullptr;
-			int   sid = -1;
+			//int   sid = -1;
 
 			float2x3 part2world;
 		};

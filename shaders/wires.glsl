@@ -14,7 +14,7 @@ VS2FS Vertex v;
 
 uniform float num_wires;
 
-uniform usampler1DArray wire_state_tex;
+uniform usampler1DArray state_tex;
 uniform float sim_t;
 
 #ifdef _VERTEX
@@ -45,8 +45,8 @@ uniform float sim_t;
 		
 		//v.t = mix(t.x, t.y, v.coord.x / v.len);
 		
-		uint prev_state = texelFetch(wire_state_tex, ivec2(state_id, 1), 0).x;
-		uint cur_state  = texelFetch(wire_state_tex, ivec2(state_id, 0), 0).x;
+		uint prev_state = texelFetch(state_tex, ivec2(state_id, 1), 0).x;
+		uint cur_state  = texelFetch(state_tex, ivec2(state_id, 0), 0).x;
 		
 		//vec4 col_a, col_b;
 		//col_a = vec4(col.rgb * vec3(prev_state != 0u ? 1.0 : 0.03), col.a);

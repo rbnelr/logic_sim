@@ -23,7 +23,10 @@ void Editor::viewed_chip_imgui (LogicSim& sim, Camera2D& cam) {
 
 	ImGui::InputText("name",  &sim.viewed_chip->name);
 	ImGui::ColorEdit3("col",  &sim.viewed_chip->col.x);
-	ImGui::DragFloat2("size", &sim.viewed_chip->size.x);
+
+	int2 size = roundi(sim.viewed_chip->size);
+	ImGui::DragInt2("size", &size.x, 0.1f);
+	sim.viewed_chip->size = (float2)size;
 
 	// TODO:
 	//if (ImGui::TreeNodeEx("Inputs")) {
@@ -341,6 +344,13 @@ void Editor::imgui (LogicSim& sim, Camera2D& cam) {
 						{},
 						{},
 						{},
+
+						{ "Mux", &gate_chips[MUX_GATE] },
+						{ "Mux-4", &gate_chips[MUX4_GATE] },
+						{ "Dmux", &gate_chips[DMUX_GATE] },
+						{ "Dmux-4", &gate_chips[DMUX4_GATE] },
+						{},
+						{},
 					};
 
 					for (auto& entry : entries) {
@@ -511,23 +521,25 @@ void Editor::ViewMode::find_hover (float2 cursor_pos, Chip& chip,
 		float2x3 chip2world, float2x3 world2chip, int state_base) {
 
 	//int parts_sid = state_base + chip.wire_states;
-	//
-	//for (auto& part : chip.parts) {
-	//	auto part2world = chip2world * part->pos.calc_matrix();
-	//	auto world2part = part->pos.calc_inv_matrix() * world2chip;
-	//	
-	//	if (hitbox(cursor_pos, part->chip->size, world2part)) {
-	//		int output_sid = state_base + part->pins.back().node->sid;
-	//
-	//		hover_part = { part.get(), output_sid, part2world };
-	//
-	//		if (!is_gate(part->chip)) {
-	//			find_hover(cursor_pos, *part->chip, part2world, world2part, parts_sid);
-	//		}
-	//	}
-	//
-	//	parts_sid += part->chip->state_count;
-	//}
+	
+	for (auto& part : chip.parts) {
+		auto part2world = chip2world * part->pos.calc_matrix();
+		auto world2part = part->pos.calc_inv_matrix() * world2chip;
+		
+		if (hitbox(cursor_pos, part->chip->size, world2part)) {
+			//int output_sid = state_base + part->pins.back().node->sid;
+	
+			//hover_part = { part.get(), output_sid, part2world };
+			hover_part = { part.get(), part2world };
+	
+			if (!is_gate(part->chip)) {
+				//find_hover(cursor_pos, *part->chip, part2world, world2part, parts_sid);
+				find_hover(cursor_pos, *part->chip, part2world, world2part, -1);
+			}
+		}
+	
+		//parts_sid += part->chip->state_count;
+	}
 }
 
 void find_edit_hover (float2 cursor_pos, Chip& chip, bool allow_parts, bool allow_wires, ThingPtr& hover) {
