@@ -529,12 +529,10 @@ void Editor::ViewMode::find_hover (float2 cursor_pos, Chip& chip,
 		if (hitbox(cursor_pos, part->chip->size, world2part)) {
 			//int output_sid = state_base + part->pins.back().node->sid;
 	
-			//hover_part = { part.get(), output_sid, part2world };
 			hover_part = { part.get(), part2world };
-	
+			
 			if (!is_gate(part->chip)) {
-				//find_hover(cursor_pos, *part->chip, part2world, world2part, parts_sid);
-				find_hover(cursor_pos, *part->chip, part2world, world2part, -1);
+				find_hover(cursor_pos, *part->chip, part2world, world2part, 0);
 			}
 		}
 	

@@ -34,7 +34,7 @@ struct Editor {
 		};
 		Hover_Part hover_part = {};
 
-		int toggle_sid = -1;
+		//int toggle_sid = -1;
 		bool state_toggle_value; // new state value while toggle is 'held'
 
 			
