@@ -94,10 +94,10 @@ struct CircuitMeshBuilder {
 				float2 b = chip2world * (pin.pos + ROT[pin.rot] * float2(pin.len, 0));
 				
 				// TODO: improve?
-				int state_id = circuit.node_state_ids[roundi(a)];
-				draw_wire_edge(a, b, state_id, line_col);
+				auto nmap = circuit.node_map[roundi(a)];
+				draw_wire_edge(a, b, nmap.state_id, line_col);
 
-				draw_wire_point(a, 0, state_id, line_col);
+				draw_wire_point(a, nmap.num_wires, nmap.state_id, line_col);
 			}
 		}
 		else {
@@ -110,8 +110,8 @@ struct CircuitMeshBuilder {
 		for (auto& edge : chip->wire_edges) {
 			float2 a = chip2world * edge->a->pos;
 			float2 b = chip2world * edge->b->pos;
-			int state_id = circuit.node_state_ids[roundi(a)];
-			draw_wire_edge(a, b, state_id, line_col);
+			auto nmap = circuit.node_map[roundi(a)];
+			draw_wire_edge(a, b, nmap.state_id, line_col);
 		}
 
 		for (auto& part : chip->parts) {
@@ -122,8 +122,8 @@ struct CircuitMeshBuilder {
 
 		for (auto& node : chip->wire_nodes) {
 			float2 pos = chip2world * node->pos;
-			int state_id = circuit.node_state_ids[roundi(pos)];
-			draw_wire_point(pos, 0, state_id, line_col);
+			auto nmap = circuit.node_map[roundi(pos)];
+			draw_wire_point(pos, nmap.num_wires, nmap.state_id, line_col);
 		}
 	}
 };
@@ -253,8 +253,8 @@ void Renderer::end (Window& window, App& app, int2 window_size) {
 	ImGui::Checkbox("draw_state_ids", &draw_state_ids);
 
 	if (draw_state_ids) {
-		for (auto& kv : app.sim.circuit.node_state_ids) {
-			draw_text(prints("%d", kv.second), (float2)kv.first, 10, 1);
+		for (auto& kv : app.sim.circuit.node_map) {
+			draw_text(prints("%d", kv.second.num_wires), (float2)kv.first, 10, 1);
 		}
 		
 		auto& circ = app.sim.circuit;

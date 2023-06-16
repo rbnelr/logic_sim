@@ -20,7 +20,7 @@ struct BuildSim {
 	};
 
 	// pos -> id map to merge wire edge end points into a graph
-	std::unordered_map<int2, int> node_map;
+	std::unordered_map<int2, Circuit::NodeMapEntry> node_map;
 	// flattened wire graph
 	std::vector<WireNode>         flat_nodes;
 	std::vector<WireEdge>         flat_edges;
@@ -28,12 +28,15 @@ struct BuildSim {
 	std::vector<int> wire_ids;
 	int num_states;
 
-	int touch_node (float2 pos) {
+	Circuit::NodeMapEntry& touch_node (float2 pos) {
 		int2 p = roundi(pos);
 
 		auto res = node_map.try_emplace(p);
 		if (res.second) {
-			res.first->second = (int)flat_nodes.size();
+			res.first->second = {
+				(int)flat_nodes.size(),
+				0,
+			};
 			flat_nodes.emplace_back(p);
 		}
 
@@ -52,23 +55,26 @@ struct BuildSim {
 
 			int i = 0;
 			for (auto& pin : chip->pins) {
-				int a = touch_node(chip2world * pin.pos);
+				auto& a = touch_node(chip2world * pin.pos);
+				a.num_wires++;
 
-				flat_nodes[a].edges.push_back(-1); // dummy id to mark connection to gate
+				flat_nodes[a.state_id].edges.push_back(-1); // dummy id to mark connection to gate
 
 				if (i < ARRLEN(sim_gate.pins))
-					sim_gate.pins[i++] = a;
+					sim_gate.pins[i++] = a.state_id;
 			}
 		}
 
 		for (auto& e : chip->wire_edges) {
-			int a = touch_node(chip2world * e->a->pos);
-			int b = touch_node(chip2world * e->b->pos);
+			auto& a = touch_node(chip2world * e->a->pos);
+			auto& b = touch_node(chip2world * e->b->pos);
+			a.num_wires++;
+			b.num_wires++;
 			
-			flat_edges.emplace_back(a, b);
+			flat_edges.emplace_back(a.state_id, b.state_id);
 
-			flat_nodes[a].edges.push_back(b);
-			flat_nodes[b].edges.push_back(a);
+			flat_nodes[a.state_id].edges.push_back(b.state_id);
+			flat_nodes[b.state_id].edges.push_back(a.state_id);
 		}
 
 		for (auto& part : chip->parts) {
@@ -123,9 +129,9 @@ struct BuildSim {
 		}
 
 		// turn node map into node pos -> state id map
-		circuit.node_state_ids = std::move(node_map);
-		for (auto& kv : circuit.node_state_ids) {
-			kv.second = wire_ids[ kv.second ];
+		circuit.node_map = std::move(node_map);
+		for (auto& kv : circuit.node_map) {
+			kv.second.state_id = wire_ids[ kv.second.state_id ];
 		}
 	}
 };

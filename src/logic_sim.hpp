@@ -339,7 +339,11 @@ struct Circuit {
 
 	// needed for meshing
 	// TODO: if remeshing is always triggered on circuit rebuild this could be simply passed instead
-	std::unordered_map<int2, int> node_state_ids;
+	struct NodeMapEntry {
+		int state_id;
+		int num_wires;
+	};
+	std::unordered_map<int2, NodeMapEntry> node_map;
 	
 	void simulate ();
 };
