@@ -126,6 +126,24 @@ struct CircuitMeshBuilder {
 			draw_wire_point(pos, nmap.num_wires, nmap.state_id, line_col);
 		}
 	}
+
+	void draw_wire_edit (Editor::WireMode& w) {
+
+		int state_id = (int)line_groups.size();
+		line_groups.emplace_back();
+
+		// w.prev is always a real existing point, don't draw preview
+		// w.cur can be a real existing point unless it points to w.node
+		if (w.cur && w.cur == &w.node) {
+			float2 pos = w.cur->pos;
+			auto nmap = circuit.node_map[roundi(pos)];
+			draw_wire_point(pos, nmap.num_wires, state_id, preview_line_col);
+		}
+
+		if (w.cur && w.prev) {
+			draw_wire_edge(w.prev->pos, w.cur->pos, state_id, preview_line_col);
+		}
+	}
 };
 
 void CircuitDraw::remesh (App& app) {
@@ -134,6 +152,11 @@ void CircuitDraw::remesh (App& app) {
 	mesh.line_groups.resize(app.sim.circuit.states[0].state.size());
 
 	mesh.draw_chip(app.sim.viewed_chip.get(), float2x3::identity());
+
+	if (app.editor.in_mode<Editor::WireMode>()) {
+		auto& w = std::get<Editor::WireMode>(app.editor.mode);
+		mesh.draw_wire_edit(w);
+	}
 
 	mesh.finish_wires();
 
@@ -198,29 +221,8 @@ void Renderer::end (Window& window, App& app, int2 window_size) {
 	//	//draw_chip(app, app.sim.viewed_chip.get(), float2x3::identity(), 0, lrgba(1));
 	//}
 	//
-	//{
-	//	CircuitMesh mesh;
-	//	CircuitMeshBuilder build {mesh};
-	//
-	//	{
-	//		if (app.editor.in_mode<Editor::WireMode>()) {
-	//			auto& w = std::get<Editor::WireMode>(app.editor.mode);
-	//			
-	//			build.line_groups.resize(1);
-	//
-	//			// w.prev is always a real existing point, don't draw preview
-	//			// w.cur can be a real existing point unless it points to w.node
-	//			if (w.cur && w.cur == &w.node) {
-	//				int wires = w.cur->num_wires() + (!w.prev || w.cur->edges.contains(w.prev) ? 0 : 1);
-	//				build.draw_wire_point(w.cur->pos, wire_radius*1.05f, wires, 0, preview_line_col);
-	//			}
-	//			
-	//			if (w.cur && w.prev) {
-	//				build.draw_wire_segment(w.prev->pos, w.cur->pos, 0, preview_line_col);
-	//			}
-	//		}
-	//	}
-	//
+	{
+		
 	//	{ // Gate preview
 	//		if (app.editor.in_mode<Editor::PlaceMode>() && app.editor._cursor_valid) {
 	//			auto& pl = std::get<Editor::PlaceMode>(app.editor.mode);
@@ -247,7 +249,7 @@ void Renderer::end (Window& window, App& app, int2 window_size) {
 	//	build.finish_wires();
 	//
 	//	circuit_draw_preview.update_mesh(mesh);
-	//}
+	}
 	
 	static bool draw_state_ids = false;
 	ImGui::Checkbox("draw_state_ids", &draw_state_ids);
