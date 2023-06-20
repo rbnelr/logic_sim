@@ -80,13 +80,18 @@ struct CircuitMeshBuilder {
 		ogl::push_quad(pi, idx+0, idx+1, idx+2, idx+3);
 	}
 
-	void draw_chip (Chip* chip, float2x3 const& chip2world) {
+	Circuit::NodeMapEntry get_node_map (float2 pos, int dummy_state) {
+		return dummy_state ? Circuit::NodeMapEntry{dummy_state,0} : circuit.node_map[roundi(pos)];
+	}
+
+	void draw_chip (Chip* chip, float2x3 const& chip2world, int dummy_state, lrgba tint) {
 		
 		if (is_gate(chip)) {
 			
 			{
-				int state_id = circuit.gates[gate_count++].pins[0];
-				draw_gate(chip2world, chip->size, gate_type(chip), state_id, lrgba(chip->col, 1) * lrgba(1));
+				// Could also be gotten through circuit.node_map
+				int state_id = dummy_state ? dummy_state : circuit.gates[gate_count++].pins[0];
+				draw_gate(chip2world, chip->size, gate_type(chip), state_id, lrgba(chip->col, 1) * tint);
 			}
 
 			for (auto& pin : chip->pins) {
@@ -94,36 +99,36 @@ struct CircuitMeshBuilder {
 				float2 b = chip2world * (pin.pos + ROT[pin.rot] * float2(pin.len, 0));
 				
 				// TODO: improve?
-				auto nmap = circuit.node_map[roundi(a)];
-				draw_wire_edge(a, b, nmap.state_id, line_col);
+				auto nmap = get_node_map(a, dummy_state); // NOTE: for preview stuff this actually creates entries
+				draw_wire_edge(a, b, nmap.state_id, line_col * tint);
 
-				draw_wire_point(a, nmap.num_wires, nmap.state_id, line_col);
+				draw_wire_point(a, nmap.num_wires, nmap.state_id, line_col * tint);
 			}
 		}
 		else {
 			// TODO: make this look nicer, rounded thick outline? color the background inside chip differently?
 			float2 center = chip2world * float2(0);
 			float2 size = abs( (float2x2)chip2world * chip->size ) - 1.0f/16;
-			chips.push_back({ center, size, lrgba(0.001f, 0.001f, 0.001f, 1) });
+			chips.push_back({ center, size, lrgba(0.001f, 0.001f, 0.001f, 1) * tint });
 		}
 
 		for (auto& edge : chip->wire_edges) {
 			float2 a = chip2world * edge->a->pos;
 			float2 b = chip2world * edge->b->pos;
-			auto nmap = circuit.node_map[roundi(a)];
+			auto nmap = get_node_map(a, dummy_state);
 			draw_wire_edge(a, b, nmap.state_id, line_col);
 		}
 
 		for (auto& part : chip->parts) {
 			auto part2world = chip2world * part->pos.calc_matrix();
 
-			draw_chip(part->chip, part2world);
+			draw_chip(part->chip, part2world, dummy_state, tint);
 		}
 
 		for (auto& node : chip->wire_nodes) {
 			float2 pos = chip2world * node->pos;
-			auto nmap = circuit.node_map[roundi(pos)];
-			draw_wire_point(pos, nmap.num_wires, nmap.state_id, line_col);
+			auto nmap = get_node_map(pos, dummy_state);
+			draw_wire_point(pos, nmap.num_wires, nmap.state_id, line_col * tint);
 		}
 	}
 
@@ -136,7 +141,7 @@ struct CircuitMeshBuilder {
 		// w.cur can be a real existing point unless it points to w.node
 		if (w.cur && w.cur == &w.node) {
 			float2 pos = w.cur->pos;
-			auto nmap = circuit.node_map[roundi(pos)];
+			auto nmap = get_node_map(pos, 0);
 			draw_wire_point(pos, nmap.num_wires, state_id, preview_line_col);
 		}
 
@@ -151,11 +156,20 @@ void CircuitDraw::remesh (App& app) {
 
 	mesh.line_groups.resize(app.sim.circuit.states[0].state.size());
 
-	mesh.draw_chip(app.sim.viewed_chip.get(), float2x3::identity());
+	mesh.draw_chip(app.sim.viewed_chip.get(), float2x3::identity(), 0, 1);
 
-	if (app.editor.in_mode<Editor::WireMode>()) {
+	if (app.editor.in_mode<Editor::WireMode>() && app.editor._cursor_valid) {
 		auto& w = std::get<Editor::WireMode>(app.editor.mode);
 		mesh.draw_wire_edit(w);
+	}
+
+	if (app.editor.in_mode<Editor::PlaceMode>() && app.editor._cursor_valid) {
+		
+		int dummy_state_id = (int)mesh.line_groups.size();
+		mesh.line_groups.emplace_back();
+
+		auto& pl = std::get<Editor::PlaceMode>(app.editor.mode);
+		mesh.draw_chip(pl.place_chip, pl.place_pos.calc_matrix(), dummy_state_id, lrgba(1,1,1, 0.5f));
 	}
 
 	mesh.finish_wires();
@@ -213,44 +227,9 @@ void Renderer::end (Window& window, App& app, int2 window_size) {
 
 	draw_background();
 
+	// TODO: Only remesh when needed
 	circuit_draw.remesh(app);
 
-	//{ // Gates and wires
-	//	ZoneScopedN("push gates");
-	//	
-	//	//draw_chip(app, app.sim.viewed_chip.get(), float2x3::identity(), 0, lrgba(1));
-	//}
-	//
-	{
-		
-	//	{ // Gate preview
-	//		if (app.editor.in_mode<Editor::PlaceMode>() && app.editor._cursor_valid) {
-	//			auto& pl = std::get<Editor::PlaceMode>(app.editor.mode);
-	//		
-	//			assert(pl.place_chip);
-	//			auto part2chip = pl.place_pos.calc_matrix();
-	//
-	//			//draw_chip(app, pl.place_chip, part2chip, -1, lrgba(1,1,1,0.75f));
-	//		
-	//			//LineGroup lines;
-	//			//
-	//			//for (auto& pin : pl.place_chip->inputs) {
-	//			//	float2 a = part2chip * get_inp_pos(*pin);
-	//			//	float2 b = part2chip * pin->pos.pos;
-	//			//
-	//			//	lines.draw_wire_segment(float2x3::identity(), a, b, 0, preview_line_col);
-	//			//	lines.draw_wire_point(float2x3::identity(), a, wire_radius, 1, 0, preview_line_col);
-	//			//}
-	//			//
-	//			//add_line_group(line_renderer, lines);
-	//		}
-	//	}
-	//	
-	//	build.finish_wires();
-	//
-	//	circuit_draw_preview.update_mesh(mesh);
-	}
-	
 	static bool draw_state_ids = false;
 	ImGui::Checkbox("draw_state_ids", &draw_state_ids);
 
