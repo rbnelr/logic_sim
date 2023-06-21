@@ -76,7 +76,16 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Use</PrecompiledHeader>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">common.hpp</PrecompiledHeaderFile>
     </ClCompile>
-    <ClCompile Include="..\src\opengl\renderer.cpp" />
+    <ClCompile Include="..\src\opengl\renderer.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Use</PrecompiledHeader>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">common.hpp</PrecompiledHeaderFile>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Tracy|x64'">Use</PrecompiledHeader>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Tracy|x64'">common.hpp</PrecompiledHeaderFile>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Validate|x64'">Use</PrecompiledHeader>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Validate|x64'">common.hpp</PrecompiledHeaderFile>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Use</PrecompiledHeader>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">common.hpp</PrecompiledHeaderFile>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\editor.hpp" />
@@ -89,7 +98,35 @@
     <ClInclude Include="..\src\engine\dear_imgui_custom\imgui_impl_opengl3.h" />
     <ClInclude Include="..\src\engine\input.hpp" />
     <ClInclude Include="..\src\engine\input_buttons.hpp" />
+    <ClInclude Include="..\src\engine\kisslib\allocator.hpp" />
+    <ClInclude Include="..\src\engine\kisslib\animation.hpp" />
+    <ClInclude Include="..\src\engine\kisslib\bit_twiddling.hpp" />
+    <ClInclude Include="..\src\engine\kisslib\circular_buffer.hpp" />
+    <ClInclude Include="..\src\engine\kisslib\clean_windows_h.hpp" />
+    <ClInclude Include="..\src\engine\kisslib\collision.hpp" />
+    <ClInclude Include="..\src\engine\kisslib\containers.hpp" />
+    <ClInclude Include="..\src\engine\kisslib\file_io.hpp" />
+    <ClInclude Include="..\src\engine\kisslib\image.hpp" />
+    <ClInclude Include="..\src\engine\kisslib\kissmath.hpp" />
+    <ClInclude Include="..\src\engine\kisslib\kissmath_colors.hpp" />
+    <ClInclude Include="..\src\engine\kisslib\macros.hpp" />
+    <ClInclude Include="..\src\engine\kisslib\profiling.hpp" />
+    <ClInclude Include="..\src\engine\kisslib\random.hpp" />
+    <ClInclude Include="..\src\engine\kisslib\raw_array.hpp" />
+    <ClInclude Include="..\src\engine\kisslib\read_directory.hpp" />
+    <ClInclude Include="..\src\engine\kisslib\running_average.hpp" />
+    <ClInclude Include="..\src\engine\kisslib\serialization.hpp" />
+    <ClInclude Include="..\src\engine\kisslib\stb_image.hpp" />
+    <ClInclude Include="..\src\engine\kisslib\stb_image_write.hpp" />
+    <ClInclude Include="..\src\engine\kisslib\stb_rect_pack.hpp" />
+    <ClInclude Include="..\src\engine\kisslib\stb_truetype.hpp" />
     <ClInclude Include="..\src\engine\kisslib\stl_extensions.hpp" />
+    <ClInclude Include="..\src\engine\kisslib\string.hpp" />
+    <ClInclude Include="..\src\engine\kisslib\string_buf.hpp" />
+    <ClInclude Include="..\src\engine\kisslib\strparse.hpp" />
+    <ClInclude Include="..\src\engine\kisslib\threadpool.hpp" />
+    <ClInclude Include="..\src\engine\kisslib\threadsafe_queue.hpp" />
+    <ClInclude Include="..\src\engine\kisslib\timer.hpp" />
     <ClInclude Include="..\src\engine\opengl.hpp" />
     <ClInclude Include="..\src\engine\opengl_text.hpp" />
     <ClInclude Include="..\src\engine\window.hpp" />

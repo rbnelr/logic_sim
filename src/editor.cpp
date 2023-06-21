@@ -483,10 +483,6 @@ void highlight (ogl::Renderer& r, ThingPtr ptr, lrgba col, bool show_text, float
 			highlight_part(r, *ptr.part, part2world, col, show_text, shrink);
 		} break;
 		case T_NODE: {
-			if (ptr.node->parent_part) {
-				highlight_part(r, *ptr.node->parent_part, ptr.node->parent_part->pos.calc_matrix(), col, false, shrink);
-			}
-
 			std::string_view name;
 			if (show_text) {
 				// TODO: pin name?
@@ -657,7 +653,7 @@ void Editor::update (Input& I, LogicSim& sim, ogl::Renderer& r) {
 		auto& lmb  = I.buttons[MOUSE_BUTTON_LEFT];
 		
 		if (lmb.went_down) {
-			if (hover.type == T_PART || (hover.type == T_NODE && !hover.node->parent_part)) {
+			if (hover.type == T_PART || hover.type == T_NODE) {
 				if (shift && e.sel) {
 					// shift click toggles selection
 					e.sel.items.toggle(hover);
@@ -944,31 +940,50 @@ void Editor::update (Input& I, LogicSim& sim, ogl::Renderer& r) {
 	}
 }
 
-void Editor::update_toggle_gate (Input& I, LogicSim& sim, Window& window) {
+bool Editor::update_toggle_gate (Input& I, LogicSim& sim, Window& window) {
+	bool toggled = false;
 	
-	//bool can_toggle = false;
-	//
-	//if (in_mode<ViewMode>()) {
-	//	auto& v = std::get<ViewMode>(mode);
-	//
-	//	can_toggle = v.hover_part.part && is_gate(v.hover_part.part->chip);
-	//	
-	//	if (v.toggle_sid < 0 && can_toggle && I.buttons[MOUSE_BUTTON_LEFT].went_down) {
-	//		v.toggle_sid = v.hover_part.sid;
-	//		v.state_toggle_value = !sim.state[sim.cur_state][v.toggle_sid];
-	//	}
-	//	if (v.toggle_sid >= 0) {
-	//		sim.state[sim.cur_state][v.toggle_sid] = v.state_toggle_value;
-	//
-	//		if (I.buttons[MOUSE_BUTTON_LEFT].went_up)
-	//			v.toggle_sid = -1;
-	//	}
-	//}
-	//
+	bool can_toggle = false;
+	
+	if (in_mode<ViewMode>()) {
+		auto& v = std::get<ViewMode>(mode);
+
+		auto& cur_state  = sim.circuit.states[sim.circuit.cur_state  ];
+		auto& prev_state = sim.circuit.states[sim.circuit.cur_state^1];
+	
+		can_toggle = v.hover_part.part && is_gate(v.hover_part.part->chip);
+		
+		if (v.toggle_state_id < 0 && can_toggle && I.buttons[MOUSE_BUTTON_LEFT].went_down) {
+			// toggle started
+			v.toggle_state_id = sim.circuit.get_gate_state_id( v.hover_part.part->chip, v.hover_part.part2world ).state_id;
+			v.state_toggle_value = !cur_state.state[v.toggle_state_id];
+
+			toggled = true; // trigger upload to gpu
+		}
+		if (v.toggle_state_id >= 0) {
+			// toggle held
+			// toggle_state_id should still be valid here because circuit should not change during view mode (hopefully)
+			assert(v.toggle_state_id < cur_state.state.size());
+
+			cur_state .state[v.toggle_state_id] = v.state_toggle_value;
+			prev_state.state[v.toggle_state_id] = v.state_toggle_value;
+		
+			if (I.buttons[MOUSE_BUTTON_LEFT].went_up) {
+				// toogle end
+				v.toggle_state_id = -1;
+			}
+		}
+	}
+	
+	// I don't remember why I changed to logic to only set the cursor when it needs to change
+	// re add this code if problems occur, but get rid of the static please
+	
 	//static bool prev = false;
 	//if (prev != can_toggle || can_toggle)
-	//	window.set_cursor(can_toggle ? Window::CURSOR_FINGER : Window::CURSOR_NORMAL);
+		window.set_cursor(can_toggle ? Window::CURSOR_FINGER : Window::CURSOR_NORMAL);
 	//prev = can_toggle;
+
+	return toggled;
 }
 
 } // namespace logic_sim

@@ -154,6 +154,10 @@ struct App : IApp {
 			sim_t = 0.5f;
 		}
 		manual_tick = false;
+		
+		// toggle gate after simulate to overwrite simulated state for that gate
+		if (editor.update_toggle_gate(I, sim, window))
+			update_state = true;
 
 		if (update_state) {
 			auto prev = sim.circuit.states[sim.circuit.cur_state  ];
@@ -161,9 +165,6 @@ struct App : IApp {
 
 			renderer.circuit_draw.update_state(prev.state.data(), cur.state.data(), (int)cur.state.size());
 		}
-		
-		// toggle gate after simulate to overwrite simulated state for that gate
-		editor.update_toggle_gate(I, sim, window);
 
 	////
 		renderer.end(window, *this, window.input.window_size);

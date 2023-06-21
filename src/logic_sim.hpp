@@ -103,24 +103,10 @@ struct Placement {
 };
 	
 ////
-struct Part;
-struct WireNode;
-
-using _partptr_equal = _equal< std::unique_ptr<Part> >;
-
 struct WireNode {
 	float2 pos;
-	
-	Part* parent_part = nullptr;
 	vector_set<WireNode*> edges = {}; // TODO: small vec opt to 4 entries
 	
-	//bool visited = false;
-	//int  local_id = -1;
-
-	int num_wires () {
-		return edges.size() + (parent_part ? 1 : 0);
-	}
-
 	AABB get_aabb () const {
 		return AABB{ (float2)pos - wire_radius*wire_node_junction,
 			         (float2)pos + wire_radius*wire_node_junction };
@@ -130,6 +116,8 @@ struct WireEdge {
 	WireNode* a;
 	WireNode* b;
 };
+
+struct Part;
 
 // A chip design that can be edited or simulated if viewed as the "global" chip
 // Uses other chips as parts, which are instanced into it's own editing or simulation
@@ -201,6 +189,8 @@ struct Part {
 	}
 };
 
+using _partptr_equal = _equal< std::unique_ptr<Part> >;
+
 enum ThingType {
 	T_NONE=0,
 	T_PART,
@@ -239,6 +229,7 @@ struct ThingPtr {
 };
 
 ////
+// (GateType % 10) > 5: inverting gate  (for shader)
 enum GateType {
 	BUF_GATE  = 0,
 	NOT_GATE  = 5,
@@ -340,21 +331,52 @@ struct Circuit {
 	// needed for meshing
 	// TODO: if remeshing is always triggered on circuit rebuild this could be simply passed instead
 	struct NodeMapEntry {
-		int state_id;
-		int num_wires;
+		int state_id = -1;
+		int num_wires = 0;
 	};
 	std::unordered_map<int2, NodeMapEntry> node_map;
 	
+	// for rendering and toggling purposes of gates
+	// get output pin's state id for normal gates
+	// for DMUX gates gets the active output pin via prev state
+	NodeMapEntry const& get_gate_state_id (Chip* gate, float2x3 const& chip2world) {
+		assert(is_gate(gate) && gate->pins.size() > 0);
+		
+		auto& prev_state = states[cur_state^1];
+
+		// Complicated logic to make specifically the active output of dmux gates toggleable
+		// If this creates problems just don't make them toggleable and use the input of them for rendering
+		int output_pin = 0;
+		switch (gate_type(gate)) {
+		case DMUX_GATE: {
+			auto sel_state_id = node_map[roundi( chip2world * gate->pins[3].pos )].state_id;
+			assert(sel_state_id >= 0);
+			bool sel_state = prev_state.state[sel_state_id];
+
+			output_pin = (int)sel_state;
+		} break;
+		case DMUX4_GATE: {
+			auto sel0_state_id = node_map[roundi( chip2world * gate->pins[5].pos )].state_id;
+			auto sel1_state_id = node_map[roundi( chip2world * gate->pins[6].pos )].state_id;
+			assert(sel0_state_id >= 0 && sel1_state_id >= 0);
+			bool sel0_state = prev_state.state[sel0_state_id];
+			bool sel1_state = prev_state.state[sel1_state_id];
+
+			output_pin = ((int)sel1_state<<1) | (int)sel0_state;
+		} break;
+		}
+
+		auto& res = node_map[roundi( chip2world * gate->pins[output_pin].pos )];
+		assert(res.state_id >= 0);
+		return res;
+	}
+
 	void simulate ();
 };
 
 ////
 struct LogicSim {
-		
-	// (de)serialize a chip to json, translating between gate and custom chip pointers and a single integer id
-	friend void to_json (json& j, const Chip& chip, const LogicSim& sim);
-	friend void from_json (const json& j, Chip& chip, LogicSim& sim);
-
+	
 	// (de)serialize all saved chips
 	// simulation state is never (de)serialized
 	// editor state is never (de)serialized
@@ -472,6 +494,7 @@ struct LogicSim {
 		int count = node->edges.size();
 
 		for (WireNode* n : node->edges) {
+			assert(n != node); // if this happens the loop is invalid
 			n->edges.remove(node);
 		}
 
@@ -495,6 +518,8 @@ struct LogicSim {
 	}
 	// existing connections are allowed as inputs but will be ignored
 	void connect_wire_nodes (Chip& chip, WireNode* a, WireNode* b) {
+		assert(a != b);
+
 		bool existing = a->edges.contains(b);
 		assert(existing == b->edges.contains(a));
 		if (existing) return;

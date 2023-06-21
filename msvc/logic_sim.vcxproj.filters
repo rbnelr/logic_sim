@@ -2,92 +2,92 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="..\src\main.cpp" />
+    <ClCompile Include="..\src\logic_sim.cpp" />
+    <ClCompile Include="..\src\opengl\renderer.cpp">
+      <Filter>opengl</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\editor.cpp" />
+    <ClCompile Include="..\src\engine\common.cpp">
+      <Filter>engine</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\engine\dbgdraw.cpp">
+      <Filter>engine</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\engine\engine.cpp">
       <Filter>engine</Filter>
     </ClCompile>
     <ClCompile Include="..\src\engine\opengl.cpp">
       <Filter>engine</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\engine\kisslib\allocator.cpp">
+    <ClCompile Include="..\src\engine\opengl_text.cpp">
       <Filter>engine</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\engine\kisslib\collision.cpp">
-      <Filter>engine</Filter>
+    <ClCompile Include="..\src\engine\dear_imgui_custom\imgui_impl_glfw.cpp">
+      <Filter>engine\imgui</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\engine\kisslib\file_io.cpp">
-      <Filter>engine</Filter>
+    <ClCompile Include="..\src\engine\dear_imgui_custom\imgui_impl_opengl3.cpp">
+      <Filter>engine\imgui</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\engine\kisslib\random.cpp">
-      <Filter>engine</Filter>
+    <ClCompile Include="..\src\engine\dear_imgui\imgui.cpp">
+      <Filter>engine\imgui</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\engine\kisslib\read_directory.cpp">
-      <Filter>engine</Filter>
+    <ClCompile Include="..\src\engine\dear_imgui\imgui_demo.cpp">
+      <Filter>engine\imgui</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\engine\kisslib\stb_image.cpp">
-      <Filter>engine</Filter>
+    <ClCompile Include="..\src\engine\dear_imgui\imgui_draw.cpp">
+      <Filter>engine\imgui</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\engine\kisslib\stb_image_write.cpp">
-      <Filter>engine</Filter>
+    <ClCompile Include="..\src\engine\dear_imgui\imgui_tables.cpp">
+      <Filter>engine\imgui</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\engine\kisslib\stb_rect_pack.cpp">
-      <Filter>engine</Filter>
+    <ClCompile Include="..\src\engine\dear_imgui\imgui_widgets.cpp">
+      <Filter>engine\imgui</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\engine\kisslib\stb_truetype.cpp">
-      <Filter>engine</Filter>
+    <ClCompile Include="..\src\engine\dear_imgui\misc\cpp\imgui_stdlib.cpp">
+      <Filter>engine\imgui</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\engine\kisslib\string.cpp">
-      <Filter>engine</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\engine\kisslib\threadpool.cpp">
-      <Filter>engine</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\engine\kisslib\timer.cpp">
-      <Filter>engine</Filter>
+    <ClCompile Include="..\src\engine\tracy\public\TracyClient.cpp">
+      <Filter>engine\tracy</Filter>
     </ClCompile>
     <ClCompile Include="..\src\engine\glad\glad.c">
       <Filter>engine</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\engine\dear_imgui_custom\imgui_impl_glfw.cpp">
-      <Filter>engine</Filter>
+    <ClCompile Include="..\src\engine\kisslib\allocator.cpp">
+      <Filter>engine\kisslib</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\engine\dear_imgui_custom\imgui_impl_opengl3.cpp">
-      <Filter>engine</Filter>
+    <ClCompile Include="..\src\engine\kisslib\collision.cpp">
+      <Filter>engine\kisslib</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\engine\dear_imgui\imgui.cpp">
-      <Filter>engine</Filter>
+    <ClCompile Include="..\src\engine\kisslib\file_io.cpp">
+      <Filter>engine\kisslib</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\engine\dear_imgui\imgui_demo.cpp">
-      <Filter>engine</Filter>
+    <ClCompile Include="..\src\engine\kisslib\random.cpp">
+      <Filter>engine\kisslib</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\engine\dear_imgui\imgui_draw.cpp">
-      <Filter>engine</Filter>
+    <ClCompile Include="..\src\engine\kisslib\read_directory.cpp">
+      <Filter>engine\kisslib</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\engine\dear_imgui\imgui_tables.cpp">
-      <Filter>engine</Filter>
+    <ClCompile Include="..\src\engine\kisslib\stb_image.cpp">
+      <Filter>engine\kisslib</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\engine\dear_imgui\imgui_widgets.cpp">
-      <Filter>engine</Filter>
+    <ClCompile Include="..\src\engine\kisslib\stb_image_write.cpp">
+      <Filter>engine\kisslib</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\engine\dbgdraw.cpp">
-      <Filter>engine</Filter>
+    <ClCompile Include="..\src\engine\kisslib\stb_rect_pack.cpp">
+      <Filter>engine\kisslib</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\engine\opengl_text.cpp">
-      <Filter>engine</Filter>
+    <ClCompile Include="..\src\engine\kisslib\stb_truetype.cpp">
+      <Filter>engine\kisslib</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\engine\tracy\public\TracyClient.cpp">
-      <Filter>engine</Filter>
+    <ClCompile Include="..\src\engine\kisslib\string.cpp">
+      <Filter>engine\kisslib</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\engine\dear_imgui\misc\cpp\imgui_stdlib.cpp">
-      <Filter>engine</Filter>
+    <ClCompile Include="..\src\engine\kisslib\threadpool.cpp">
+      <Filter>engine\kisslib</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\logic_sim.cpp" />
-    <ClCompile Include="..\src\engine\common.cpp">
-      <Filter>engine</Filter>
+    <ClCompile Include="..\src\engine\kisslib\timer.cpp">
+      <Filter>engine\kisslib</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\opengl\renderer.cpp">
-      <Filter>opengl</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\editor.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="engine">
@@ -99,16 +99,34 @@
     <Filter Include="shaders">
       <UniqueIdentifier>{0d98b327-4239-45f9-a848-26998f2e90ca}</UniqueIdentifier>
     </Filter>
+    <Filter Include="engine\imgui">
+      <UniqueIdentifier>{ccbe0687-4345-4026-b83f-d77b7092a65c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="engine\tracy">
+      <UniqueIdentifier>{fe8a41e7-2470-4e9c-b25c-4a167640ece3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="engine\kisslib">
+      <UniqueIdentifier>{79fae0c3-5719-418a-876b-94b42a978db6}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\app.hpp" />
-    <ClInclude Include="..\src\engine\dbgdraw.hpp">
-      <Filter>engine</Filter>
+    <ClInclude Include="..\src\opengl\gl_dbgdraw.hpp">
+      <Filter>opengl</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\engine_config.hpp" />
+    <ClInclude Include="..\src\logic_sim.hpp" />
+    <ClInclude Include="..\src\opengl\renderer.hpp">
+      <Filter>opengl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\editor.hpp" />
     <ClInclude Include="..\src\engine\camera.hpp">
       <Filter>engine</Filter>
     </ClInclude>
     <ClInclude Include="..\src\engine\common.hpp">
+      <Filter>engine</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\engine\dbgdraw.hpp">
       <Filter>engine</Filter>
     </ClInclude>
     <ClInclude Include="..\src\engine\input.hpp">
@@ -126,30 +144,105 @@
     <ClInclude Include="..\src\engine\window.hpp">
       <Filter>engine</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\opengl\gl_dbgdraw.hpp">
-      <Filter>opengl</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\engine_config.hpp" />
-    <ClInclude Include="..\src\logic_sim.hpp" />
     <ClInclude Include="..\src\engine\dear_imgui_custom\dear_imgui.hpp">
-      <Filter>engine</Filter>
+      <Filter>engine\imgui</Filter>
     </ClInclude>
     <ClInclude Include="..\src\engine\dear_imgui_custom\imconfig.hpp">
-      <Filter>engine</Filter>
+      <Filter>engine\imgui</Filter>
     </ClInclude>
     <ClInclude Include="..\src\engine\dear_imgui_custom\imgui_impl_glfw.h">
-      <Filter>engine</Filter>
+      <Filter>engine\imgui</Filter>
     </ClInclude>
     <ClInclude Include="..\src\engine\dear_imgui_custom\imgui_impl_opengl3.h">
-      <Filter>engine</Filter>
+      <Filter>engine\imgui</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\opengl\renderer.hpp">
-      <Filter>opengl</Filter>
+    <ClInclude Include="..\src\engine\kisslib\allocator.hpp">
+      <Filter>engine\kisslib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\engine\kisslib\animation.hpp">
+      <Filter>engine\kisslib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\engine\kisslib\bit_twiddling.hpp">
+      <Filter>engine\kisslib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\engine\kisslib\circular_buffer.hpp">
+      <Filter>engine\kisslib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\engine\kisslib\clean_windows_h.hpp">
+      <Filter>engine\kisslib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\engine\kisslib\collision.hpp">
+      <Filter>engine\kisslib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\engine\kisslib\containers.hpp">
+      <Filter>engine\kisslib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\engine\kisslib\file_io.hpp">
+      <Filter>engine\kisslib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\engine\kisslib\image.hpp">
+      <Filter>engine\kisslib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\engine\kisslib\kissmath.hpp">
+      <Filter>engine\kisslib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\engine\kisslib\kissmath_colors.hpp">
+      <Filter>engine\kisslib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\engine\kisslib\macros.hpp">
+      <Filter>engine\kisslib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\engine\kisslib\profiling.hpp">
+      <Filter>engine\kisslib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\engine\kisslib\random.hpp">
+      <Filter>engine\kisslib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\engine\kisslib\raw_array.hpp">
+      <Filter>engine\kisslib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\engine\kisslib\read_directory.hpp">
+      <Filter>engine\kisslib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\engine\kisslib\running_average.hpp">
+      <Filter>engine\kisslib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\engine\kisslib\serialization.hpp">
+      <Filter>engine\kisslib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\engine\kisslib\stb_image.hpp">
+      <Filter>engine\kisslib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\engine\kisslib\stb_image_write.hpp">
+      <Filter>engine\kisslib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\engine\kisslib\stb_rect_pack.hpp">
+      <Filter>engine\kisslib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\engine\kisslib\stb_truetype.hpp">
+      <Filter>engine\kisslib</Filter>
     </ClInclude>
     <ClInclude Include="..\src\engine\kisslib\stl_extensions.hpp">
-      <Filter>engine</Filter>
+      <Filter>engine\kisslib</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\editor.hpp" />
+    <ClInclude Include="..\src\engine\kisslib\string.hpp">
+      <Filter>engine\kisslib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\engine\kisslib\string_buf.hpp">
+      <Filter>engine\kisslib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\engine\kisslib\strparse.hpp">
+      <Filter>engine\kisslib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\engine\kisslib\threadpool.hpp">
+      <Filter>engine\kisslib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\engine\kisslib\threadsafe_queue.hpp">
+      <Filter>engine\kisslib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\engine\kisslib\timer.hpp">
+      <Filter>engine\kisslib</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\shaders\common.glsl">

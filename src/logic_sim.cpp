@@ -170,6 +170,7 @@ void Circuit::simulate () {
 
 		int pin_count = (int)gate_chips[gate.type].pins.size();
 		
+		// validate state ids look correct
 		for (int i=0; i<pin_count; ++i) {
 			int state_id = gate.pins[i];
 			assert(state_id >= 0 && state_id < (int)cur.state.size());
@@ -248,7 +249,7 @@ void Circuit::simulate () {
 			case MUX_GATE: new_state = c ? b : a;   break;
 			case MUX4_GATE:
 				//new_state = args[5] ? (args[4] ? args[3] : args[2]) : (args[4] ? args[1] : args[0]);
-				new_state = args[ ((int)args[5]<<1) | (int)args[4]];
+				new_state = args[ ((int)args[5]<<1) | (int)args[4] ];
 				break;
 	
 			default: assert(false);
@@ -261,15 +262,42 @@ void Circuit::simulate () {
 }
 
 Chip Chip::deep_copy () const {
+	std::unordered_map<Part*, Part*> ptr_map_parts;
+	std::unordered_map<WireNode*, WireNode*> ptr_map_nodes;
+
 	Chip c;
 	c.name = name;
 	c.col  = col;
 	c.size = size;
+	c.pins = pins;
 	
-	c.parts.reserve(parts  .size());
+	c.parts.reserve(parts.size());
+	c.wire_nodes.reserve(wire_nodes.size());
+	c.wire_edges.reserve(wire_edges.size());
 
-	for (auto& p : parts)
-		c.parts.add( std::make_unique<Part>(p->chip, std::string(p->name), p->pos) );
+	// Could be simplified if wire connection data structure is rewritten
+
+	for (auto& p : parts) {
+		auto& new_ptr = c.parts.add( std::make_unique<Part>(p->chip, std::string(p->name), p->pos) );
+		ptr_map_parts[p.get()] = new_ptr.get();
+	}
+	for (auto& node : wire_nodes) {
+		auto& new_ptr = c.wire_nodes.add( std::make_unique<WireNode>(node->pos, node->edges) );
+		ptr_map_nodes[node.get()] = new_ptr.get();
+	}
+	for (auto& edge : wire_edges) {
+		c.wire_edges.add( std::make_unique<WireEdge>(edge->a, edge->b) );
+	}
+	
+	for (auto& node : c.wire_nodes) {
+		for (auto& edge : node->edges) {
+			edge = ptr_map_nodes[edge];
+		}
+	}
+	for (auto& edge : c.wire_edges) {
+		edge->a = ptr_map_nodes[edge->a];
+		edge->b = ptr_map_nodes[edge->b];
+	}
 
 	return c;
 }
@@ -408,7 +436,7 @@ void json2chip (const json& j, Chip& chip, LogicSim& sim) {
 
 	for (auto& j : jnodes) {
 		float2 pos = j.at("pos");
-		auto node = std::make_unique<WireNode>(pos, nullptr);
+		auto node = std::make_unique<WireNode>(pos);
 		idx2node.emplace_back(node.get());
 		chip.wire_nodes.add(std::move(node));
 	}

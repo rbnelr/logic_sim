@@ -1,3 +1,4 @@
+#include "common.hpp"
 #include "renderer.hpp"
 #include "../app.hpp"
 #include "../logic_sim.hpp"
@@ -17,8 +18,6 @@ struct CircuitMeshBuilder {
 	std::vector< std::vector<CircuitDraw::WireVertex> > line_groups;
 
 	std::vector<CircuitDraw::ChipDraw> chips;
-
-	int gate_count = 0;
 
 	void draw_wire_edge (float2 a, float2 b, int state_id, lrgba col) {
 		auto* out = push_back(line_groups[state_id], 1);
@@ -81,7 +80,7 @@ struct CircuitMeshBuilder {
 	}
 
 	Circuit::NodeMapEntry get_node_map (float2 pos, int dummy_state) {
-		return dummy_state ? Circuit::NodeMapEntry{dummy_state,0} : circuit.node_map[roundi(pos)];
+		return dummy_state >= 0 ? Circuit::NodeMapEntry{dummy_state,0} : circuit.node_map[roundi(pos)];
 	}
 
 	void draw_chip (Chip* chip, float2x3 const& chip2world, int dummy_state, lrgba tint) {
@@ -90,7 +89,7 @@ struct CircuitMeshBuilder {
 			
 			{
 				// Could also be gotten through circuit.node_map
-				int state_id = dummy_state ? dummy_state : circuit.gates[gate_count++].pins[0];
+				int state_id = dummy_state >= 0 ? dummy_state : circuit.get_gate_state_id(chip, chip2world).state_id;
 				draw_gate(chip2world, chip->size, gate_type(chip), state_id, lrgba(chip->col, 1) * tint);
 			}
 
@@ -156,7 +155,7 @@ void CircuitDraw::remesh (App& app) {
 
 	mesh.line_groups.resize(app.sim.circuit.states[0].state.size());
 
-	mesh.draw_chip(app.sim.viewed_chip.get(), float2x3::identity(), 0, 1);
+	mesh.draw_chip(app.sim.viewed_chip.get(), float2x3::identity(), -1, 1);
 
 	if (app.editor.in_mode<Editor::WireMode>() && app.editor._cursor_valid) {
 		auto& w = std::get<Editor::WireMode>(app.editor.mode);

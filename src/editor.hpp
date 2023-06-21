@@ -24,20 +24,17 @@ struct Editor {
 			}
 		}
 	};
-		
+	
 	struct ViewMode {
 		struct Hover_Part {
 			Part* part = nullptr;
-			//int   sid = -1;
-
 			float2x3 part2world;
 		};
 		Hover_Part hover_part = {};
 
-		//int toggle_sid = -1;
+		int toggle_state_id = -1;
 		bool state_toggle_value; // new state value while toggle is 'held'
 
-			
 		void find_hover (float2 cursor_pos, Chip& chip,
 				float2x3 chip2world, float2x3 world2chip, int sid);
 	};
@@ -100,8 +97,6 @@ struct Editor {
 	void select_gate_imgui (LogicSim& sim, const char* name, Chip* type);
 		
 	void viewed_chip_imgui (LogicSim& sim, Camera2D& cam);
-
-	void saved_chip_imgui (LogicSim& sim, std::shared_ptr<Chip>& chip, bool can_place, bool is_viewed);
 	void saved_chips_imgui (LogicSim& sim, Camera2D& cam);
 		
 	void selection_imgui (LogicSim& sim, PartSelection& sel);
@@ -111,7 +106,7 @@ struct Editor {
 ////
 	void update (Input& I, LogicSim& sim, ogl::Renderer& r);
 		
-	void update_toggle_gate (Input& I, LogicSim& sim, Window& window);
+	bool update_toggle_gate (Input& I, LogicSim& sim, Window& window);
 };
 
 } // namespace logic_sim
