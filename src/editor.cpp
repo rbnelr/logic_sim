@@ -450,6 +450,15 @@ void highlight_chip_names (ogl::Renderer& r, Chip& chip, float2x3 const& chip2wo
 	}
 }
 
+void highlight_toggle (ogl::Renderer& r, int2 const& loc, Chip::ToggleLoc const& value) {
+	auto size = wire_node_junction * 1.0f;
+	auto mat = translate((float2)loc);
+	r.draw_highlight_box(size, mat, toggle_col);
+	
+	float2 center = mat * float2(0) + size*0.5f;
+	r.draw_text(prints("%d", value), center, pin_text_sz, toggle_col, float2(1,0));
+}
+
 bool wire_hitbox (float2 cursor_pos, WireEdge& wire) {
 	float2 center = (wire.a->pos + wire.b->pos) * 0.5f;
 	float2 dir    = wire.b->pos - wire.a->pos;
@@ -472,10 +481,19 @@ void highlight_wire (ogl::Renderer& r, WireEdge& wire, lrgba col, float shrink=0
 
 	r.draw_highlight_box(size, mat, wire_col * col);
 }
-
-void highlight (ogl::Renderer& r, ThingPtr ptr, lrgba col, bool show_text, float shrink=0.0f) {
+void highlight_wire_node (ogl::Renderer& r, float2 const& pos, lrgba col, bool show_text, float shrink=0.0f) {
 	float pin_size = wire_radius*wire_node_junction*2;
 
+	std::string_view name;
+	if (show_text) {
+		// TODO: pin name?
+		name = "<wire_node>";
+	}
+
+	highlight(r, pin_size - shrink*2.0f, translate(pos), col * pin_col, name);
+}
+
+void highlight (ogl::Renderer& r, ThingPtr ptr, lrgba col, bool show_text, float shrink=0.0f) {
 	switch (ptr.type) {
 		case T_PART: {
 			auto part2world = ptr.part->pos.calc_matrix();
@@ -483,13 +501,7 @@ void highlight (ogl::Renderer& r, ThingPtr ptr, lrgba col, bool show_text, float
 			highlight_part(r, *ptr.part, part2world, col, show_text, shrink);
 		} break;
 		case T_NODE: {
-			std::string_view name;
-			if (show_text) {
-				// TODO: pin name?
-				name = "<wire_node>";
-			}
-
-			highlight(r, pin_size - shrink*2.0f, translate(ptr.node->pos), col * pin_col, name);
+			highlight_wire_node(r, ptr.node->pos, col * pin_col, show_text, shrink);
 		} break;
 
 		case T_WIRE: {
@@ -498,33 +510,27 @@ void highlight (ogl::Renderer& r, ThingPtr ptr, lrgba col, bool show_text, float
 	}
 }
 
-AABB ThingPtr::get_aabb () const {
-	switch (type) {
-		case T_PART: return part->get_aabb(); break;
-		case T_NODE: return node->get_aabb(); break;
-		INVALID_DEFAULT;
-	}
-}
-float2& ThingPtr::get_pos () {
-	switch (type) {
-		case T_PART:    return part->pos.pos; break;
-		case T_NODE:    return node->pos;     break;
-		INVALID_DEFAULT;
-	}
-}
-
-void Editor::ViewMode::find_hover (float2 const& cursor_pos, Chip& chip,
-		float2x3 const& chip2world, float2x3 const& world2chip, int state_base) {
+void Editor::ViewMode::find_hover (LogicSim& sim, float2 const& cursor_pos, Chip& chip,
+		float2x3 const& chip2world, float2x3 const& world2chip, Editor::ViewMode::HoverLoc& hover) {
 
 	for (auto& part : chip.parts) {
 		auto part2world = chip2world * part->pos.calc_matrix();
 		auto world2part = part->pos.calc_inv_matrix() * world2chip;
 		
 		if (hitbox(cursor_pos, part->chip->size, world2part)) {
-			hover_part = { part.get(), part2world };
-			
 			if (!is_gate(part->chip)) {
-				find_hover(cursor_pos, *part->chip, part2world, world2part, 0);
+				find_hover(sim, cursor_pos, *part->chip, part2world, world2part, hover);
+			}
+			else {
+				auto loc = sim.circuit.get_gate_output_loc(part->chip, part2world);
+				hover = { true, loc, part.get(), part2world };
+			}
+		}
+		
+		float pin_size = wire_radius*wire_node_junction*2;
+		for (auto& node : chip.wire_nodes) {
+			if (hitbox(cursor_pos, pin_size, translate(-node->pos))) {
+				hover = { true, roundi(node->pos) };
 			}
 		}
 	}
@@ -575,7 +581,7 @@ void find_boxsel (Chip& chip, bool remove, AABB box, Editor::PartSelection& sel)
 	}
 }
 
-void Editor::update (Input& I, LogicSim& sim, ogl::Renderer& r) {
+void Editor::update (Input& I, LogicSim& sim, ogl::Renderer& r, Window& window) {
 	
 	if (I.buttons['E'].went_down) {
 		if (in_mode<EditMode>()) mode = ViewMode();
@@ -592,22 +598,73 @@ void Editor::update (Input& I, LogicSim& sim, ogl::Renderer& r) {
 		_cursor_pos = (float2)cur_pos;
 	}
 
+	can_toggle = false;
+	did_toggle = false;
+
 	mode = std::move(std::visit([&] (auto&& arg) { return arg.update(*this, I, sim, r); }, mode));
+	
 
 	highlight_chip_names(r, *sim.viewed_chip, float2x3::identity());
 
 	if (sim.unsaved_changes) {
 		sim.recompute_chip_users();
 	}
+	
+////
+	for (auto& kv : sim.viewed_chip->toggle_locs) {
+		highlight_toggle(r, kv.first, kv.second);
+	}
+
+	// I don't remember why I changed to logic to only set the cursor when it needs to change
+	// re add this code if problems occur, but get rid of the static please
+	
+	//static bool prev = false;
+	//if (prev != can_toggle || can_toggle)
+		window.set_cursor(can_toggle ? Window::CURSOR_FINGER : Window::CURSOR_NORMAL);
+	//prev = can_toggle;
 }
 
 Editor::ModeVariant Editor::ViewMode::update (Editor& ed, Input& I, LogicSim& sim, ogl::Renderer& r) {
-	hover_part = {};
-	find_hover(ed._cursor_pos, *sim.viewed_chip, float2x3::identity(), float2x3::identity(), 0);
-
-	if (hover_part.part) {
-		highlight_part(r, *hover_part.part, hover_part.part2world, hover_col);
+	HoverLoc hover = {};
+	find_hover(sim, ed._cursor_pos, *sim.viewed_chip, float2x3::identity(), float2x3::identity(), hover);
+	
+	for (auto& kv : sim.viewed_chip->toggle_locs) {
+		if (hitbox(ed._cursor_pos, wire_node_junction, translate(-(float2)kv.first) ))
+			hover = { true, kv.first };
 	}
+
+	if (hover) {
+		if (hover.part)
+			highlight_part(r, *hover.part, hover.part2world, hover_col);
+		else
+			highlight_wire_node(r, (float2)hover.toggle_loc, hover_col, false);
+
+		if (I.buttons[MOUSE_BUTTON_LEFT].went_down) {
+			auto it = sim.viewed_chip->toggle_locs.find(hover.toggle_loc);
+			if (it == sim.viewed_chip->toggle_locs.end()) {
+				// create new toggle
+				int state_id = sim.circuit.node_map[hover.toggle_loc].state_id;
+				assert(state_id >= 0);
+				bool cur_state = sim.circuit.states[sim.circuit.cur_state].state[state_id];
+
+				sim.viewed_chip->toggle_locs.emplace(hover.toggle_loc, !cur_state);
+			}
+			else {
+				it->second.force_state = !it->second.force_state;
+			}
+
+			ed.did_toggle = true;
+		}
+		else if (I.buttons[MOUSE_BUTTON_RIGHT].went_down) {
+			auto it = sim.viewed_chip->toggle_locs.find(hover.toggle_loc);
+			if (it != sim.viewed_chip->toggle_locs.end()) {
+				sim.viewed_chip->toggle_locs.erase(hover.toggle_loc); // try to erase
+				ed.did_toggle = true;
+			}
+		}
+	}
+
+	ed.can_toggle = hover;
 
 	return std::move(*this);
 }
@@ -934,52 +991,6 @@ Editor::ModeVariant Editor::WireMode::update (Editor& ed, Input& I, LogicSim& si
 	}
 
 	return std::move(*this);
-}
-
-bool Editor::update_toggle_gate (Input& I, LogicSim& sim, Window& window) {
-	bool toggled = false;
-	
-	bool can_toggle = false;
-	
-	if (in_mode<ViewMode>()) {
-		auto& v = std::get<ViewMode>(mode);
-
-		auto& cur_state  = sim.circuit.states[sim.circuit.cur_state  ];
-		auto& prev_state = sim.circuit.states[sim.circuit.cur_state^1];
-	
-		can_toggle = v.hover_part.part && is_gate(v.hover_part.part->chip);
-		
-		if (v.toggle_state_id < 0 && can_toggle && I.buttons[MOUSE_BUTTON_LEFT].went_down) {
-			// toggle started
-			v.toggle_state_id = sim.circuit.get_gate_state_id( v.hover_part.part->chip, v.hover_part.part2world ).state_id;
-			v.state_toggle_value = !cur_state.state[v.toggle_state_id];
-
-			toggled = true; // trigger upload to gpu
-		}
-		if (v.toggle_state_id >= 0) {
-			// toggle held
-			// toggle_state_id should still be valid here because circuit should not change during view mode (hopefully)
-			assert(v.toggle_state_id < cur_state.state.size());
-
-			cur_state .state[v.toggle_state_id] = v.state_toggle_value;
-			prev_state.state[v.toggle_state_id] = v.state_toggle_value;
-		
-			if (I.buttons[MOUSE_BUTTON_LEFT].went_up) {
-				// toogle end
-				v.toggle_state_id = -1;
-			}
-		}
-	}
-	
-	// I don't remember why I changed to logic to only set the cursor when it needs to change
-	// re add this code if problems occur, but get rid of the static please
-	
-	//static bool prev = false;
-	//if (prev != can_toggle || can_toggle)
-		window.set_cursor(can_toggle ? Window::CURSOR_FINGER : Window::CURSOR_NORMAL);
-	//prev = can_toggle;
-
-	return toggled;
 }
 
 } // namespace logic_sim

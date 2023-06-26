@@ -120,7 +120,7 @@ struct App : IApp {
 
 		renderer.view = cam.update(I, (float2)I.window_size);
 		
-		editor.update(I, sim, renderer);
+		editor.update(I, sim, renderer, window);
 		
 		bool update_state = false;
 
@@ -156,8 +156,10 @@ struct App : IApp {
 		manual_tick = false;
 		
 		// toggle gate after simulate to overwrite simulated state for that gate
-		if (editor.update_toggle_gate(I, sim, window))
+		sim.circuit.override_toggle_state(*sim.viewed_chip);
+		if (editor.did_toggle) {
 			update_state = true;
+		}
 
 		if (update_state) {
 			auto prev = sim.circuit.states[sim.circuit.cur_state  ];

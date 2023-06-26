@@ -261,6 +261,21 @@ void Circuit::simulate () {
 	cur_state ^= 1;
 }
 
+void Circuit::override_toggle_state (Chip const& chip) {
+	auto& cur  = states[cur_state  ];
+	auto& next = states[cur_state^1];
+
+	for (auto& kv : chip.toggle_locs) {
+		auto it = node_map.find(kv.first);
+		if (it != node_map.end()) {
+			int state_id = it->second.state_id;
+			assert(state_id >= 0 && state_id < (int)cur.state.size());
+			cur .state[state_id] = (uint8_t)kv.second.force_state;
+			next.state[state_id] = (uint8_t)kv.second.force_state;
+		}
+	}
+}
+
 Chip Chip::deep_copy () const {
 	std::unordered_map<Part*, Part*> ptr_map_parts;
 	std::unordered_map<WireNode*, WireNode*> ptr_map_nodes;

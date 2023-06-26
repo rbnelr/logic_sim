@@ -21,6 +21,7 @@ inline float wire_node_dead_end = 1.4f;
 
 constexpr lrgba line_col = lrgba(1.0f, 0.015f, 0.03f, 1);
 constexpr lrgba preview_line_col = line_col * lrgba(1,1,1, 0.75f);
+constexpr lrgba toggle_col = lrgba(1,0,1, 0.75f);
 
 inline constexpr float2x2 ROT[] = {
 	float2x2(  1, 0,  0, 1 ),
@@ -151,6 +152,11 @@ struct Chip {
 
 	vector_set<Chip*> users;
 
+	struct ToggleLoc {
+		bool force_state;
+	};
+	std::unordered_map<int2, ToggleLoc> toggle_locs;
+
 	// move needed for  Chip gates[GATE_COUNT]  be careful not to move a chip after init, because we need stable pointers for parts
 	Chip (Chip&&) = default;
 	Chip& operator= (Chip&&) = default;
@@ -224,8 +230,20 @@ struct ThingPtr {
 		return type == r.type && _ptr == r._ptr;
 	}
 		
-	AABB get_aabb () const;
-	float2& get_pos ();
+	AABB get_aabb () const {
+		switch (type) {
+			case T_PART: return part->get_aabb(); break;
+			case T_NODE: return node->get_aabb(); break;
+			INVALID_DEFAULT;
+		}
+	}
+	float2& get_pos () {
+		switch (type) {
+			case T_PART:    return part->pos.pos; break;
+			case T_NODE:    return node->pos;     break;
+			INVALID_DEFAULT;
+		}
+	}
 };
 
 ////
@@ -335,7 +353,7 @@ struct Circuit {
 		int num_wires = 0;
 	};
 	std::unordered_map<int2, NodeMapEntry> node_map;
-	
+
 	// for rendering and toggling purposes of gates
 	// get output pin's state id for normal gates
 	// for DMUX gates gets the active output pin via prev state
@@ -371,7 +389,14 @@ struct Circuit {
 		return res;
 	}
 
+	int2 get_gate_output_loc (Chip* gate, float2x3 const& chip2world) {
+		assert(is_gate(gate) && gate->pins.size() > 0);
+		return roundi( chip2world * gate->pins[0].pos );
+	}
+
 	void simulate ();
+
+	void override_toggle_state (Chip const& chip);
 };
 
 ////
