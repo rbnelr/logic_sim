@@ -155,7 +155,7 @@ struct App : IApp {
 		}
 		manual_tick = false;
 		
-		// toggle gate after simulate to overwrite simulated state for that gate
+		//
 		sim.circuit.override_toggle_state(*sim.viewed_chip);
 		if (editor.did_toggle) {
 			update_state = true;

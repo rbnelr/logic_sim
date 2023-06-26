@@ -626,13 +626,14 @@ void Editor::update (Input& I, LogicSim& sim, ogl::Renderer& r, Window& window) 
 
 Editor::ModeVariant Editor::ViewMode::update (Editor& ed, Input& I, LogicSim& sim, ogl::Renderer& r) {
 	HoverLoc hover = {};
-	find_hover(sim, ed._cursor_pos, *sim.viewed_chip, float2x3::identity(), float2x3::identity(), hover);
 	
 	for (auto& kv : sim.viewed_chip->toggle_locs) {
 		if (hitbox(ed._cursor_pos, wire_node_junction, translate(-(float2)kv.first) ))
 			hover = { true, kv.first };
 	}
 
+	find_hover(sim, ed._cursor_pos, *sim.viewed_chip, float2x3::identity(), float2x3::identity(), hover);
+	
 	if (hover) {
 		if (hover.part)
 			highlight_part(r, *hover.part, hover.part2world, hover_col);
