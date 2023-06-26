@@ -28,7 +28,7 @@ struct BuildSim {
 	std::vector<int> wire_ids;
 	int num_states;
 
-	Circuit::NodeMapEntry& touch_node (float2 pos) {
+	Circuit::NodeMapEntry& touch_node (float2 const& pos) {
 		int2 p = roundi(pos);
 
 		auto res = node_map.try_emplace(p);

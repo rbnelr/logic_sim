@@ -513,30 +513,24 @@ float2& ThingPtr::get_pos () {
 	}
 }
 
-void Editor::ViewMode::find_hover (float2 cursor_pos, Chip& chip,
-		float2x3 chip2world, float2x3 world2chip, int state_base) {
+void Editor::ViewMode::find_hover (float2 const& cursor_pos, Chip& chip,
+		float2x3 const& chip2world, float2x3 const& world2chip, int state_base) {
 
-	//int parts_sid = state_base + chip.wire_states;
-	
 	for (auto& part : chip.parts) {
 		auto part2world = chip2world * part->pos.calc_matrix();
 		auto world2part = part->pos.calc_inv_matrix() * world2chip;
 		
 		if (hitbox(cursor_pos, part->chip->size, world2part)) {
-			//int output_sid = state_base + part->pins.back().node->sid;
-	
 			hover_part = { part.get(), part2world };
 			
 			if (!is_gate(part->chip)) {
 				find_hover(cursor_pos, *part->chip, part2world, world2part, 0);
 			}
 		}
-	
-		//parts_sid += part->chip->state_count;
 	}
 }
 
-void find_edit_hover (float2 cursor_pos, Chip& chip, bool allow_parts, bool allow_wires, ThingPtr& hover) {
+void find_edit_hover (float2 const& cursor_pos, Chip& chip, bool allow_parts, bool allow_wires, ThingPtr& hover) {
 	float pin_size = wire_radius*wire_node_junction*2;
 
 	for (auto& part : chip.parts) {
@@ -598,346 +592,348 @@ void Editor::update (Input& I, LogicSim& sim, ogl::Renderer& r) {
 		_cursor_pos = (float2)cur_pos;
 	}
 
-	if (in_mode<ViewMode>()) {
-		auto& v = std::get<ViewMode>(mode);
-
-		v.hover_part = {};
-		v.find_hover(_cursor_pos, *sim.viewed_chip, float2x3::identity(), float2x3::identity(), 0);
-
-		if (v.hover_part.part) {
-			highlight_part(r, *v.hover_part.part, v.hover_part.part2world, hover_col);
-		}
-	}
-	else if (in_mode<PlaceMode>()) {
-		auto& pl = std::get<PlaceMode>(mode);
-		auto& pos  = pl.place_pos;
-		
-		edit_placement(sim, I, pos);
-		
-		if (_cursor_valid) {
-			
-			// move to-be-placed gate preview with cursor
-			pos.pos = snap(_cursor_pos);
-			
-			highlight(r, pl.place_chip->size, pos.calc_matrix(), preview_box_col);
-			
-			// place gate on left click
-			if (I.buttons[MOUSE_BUTTON_LEFT].went_down) {
-				sim.add_part(*sim.viewed_chip, pl.place_chip, pos); // preview becomes real gate, TODO: add a way to add parts to chips other than the viewed chip (keep selected chip during part placement?)
-				// preview of gate still exists with same pos
-			}
-		}
-	
-		// exit edit mode with RMB
-		if (I.buttons[MOUSE_BUTTON_RIGHT].went_down) {
-			mode = EditMode();
-		}
-	}
-	else if (in_mode<EditMode>()) {
-		auto& e = std::get<EditMode>(mode);
-		
-	//// Find hovered item
-		ThingPtr hover = {};
-		find_edit_hover(_cursor_pos, *sim.viewed_chip, true, false, hover);
-
-	//// Item selection logic + box selection start
-		
-		// LMB selection logic
-		if (!_cursor_valid) {
-			e.dragging = false;
-			e.box_selecting = false;
-		}
-		
-		bool ctrl  = I.buttons[KEY_LEFT_CONTROL].is_down;
-		bool shift = I.buttons[KEY_LEFT_SHIFT].is_down;
-		auto& lmb  = I.buttons[MOUSE_BUTTON_LEFT];
-		
-		if (lmb.went_down) {
-			if (hover.type == T_PART || hover.type == T_NODE) {
-				if (shift && e.sel) {
-					// shift click toggles selection
-					e.sel.items.toggle(hover);
-				}
-				else if (ctrl && e.sel) {
-					// ignore
-				}
-				else {
-					if (e.sel.items.contains(hover)) {
-						// keep multiselect if clicked on already selected item
-					}
-					// non-shift click on non-selected part, replace selection
-					else {
-						e.sel = {{ hover }};
-					}
-				}
-			}
-			else {
-				// replace selection if boxselect without shift or ctrl
-				if (!shift && !ctrl) {
-					e.sel = {};
-				}
-				
-				// begin boxselect
-				e.box_selecting = true;
-				e.box_sel_start = _cursor_pos;
-			}
-		}
-		
-	//// Find box selection
-		PartSelection boxsel = {};
-
-		if (e.box_selecting) {
-		
-			bool remove = false;
-		
-			// shift lmb: add to selection
-			// ctrl  lmb: remove from selection
-			if (shift || ctrl) {
-				remove = ctrl;
-			}
-			// just lmb: replace selection
-			else {
-				e.sel = {};
-			}
-			
-			boxsel = e.sel;
-			if (!boxsel) 
-				boxsel = {};
-		
-			float2 lo = min(e.box_sel_start, _cursor_pos);
-			float2 hi = max(e.box_sel_start, _cursor_pos);
-			float2 size = hi - lo;
-			
-			find_boxsel(*sim.viewed_chip, remove, AABB{lo,hi}, boxsel);
-			
-			r.dbgdraw.wire_quad(float3(lo, 0), size, boxsel_box_col);
-		
-			if (lmb.went_up) {
-				e.sel = boxsel;
-		
-				e.box_selecting = false;
-			}
-		}
-
-	//// Move selected parts and wire nodes
-		if (e.sel) { // still in edit mode? else e becomes invalid
-		
-			float2 snapped_cursor = snap(_cursor_pos);
-			
-			float2 bounds_center;
-			{
-				AABB bounds = AABB::inf();
-		
-				for (auto& item : e.sel.items) {
-					bounds.add(item.get_aabb());
-				}
-				
-				bounds_center = (bounds.lo + bounds.hi) * 0.5f;
-				// need to snap this right here (before item.ptr.get_pos() - bounds_center)
-				// so that all computations are in snapped space, or when dragging and or rotation selections they can end up out of alignment
-				bounds_center = snap(bounds_center);
-			}
-			
-			// Rotate and mirror selection via keys
-			// TODO: rotate around mouse cursor when dragging?
-			// TODO: add some way of scaling? Scale as box or would you more commonly want to scale indivdual items?
-			{
-				float2 edit_center = e.dragging ? snapped_cursor : bounds_center;
-
-				if (e.dragging) {
-					// do confusing computation to correctly rotate/mirror around mouse cursor while dragging
-					float2 orig_snapped_cursor = bounds_center + e.drag_offset;
-					edit_placement(sim, I, bounds_center, snapped_cursor); // rotate/mirror bounds center around snapped_cursor
-					e.drag_offset = orig_snapped_cursor - bounds_center;
-				}
-
-				for (auto& i : e.sel.items) {
-					switch (i.type) {
-						case T_PART: {
-							edit_placement(sim, I, i.part->pos, edit_center);
-						} break;
-						case T_NODE: {
-							edit_placement(sim, I, i.node->pos, edit_center);
-						} break;
-						INVALID_DEFAULT;
-					}
-				}
-			}
-			
-			std::vector<float2> bounds_offsets;
-			{
-				bounds_offsets.resize(e.sel.items.size());
-				for (int i=0; i<e.sel.items.size(); ++i) {
-					bounds_offsets[i] = e.sel.items[i].get_pos() - bounds_center;
-				}
-			}
-
-			// Drag with lmb 
-			if (shift || ctrl) {
-				e.dragging = false;
-			}
-			else {
-				
-				// Cursor is snapped, which is then used to move items as a group, thus unaligned items stay unaligned
-				// snapping items individually is also possible
-		
-				if (!e.dragging && !shift) {
-						// begin dragging gate
-					if (I.buttons[MOUSE_BUTTON_LEFT].went_down) {
-						e.drag_start  = snapped_cursor;
-						e.drag_offset = snapped_cursor - bounds_center;
-						e.dragging = true;
-					}
-				}
-				if (e.dragging) {
-					// move selection to cursor
-					bounds_center = snapped_cursor - e.drag_offset;
-					
-					// drag gate
-					if (I.buttons[MOUSE_BUTTON_LEFT].is_down) {
-						if (length_sqr(snapped_cursor - e.drag_start) > 0) {
-							sim.unsaved_changes = true;
-						}
-						
-						for (int i=0; i<e.sel.items.size(); ++i) {
-							e.sel.items[i].get_pos() = bounds_offsets[i] + bounds_center;
-						}
-
-						if (e.sel.items.size() == 1) {
-							auto& pos = e.sel.items[0].get_pos();
-							pos = snap(pos);
-						}
-					}
-					// stop dragging gate
-					else {
-						e.dragging = false;
-					}
-					
-					sim.recompute = true;
-				}
-			}
-		}
-
-	//// Draw highlights after dragging / rotating / mirroring to avoid 1-frame jumps
-		// Selection highlight
-		{
-			PartSelection& sel = e.box_selecting ? boxsel : e.sel;
-
-			if (sel) {
-				std::string buf;
-
-				// only show text for single-part selections as to not spam too much text
-				if (sel.items.size() == 1) {
-					auto& item = sel.items[0];
-					highlight(r, item, sel_col,
-						item != hover, // only show text if not already hovered to avoid duplicate text at same spot
-						SEL_HIGHL_SHRINK);
-				}
-				else {
-					for (auto& item : sel.items) {
-						highlight(r, item, sel_col, false, SEL_HIGHL_SHRINK);
-					}
-				}
-			}
-		}
-
-		// Hover highlight
-		if (hover) {
-			if (hover.type == T_PART)
-				highlight_chip_names(r, *hover.part->chip, hover.part->pos.calc_matrix());
-			highlight(r, hover, hover_col, true);
-		}
-
-	//// Delete items after highlighting to avoid stale pointer access in hover/e.sel
-		if (e.sel) {
-			
-			// remove gates via DELETE key
-			if (I.buttons[KEY_DELETE].went_down) {
-
-				for (auto& i : e.sel.items) {
-					switch (i.type) {
-						case T_PART: sim.remove_part(*sim.viewed_chip, i.part); break;
-						case T_NODE: sim.remove_wire_node(*sim.viewed_chip, i.node); break;
-						INVALID_DEFAULT;
-					}
-				}
-
-				e.sel = {};
-			}
-			// Duplicate selected part with CTRL+C
-			// TODO: CTRL+D moves the camera to the right, change that?
-			//else if (I.buttons[KEY_LEFT_CONTROL].is_down && I.buttons['C'].went_down) {
-			//	preview_part.chip = sel.part->chip;
-			//	mode = PLACE_MODE;
-			//}
-		}
-	}
-	else if (in_mode<WireMode>()) {
-		auto& w = std::get<WireMode>(mode);
-		
-		// Find hover
-		ThingPtr hover = {};
-		find_edit_hover(_cursor_pos, *sim.viewed_chip, false, true, hover);
-		assert(hover.type == T_NONE || hover.type == T_NODE || hover.type == T_WIRE);
-
-		float2 snapped_pos = snap(_cursor_pos);
-		
-		w.node = { snapped_pos };
-		w.cur = &w.node;
-
-		if (hover) {
-			if (hover.type == T_NODE)
-				w.cur = hover.node;
-
-			highlight(r, hover, hover_col, true);
-
-			if (hover.type == T_WIRE && I.buttons['X'].went_down)
-				sim.remove_wire_edge(*sim.viewed_chip, hover.wire);
-		}
-
-		if (I.buttons[MOUSE_BUTTON_LEFT].went_down) {
-			if (w.cur == &w.node) {
-				// copy out the node struct into a real heap-alloced node
-				w.cur = sim.add_wire_node(*sim.viewed_chip, w.node.pos);
-			}
-
-			if (hover.type == T_WIRE) {
-				// insert node on existig wire by splitting wire
-
-				auto* a = hover.wire->a;
-				auto* b = hover.wire->b;
-
-				sim.remove_wire_edge(*sim.viewed_chip, hover.wire);
-
-				sim.connect_wire_nodes(*sim.viewed_chip, a, w.cur);
-				sim.connect_wire_nodes(*sim.viewed_chip, w.cur, b);
-			}
-
-			if (w.prev && w.cur && w.prev != w.cur) {
-				sim.connect_wire_nodes(*sim.viewed_chip, w.prev, w.cur);
-			}
-
-			//
-			w.prev = w.cur;
-		}
-
-		if (I.buttons[MOUSE_BUTTON_RIGHT].went_down) {
-			// 1. RMB click with a line currently being drawn -> go back to adding first node
-			if (w.prev) {
-				w.prev = {};
-			}
-			// 2. RMB click or still in first node -> exit wire mode
-			else {
-				mode = EditMode();
-			}
-		}
-	}
+	mode = std::move(std::visit([&] (auto&& arg) { return arg.update(*this, I, sim, r); }, mode));
 
 	highlight_chip_names(r, *sim.viewed_chip, float2x3::identity());
 
 	if (sim.unsaved_changes) {
 		sim.recompute_chip_users();
 	}
+}
+
+Editor::ModeVariant Editor::ViewMode::update (Editor& ed, Input& I, LogicSim& sim, ogl::Renderer& r) {
+	hover_part = {};
+	find_hover(ed._cursor_pos, *sim.viewed_chip, float2x3::identity(), float2x3::identity(), 0);
+
+	if (hover_part.part) {
+		highlight_part(r, *hover_part.part, hover_part.part2world, hover_col);
+	}
+
+	return std::move(*this);
+}
+Editor::ModeVariant Editor::PlaceMode::update (Editor& ed, Input& I, LogicSim& sim, ogl::Renderer& r) {
+	edit_placement(sim, I, place_pos);
+		
+	if (ed._cursor_valid) {
+			
+		// move to-be-placed gate preview with cursor
+		place_pos.pos = ed.snap(ed._cursor_pos);
+			
+		highlight(r, place_chip->size, place_pos.calc_matrix(), preview_box_col);
+			
+		// place gate on left click
+		if (I.buttons[MOUSE_BUTTON_LEFT].went_down) {
+			sim.add_part(*sim.viewed_chip, place_chip, place_pos); // preview becomes real gate, TODO: add a way to add parts to chips other than the viewed chip (keep selected chip during part placement?)
+			// preview of gate still exists with same pos
+		}
+	}
+	
+	// exit edit mode with RMB
+	if (I.buttons[MOUSE_BUTTON_RIGHT].went_down) {
+		return EditMode();
+	}
+
+	return std::move(*this);
+}
+Editor::ModeVariant Editor::EditMode::update (Editor& ed, Input& I, LogicSim& sim, ogl::Renderer& r) {
+	
+//// Find hovered item
+	ThingPtr hover = {};
+	find_edit_hover(ed._cursor_pos, *sim.viewed_chip, true, false, hover);
+
+//// Item selection logic + box selection start
+		
+	// LMB selection logic
+	if (!ed._cursor_valid) {
+		dragging = false;
+		box_selecting = false;
+	}
+		
+	bool ctrl  = I.buttons[KEY_LEFT_CONTROL].is_down;
+	bool shift = I.buttons[KEY_LEFT_SHIFT].is_down;
+	auto& lmb  = I.buttons[MOUSE_BUTTON_LEFT];
+		
+	if (lmb.went_down) {
+		if (hover.type == T_PART || hover.type == T_NODE) {
+			if (shift && sel) {
+				// shift click toggles selection
+				sel.items.toggle(hover);
+			}
+			else if (ctrl && sel) {
+				// ignore
+			}
+			else {
+				if (sel.items.contains(hover)) {
+					// keep multiselect if clicked on already selected item
+				}
+				// non-shift click on non-selected part, replace selection
+				else {
+					sel = {{ hover }};
+				}
+			}
+		}
+		else {
+			// replace selection if boxselect without shift or ctrl
+			if (!shift && !ctrl) {
+				sel = {};
+			}
+				
+			// begin boxselect
+			box_selecting = true;
+			box_sel_start = ed._cursor_pos;
+		}
+	}
+		
+//// Find box selection
+	PartSelection boxsel = {};
+
+	if (box_selecting) {
+		
+		bool remove = false;
+		
+		// shift lmb: add to selection
+		// ctrl  lmb: remove from selection
+		if (shift || ctrl) {
+			remove = ctrl;
+		}
+		// just lmb: replace selection
+		else {
+			sel = {};
+		}
+			
+		boxsel = sel;
+		if (!boxsel) 
+			boxsel = {};
+		
+		float2 lo = min(box_sel_start, ed._cursor_pos);
+		float2 hi = max(box_sel_start, ed._cursor_pos);
+		float2 size = hi - lo;
+			
+		find_boxsel(*sim.viewed_chip, remove, AABB{lo,hi}, boxsel);
+			
+		r.dbgdraw.wire_quad(float3(lo, 0), size, boxsel_box_col);
+		
+		if (lmb.went_up) {
+			sel = boxsel;
+		
+			box_selecting = false;
+		}
+	}
+
+//// Move selected parts and wire nodes
+	if (sel) { // still in edit mode? else e becomes invalid
+		
+		float2 snapped_cursor = ed.snap(ed._cursor_pos);
+			
+		float2 bounds_center;
+		{
+			AABB bounds = AABB::inf();
+		
+			for (auto& item : sel.items) {
+				bounds.add(item.get_aabb());
+			}
+				
+			bounds_center = (bounds.lo + bounds.hi) * 0.5f;
+			// need to snap this right here (before item.ptr.get_pos() - bounds_center)
+			// so that all computations are in snapped space, or when dragging and or rotation selections they can end up out of alignment
+			bounds_center = ed.snap(bounds_center);
+		}
+			
+		// Rotate and mirror selection via keys
+		// TODO: rotate around mouse cursor when dragging?
+		// TODO: add some way of scaling? Scale as box or would you more commonly want to scale indivdual items?
+		{
+			float2 edit_center = dragging ? snapped_cursor : bounds_center;
+
+			if (dragging) {
+				// do confusing computation to correctly rotate/mirror around mouse cursor while dragging
+				float2 orig_snapped_cursor = bounds_center + drag_offset;
+				edit_placement(sim, I, bounds_center, snapped_cursor); // rotate/mirror bounds center around snapped_cursor
+				drag_offset = orig_snapped_cursor - bounds_center;
+			}
+
+			for (auto& i : sel.items) {
+				switch (i.type) {
+					case T_PART: {
+						edit_placement(sim, I, i.part->pos, edit_center);
+					} break;
+					case T_NODE: {
+						edit_placement(sim, I, i.node->pos, edit_center);
+					} break;
+					INVALID_DEFAULT;
+				}
+			}
+		}
+			
+		std::vector<float2> bounds_offsets;
+		{
+			bounds_offsets.resize(sel.items.size());
+			for (int i=0; i<sel.items.size(); ++i) {
+				bounds_offsets[i] = sel.items[i].get_pos() - bounds_center;
+			}
+		}
+
+		// Drag with lmb 
+		if (shift || ctrl) {
+			dragging = false;
+		}
+		else {
+				
+			// Cursor is snapped, which is then used to move items as a group, thus unaligned items stay unaligned
+			// snapping items individually is also possible
+		
+			if (!dragging && !shift) {
+					// begin dragging gate
+				if (I.buttons[MOUSE_BUTTON_LEFT].went_down) {
+					drag_start  = snapped_cursor;
+					drag_offset = snapped_cursor - bounds_center;
+					dragging = true;
+				}
+			}
+			if (dragging) {
+				// move selection to cursor
+				bounds_center = snapped_cursor - drag_offset;
+					
+				// drag gate
+				if (I.buttons[MOUSE_BUTTON_LEFT].is_down) {
+					if (length_sqr(snapped_cursor - drag_start) > 0) {
+						sim.unsaved_changes = true;
+					}
+						
+					for (int i=0; i<sel.items.size(); ++i) {
+						sel.items[i].get_pos() = bounds_offsets[i] + bounds_center;
+					}
+
+					if (sel.items.size() == 1) {
+						auto& pos = sel.items[0].get_pos();
+						pos = ed.snap(pos);
+					}
+				}
+				// stop dragging gate
+				else {
+					dragging = false;
+				}
+					
+				sim.recompute = true;
+			}
+		}
+	}
+
+//// Draw highlights after dragging / rotating / mirroring to avoid 1-frame jumps
+	// Selection highlight
+	{
+		PartSelection& _sel = box_selecting ? boxsel : sel;
+
+		if (_sel) {
+			std::string buf;
+
+			// only show text for single-part selections as to not spam too much text
+			if (_sel.items.size() == 1) {
+				auto& item = _sel.items[0];
+				highlight(r, item, sel_col,
+					item != hover, // only show text if not already hovered to avoid duplicate text at same spot
+					SEL_HIGHL_SHRINK);
+			}
+			else {
+				for (auto& item : _sel.items) {
+					highlight(r, item, sel_col, false, SEL_HIGHL_SHRINK);
+				}
+			}
+		}
+	}
+
+	// Hover highlight
+	if (hover) {
+		if (hover.type == T_PART)
+			highlight_chip_names(r, *hover.part->chip, hover.part->pos.calc_matrix());
+		highlight(r, hover, hover_col, true);
+	}
+
+//// Delete items after highlighting to avoid stale pointer access in hover/sel
+	if (sel) {
+			
+		// remove gates via DELETE key
+		if (I.buttons[KEY_DELETE].went_down) {
+
+			for (auto& i : sel.items) {
+				switch (i.type) {
+					case T_PART: sim.remove_part(*sim.viewed_chip, i.part); break;
+					case T_NODE: sim.remove_wire_node(*sim.viewed_chip, i.node); break;
+					INVALID_DEFAULT;
+				}
+			}
+
+			sel = {};
+		}
+		// Duplicate selected part with CTRL+C
+		// TODO: CTRL+D moves the camera to the right, change that?
+		//else if (I.buttons[KEY_LEFT_CONTROL].is_down && I.buttons['C'].went_down) {
+		//	preview_part.chip = sel.part->chip;
+		//	mode = PLACE_MODE;
+		//}
+	}
+
+	return std::move(*this);
+}
+Editor::ModeVariant Editor::WireMode::update (Editor& ed, Input& I, LogicSim& sim, ogl::Renderer& r) {
+	// Find hover
+	ThingPtr hover = {};
+	find_edit_hover(ed._cursor_pos, *sim.viewed_chip, false, true, hover);
+	assert(hover.type == T_NONE || hover.type == T_NODE || hover.type == T_WIRE);
+
+	float2 snapped_pos = ed.snap(ed._cursor_pos);
+		
+	node = { snapped_pos };
+	cur = &node;
+
+	if (hover) {
+		if (hover.type == T_NODE)
+			cur = hover.node;
+
+		highlight(r, hover, hover_col, true);
+
+		if (hover.type == T_WIRE && I.buttons['X'].went_down)
+			sim.remove_wire_edge(*sim.viewed_chip, hover.wire);
+	}
+
+	if (I.buttons[MOUSE_BUTTON_LEFT].went_down) {
+		if (cur == &node) {
+			// copy out the node struct into a real heap-alloced node
+			cur = sim.add_wire_node(*sim.viewed_chip, node.pos);
+		}
+
+		if (hover.type == T_WIRE) {
+			// insert node on existig wire by splitting wire
+
+			auto* a = hover.wire->a;
+			auto* b = hover.wire->b;
+
+			sim.remove_wire_edge(*sim.viewed_chip, hover.wire);
+
+			sim.connect_wire_nodes(*sim.viewed_chip, a, cur);
+			sim.connect_wire_nodes(*sim.viewed_chip, cur, b);
+		}
+
+		if (prev && cur && prev != cur) {
+			sim.connect_wire_nodes(*sim.viewed_chip, prev, cur);
+		}
+
+		//
+		prev = cur;
+	}
+
+	if (I.buttons[MOUSE_BUTTON_RIGHT].went_down) {
+		// 1. RMB click with a line currently being drawn -> go back to adding first node
+		if (prev) {
+			prev = {};
+		}
+		// 2. RMB click or still in first node -> exit wire mode
+		else {
+			return EditMode();
+		}
+	}
+
+	return std::move(*this);
 }
 
 bool Editor::update_toggle_gate (Input& I, LogicSim& sim, Window& window) {

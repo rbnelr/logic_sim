@@ -323,7 +323,7 @@ struct Renderer {
 	}
 	void draw_highlight_text (float2 size, float2x3 const& mat, std::string_view name, float font_size, lrgba col=1,
 			float2 align=float2(0,1)) {
-		size  = abs((float2x2)mat * size);
+		size = abs((float2x2)mat * size);
 		float2 center = mat * float2(0);
 		
 		draw_text(name, center + size*(align - 0.5f), font_size, col, align);

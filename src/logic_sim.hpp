@@ -17,7 +17,7 @@ inline constexpr float SEL_HIGHL_SHRINK = 1.0f/64;
 
 inline float wire_radius = 0.30f;
 inline float wire_node_junction = 2.0f;
-inline float wire_node_dead_end = 1.3f;
+inline float wire_node_dead_end = 1.4f;
 
 constexpr lrgba line_col = lrgba(1.0f, 0.015f, 0.03f, 1);
 constexpr lrgba preview_line_col = line_col * lrgba(1,1,1, 0.75f);
@@ -344,7 +344,7 @@ struct Circuit {
 		
 		auto& prev_state = states[cur_state^1];
 
-		// Complicated logic to make specifically the active output of dmux gates toggleable
+		// Complicated logic to specifically make the active output of dmux gates toggleable
 		// If this creates problems just don't make them toggleable and use the input of them for rendering
 		int output_pin = 0;
 		switch (gate_type(gate)) {
